@@ -1,0 +1,110 @@
+/* ── Full-screen Win98 window ── */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.app-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+/* ── Toolbar row (below title bar) ── */
+
+.toolbar-row {
+  display: flex;
+  gap: 4px;
+  padding: 4px 6px;
+  align-items: center;
+  flex-shrink: 0;
+  border-bottom: 1px solid #808080;
+}
+
+.toolbar-row .connection-status {
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.menu-group {
+  position: relative;
+}
+
+.map-dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 100;
+  min-width: 180px;
+}
+
+.map-dropdown .window-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.map-dropdown-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* ── Content area ── */
+
+.content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Sidebar ── */
+
+.sidebar {
+  width: 160px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 2px solid #808080;
+  padding: 4px;
+}
+
+/* Active state for tree-view tool items */
+.tree-view li.active,
+.tree-view li.active > summary {
+  background: navy;
+  color: white;
+  outline: none;
+}
+
+.tree-view li {
+  cursor: pointer;
+}
+
+.tree-view li > summary {
+  cursor: pointer;
+}
+
+/* ── Map canvas area ── */
+
+.map-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #000;
+  min-width: 0;
+}
+
+.map-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #444;
+  font-size: 18px;
+}
