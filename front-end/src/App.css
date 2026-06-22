@@ -108,3 +108,22 @@
   color: #444;
   font-size: 18px;
 }
+
+.context-menu {
+  min-width: 120px;
+  width: max-content;
+}
+
+.context-menu .tree-view {
+  margin: 0;
+}
+
+.context-menu .tree-view > li {
+  cursor: pointer;
+  user-select: none;
+}
+
+.context-menu .tree-view > li:hover {
+  background: #000080;
+  color: #fff;
+}

@@ -84,6 +84,11 @@ export default function DM() {
     send({ type: 'fog_remove', id })
   }
 
+  function handleDeleteTokens(ids: Set<string>) {
+    for (const id of ids) send({ type: 'token_remove', id })
+    setSelectedTokenIds(new Set())
+  }
+
   return (
     <div className="window app">
 
@@ -181,6 +186,7 @@ export default function DM() {
             fogMode={fogMode}
             onFogDraw={handleFogDraw}
             onFogRemove={handleFogRemove}
+            onDeleteTokens={handleDeleteTokens}
           />
         </div>
       </div>

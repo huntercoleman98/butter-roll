@@ -17,12 +17,13 @@ interface TokenProps {
   onDragStart?: (id: string, x: number, y: number) => void
   onDragMove?: (id: string, x: number, y: number) => void
   onDragEnd?: (id: string, x: number, y: number) => void
+  onContextMenu?: (id: string, x: number, y: number) => void
 }
 
 const TOKEN_SIZE = 60
 
 const Token = forwardRef<TokenHandle, TokenProps>(function Token(
-  { id, url, x, y, isSelected, draggable = true, onClick, onDragStart, onDragMove, onDragEnd },
+  { id, url, x, y, isSelected, draggable = true, onClick, onDragStart, onDragMove, onDragEnd, onContextMenu },
   ref,
 ) {
   const imageRef = useRef<Konva.Image>(null)
@@ -90,6 +91,11 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
         xRef.current = e.target.x()
         yRef.current = e.target.y()
         onDragEnd?.(id, e.target.x(), e.target.y())
+      } : undefined}
+      onContextMenu={draggable && onContextMenu ? e => {
+        e.evt.preventDefault()
+        e.cancelBubble = true
+        onContextMenu(id, e.evt.clientX, e.evt.clientY)
       } : undefined}
       listening={draggable}
     />

@@ -33,6 +33,7 @@ interface MapCanvasProps {
   fogMode?: 'reveal' | 'hide' | null
   onFogDraw?: (rect: DraftRect) => void
   onFogRemove?: (id: string) => void
+  onDeleteTokens?: (ids: Set<string>) => void
 }
 
 const MIN_SCALE = 0.1
@@ -58,17 +59,25 @@ function startDrag(
   })
 }
 
+interface ContextMenu {
+  x: number
+  y: number
+  tokenId: string
+}
+
 export default function MapCanvas({
   mapUrl, mapSize, tokens, selectedTokenIds, onMoveToken, onSelectionChange,
   mapAreaRef, onStageReady, readOnly = false,
-  fogRects = [], fogMode = null, onFogDraw, onFogRemove,
+  fogRects = [], fogMode = null, onFogDraw, onFogRemove, onDeleteTokens,
 }: MapCanvasProps) {
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null)
   const [draft, setDraft] = useState<DraftRect | null>(null)
   const [selectionRect, setSelectionRect] = useState<DraftRect | null>(null)
   const [selectedFogId, setSelectedFogId] = useState<string | null>(null)
+  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const selectedFogIdRef = useRef<string | null>(null)
+  const contextMenuRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Konva.Stage>(null)
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map())
   const tokenHandles = useRef<Map<string, TokenHandle>>(new Map())
@@ -82,6 +91,18 @@ export default function MapCanvas({
   useEffect(() => {
     if (fogMode !== 'hide') setFogSelection(null)
   }, [fogMode])
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!contextMenu) return
+    function handleClick(e: MouseEvent) {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [contextMenu])
 
   // Track container size
   useEffect(() => {
@@ -162,6 +183,21 @@ export default function MapCanvas({
     dragStartPositions.current.clear()
   }
 
+  function handleTokenContextMenu(id: string, x: number, y: number) {
+    if (!selectedTokenIds?.has(id)) {
+      onSelectionChange?.(new Set([id]))
+    }
+    setContextMenu({ x, y, tokenId: id })
+  }
+
+  function handleContextMenuDelete() {
+    if (!contextMenu) return
+    const { tokenId } = contextMenu
+    const ids = selectedTokenIds?.has(tokenId) ? selectedTokenIds : new Set([tokenId])
+    onDeleteTokens?.(ids)
+    setContextMenu(null)
+  }
+
   // ── Stage mouse handler ─────────────────────────────────────────────────────
 
   function handleWheel(e: Konva.KonvaEventObject<WheelEvent>) {
@@ -179,8 +215,9 @@ export default function MapCanvas({
   }
 
   function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent>) {
-    // Right-click → pan
+    // Right-click → pan (unless on a token, which handles its own context menu)
     if (e.evt.button === 2) {
+      if (e.target.name() === 'token') return
       e.evt.preventDefault()
       const stage = stageRef.current!
       const startPos = { x: e.evt.clientX - stage.x(), y: e.evt.clientY - stage.y() }
@@ -312,6 +349,7 @@ export default function MapCanvas({
               onDragStart={tokensInteractive ? handleTokenDragStart : undefined}
               onDragMove={tokensInteractive ? handleTokenDragMove : undefined}
               onDragEnd={tokensInteractive ? handleTokenDragEnd : undefined}
+              onContextMenu={tokensInteractive ? handleTokenContextMenu : undefined}
             />
           ))}
         </Layer>
@@ -356,6 +394,25 @@ export default function MapCanvas({
           </Layer>
         )}
       </Stage>
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="window context-menu"
+          style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 1000 }}
+        >
+          <div className="title-bar">
+            <div className="title-bar-text">Token</div>
+            <div className="title-bar-controls">
+              <button aria-label="Close" onClick={() => setContextMenu(null)} />
+            </div>
+          </div>
+          <div className="window-body">
+            <ul className="tree-view">
+              <li onClick={handleContextMenuDelete}>Delete</li>
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
