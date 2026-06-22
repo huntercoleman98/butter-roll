@@ -12,6 +12,7 @@ export default function DM() {
   const [aspectLocked, setAspectLocked] = useState(true)
   const [activeTool, setActiveTool] = useState<ActiveTool>('select')
   const [mapMenuOpen, setMapMenuOpen] = useState(false)
+  const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(new Set())
 
   const mapAreaRef = useRef<HTMLDivElement>(null)
   const mapInputRef = useRef<HTMLInputElement>(null)
@@ -171,7 +172,9 @@ export default function DM() {
             mapUrl={mapUrl}
             mapSize={mapSize}
             tokens={tokens}
+            selectedTokenIds={selectedTokenIds}
             onMoveToken={handleMoveToken}
+            onSelectionChange={setSelectedTokenIds}
             mapAreaRef={mapAreaRef}
             onStageReady={stage => { stageRef.current = stage }}
             fogRects={fogRects}
