@@ -42,15 +42,29 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
     },
   }), [])
 
+  // Rebuild the cached bitmap. Called after any visual change.
+  // Position changes don't need a recache — the bitmap moves with the node.
+  function recache() {
+    const node = imageRef.current
+    if (!node || !imgEl.current) return
+    node.cache()
+    node.getLayer()?.batchDraw()
+  }
+
   useEffect(() => {
     const img = new window.Image()
     img.src = url
     img.onload = () => {
       imgEl.current = img
       imageRef.current?.image(img)
-      imageRef.current?.getLayer()?.batchDraw()
+      recache()
     }
   }, [url])
+
+  // Recache whenever anything that affects appearance changes.
+  useEffect(() => {
+    recache()
+  }, [isSelected, color, borderWidth])
 
   useEffect(() => {
     const node = imageRef.current
@@ -80,6 +94,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
       strokeWidth={isSelected ? borderWidth + 1 : borderWidth}
       shadowColor={isSelected ? 'rgba(250,204,21,0.7)' : 'rgba(192,132,252,0.6)'}
       shadowBlur={isSelected ? 14 : 8}
+      shadowForStrokeEnabled={false}
       draggable={draggable}
       onClick={draggable ? e => onClick?.(id, e.evt.shiftKey) : undefined}
       onDragStart={draggable ? e => {
