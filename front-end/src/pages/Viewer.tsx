@@ -4,16 +4,17 @@ import { useGameSocket } from '../hooks/useGameSocket'
 import '../App.css'
 
 export default function Viewer() {
-  const { mapUrl, mapSize, tokens, fogRects } = useGameSocket()
+  const { pages, presentedPageId } = useGameSocket()
   const mapAreaRef = useRef<HTMLDivElement>(null)
+  const presentedPage = pages.find(p => p.id === presentedPageId) ?? null
 
   return (
     <div className="app">
       <MapCanvas
-        mapUrl={mapUrl}
-        mapSize={mapSize}
-        tokens={tokens}
-        fogRects={fogRects}
+        mapUrl={presentedPage?.mapUrl ?? null}
+        mapSize={presentedPage?.mapSize ?? null}
+        tokens={presentedPage?.tokens ?? []}
+        fogRects={presentedPage?.fogRects ?? []}
         mapAreaRef={mapAreaRef}
         readOnly
       />

@@ -17,24 +17,35 @@ export interface FogRect {
   height: number
 }
 
+export interface Page {
+  id: string
+  name: string
+  mapUrl: string | null
+  mapSize: { width: number; height: number } | null
+  tokens: TokenData[]
+  fogRects: FogRect[]
+}
+
 export const SERVER_URL = 'http://localhost:8080'
 
 type OutgoingMsg =
-  | { type: 'map_set'; url: string; width: number; height: number }
-  | { type: 'map_resize'; width: number; height: number }
-  | { type: 'token_add'; id: string; url: string; x: number; y: number }
-  | { type: 'token_move'; id: string; x: number; y: number }
-  | { type: 'token_remove'; id: string }
-  | { type: 'token_update'; id: string; color?: string; borderWidth?: number }
-  | { type: 'fog_add'; id: string; x: number; y: number; width: number; height: number }
-  | { type: 'fog_remove'; id: string }
-  | { type: 'fog_clear' }
+  | { type: 'map_set'; pageId: string; url: string; width: number; height: number }
+  | { type: 'map_resize'; pageId: string; width: number; height: number }
+  | { type: 'token_add'; pageId: string; id: string; url: string; x: number; y: number }
+  | { type: 'token_move'; pageId: string; id: string; x: number; y: number }
+  | { type: 'token_remove'; pageId: string; id: string }
+  | { type: 'token_update'; pageId: string; id: string; color?: string; borderWidth?: number }
+  | { type: 'fog_add'; pageId: string; id: string; x: number; y: number; width: number; height: number }
+  | { type: 'fog_remove'; pageId: string; id: string }
+  | { type: 'fog_clear'; pageId: string }
+  | { type: 'page_add'; id: string; name: string }
+  | { type: 'page_remove'; id: string }
+  | { type: 'page_rename'; id: string; name: string }
+  | { type: 'page_present'; id: string }
 
 export function useGameSocket() {
-  const [mapUrl, setMapUrl] = useState<string | null>(null)
-  const [mapSize, setMapSize] = useState<{ width: number; height: number } | null>(null)
-  const [tokens, setTokens] = useState<TokenData[]>([])
-  const [fogRects, setFogRects] = useState<FogRect[]>([])
+  const [pages, setPages] = useState<Page[]>([])
+  const [presentedPageId, setPresentedPageId] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -47,6 +58,10 @@ export function useGameSocket() {
     ws.onclose = () => setConnected(false)
     ws.onerror = (e) => console.error('WebSocket error', e)
 
+    function updatePage(pageId: string, updater: (p: Page) => Page) {
+      setPages(prev => prev.map(p => p.id === pageId ? updater(p) : p))
+    }
+
     ws.onmessage = (e: MessageEvent) => {
       let msg: Record<string, unknown>
       try {
@@ -57,79 +72,141 @@ export function useGameSocket() {
       }
 
       switch (msg.type) {
-        case 'snapshot':
-          setMapUrl((msg.mapUrl as string) || null)
-          setMapSize(
-            msg.mapWidth && msg.mapHeight
-              ? { width: msg.mapWidth as number, height: msg.mapHeight as number }
-              : null,
-          )
-          setTokens((msg.tokens as TokenData[]) ?? [])
-          setFogRects((msg.fogRects as FogRect[]) ?? [])
-          break
-
-        case 'map_set':
-          setMapUrl(msg.url as string)
-          setMapSize({ width: msg.width as number, height: msg.height as number })
-          break
-
-        case 'map_resize':
-          setMapSize({ width: msg.width as number, height: msg.height as number })
-          break
-
-        case 'token_add':
-          setTokens(prev => [
-            ...prev,
-            { id: msg.id as string, url: msg.url as string, x: msg.x as number, y: msg.y as number },
-          ])
-          break
-
-        case 'token_move': {
-          const id = msg.id as string
-          const x = msg.x as number
-          const y = msg.y as number
-          setTokens(prev => {
-            const idx = prev.findIndex(t => t.id === id)
-            if (idx === -1) return prev
-            const updated = { ...prev[idx], x, y }
-            return [...prev.slice(0, idx), ...prev.slice(idx + 1), updated]
-          })
+        case 'snapshot': {
+          const raw = msg.pages as Array<{
+            id: string; name: string; mapUrl: string
+            mapWidth: number; mapHeight: number
+            tokens: TokenData[]; fogRects: FogRect[]
+          }>
+          setPages(raw.map(p => ({
+            id: p.id,
+            name: p.name,
+            mapUrl: p.mapUrl || null,
+            mapSize: p.mapWidth && p.mapHeight ? { width: p.mapWidth, height: p.mapHeight } : null,
+            tokens: p.tokens ?? [],
+            fogRects: p.fogRects ?? [],
+          })))
+          setPresentedPageId(msg.presentedPageId as string)
           break
         }
 
-        case 'token_remove':
-          setTokens(prev => prev.filter(t => t.id !== msg.id))
-          break
-
-        case 'token_update': {
-          const id = msg.id as string
-          setTokens(prev => prev.map(t => t.id !== id ? t : {
-            ...t,
-            ...(msg.color !== undefined && { color: msg.color as string }),
-            ...(msg.borderWidth !== undefined && { borderWidth: msg.borderWidth as number }),
+        case 'map_set': {
+          const pageId = msg.pageId as string
+          updatePage(pageId, p => ({
+            ...p,
+            mapUrl: msg.url as string,
+            mapSize: { width: msg.width as number, height: msg.height as number },
           }))
           break
         }
 
-        case 'fog_add':
-          setFogRects(prev => [
-            ...prev,
-            {
+        case 'map_resize': {
+          const pageId = msg.pageId as string
+          updatePage(pageId, p => ({
+            ...p,
+            mapSize: { width: msg.width as number, height: msg.height as number },
+          }))
+          break
+        }
+
+        case 'token_add': {
+          const pageId = msg.pageId as string
+          updatePage(pageId, p => ({
+            ...p,
+            tokens: [...p.tokens, {
+              id: msg.id as string,
+              url: msg.url as string,
+              x: msg.x as number,
+              y: msg.y as number,
+            }],
+          }))
+          break
+        }
+
+        case 'token_move': {
+          const pageId = msg.pageId as string
+          const id = msg.id as string
+          const x = msg.x as number
+          const y = msg.y as number
+          updatePage(pageId, p => {
+            const idx = p.tokens.findIndex(t => t.id === id)
+            if (idx === -1) return p
+            const updated = { ...p.tokens[idx], x, y }
+            return { ...p, tokens: [...p.tokens.slice(0, idx), ...p.tokens.slice(idx + 1), updated] }
+          })
+          break
+        }
+
+        case 'token_remove': {
+          const pageId = msg.pageId as string
+          updatePage(pageId, p => ({ ...p, tokens: p.tokens.filter(t => t.id !== msg.id) }))
+          break
+        }
+
+        case 'token_update': {
+          const pageId = msg.pageId as string
+          const id = msg.id as string
+          updatePage(pageId, p => ({
+            ...p,
+            tokens: p.tokens.map(t => t.id !== id ? t : {
+              ...t,
+              ...(msg.color !== undefined && { color: msg.color as string }),
+              ...(msg.borderWidth !== undefined && { borderWidth: msg.borderWidth as number }),
+            }),
+          }))
+          break
+        }
+
+        case 'fog_add': {
+          const pageId = msg.pageId as string
+          updatePage(pageId, p => ({
+            ...p,
+            fogRects: [...p.fogRects, {
               id: msg.id as string,
               x: msg.x as number,
               y: msg.y as number,
               width: msg.width as number,
               height: msg.height as number,
-            },
-          ])
+            }],
+          }))
+          break
+        }
+
+        case 'fog_remove': {
+          const pageId = msg.pageId as string
+          updatePage(pageId, p => ({ ...p, fogRects: p.fogRects.filter(r => r.id !== msg.id) }))
+          break
+        }
+
+        case 'fog_clear': {
+          const pageId = msg.pageId as string
+          updatePage(pageId, p => ({ ...p, fogRects: [] }))
+          break
+        }
+
+        case 'page_add': {
+          const newPage: Page = {
+            id: msg.id as string,
+            name: msg.name as string,
+            mapUrl: null,
+            mapSize: null,
+            tokens: [],
+            fogRects: [],
+          }
+          setPages(prev => [...prev, newPage])
+          break
+        }
+
+        case 'page_remove':
+          setPages(prev => prev.filter(p => p.id !== msg.id))
           break
 
-        case 'fog_remove':
-          setFogRects(prev => prev.filter(r => r.id !== msg.id))
+        case 'page_rename':
+          updatePage(msg.id as string, p => ({ ...p, name: msg.name as string }))
           break
 
-        case 'fog_clear':
-          setFogRects([])
+        case 'page_present':
+          setPresentedPageId(msg.id as string)
           break
 
         default:
@@ -146,7 +223,7 @@ export function useGameSocket() {
     }
   }
 
-  return { mapUrl, mapSize, tokens, fogRects, connected, send }
+  return { pages, presentedPageId, connected, send }
 }
 
 /** Upload a file to the server's asset store. Returns the absolute URL. */

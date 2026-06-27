@@ -139,3 +139,72 @@
 .context-menu-fields input[type="number"] {
   width: 52px;
 }
+
+/* ── Pages dropdown ── */
+
+.pages-dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 100;
+  min-width: 220px;
+}
+
+.pages-dropdown .window-body {
+  display: flex;
+  flex-direction: column;
+  padding: 2px;
+  gap: 0;
+}
+
+.pages-row {
+  display: flex;
+  align-items: center;
+  padding: 3px 6px;
+  cursor: pointer;
+  gap: 8px;
+  user-select: none;
+}
+
+.pages-row:hover {
+  background: #000080;
+  color: #fff;
+}
+
+.pages-row-active {
+  font-weight: bold;
+}
+
+.pages-row-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pages-row-rename {
+  flex: 1;
+  min-width: 0;
+}
+
+.live-badge {
+  color: #008000;
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pages-row:hover .live-badge {
+  color: #80ff80;
+}
+
+.present-btn {
+  flex-shrink: 0;
+}
+
+.pages-add-row {
+  border-top: 1px solid #808080;
+  margin-top: 2px;
+  padding-top: 4px;
+  color: inherit;
+}
