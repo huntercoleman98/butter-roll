@@ -3,14 +3,9 @@ import { Stage, Layer, Image as KonvaImage, Rect, Arrow, Text } from 'react-konv
 import type Konva from 'konva'
 import Token, { type TokenHandle } from './Token'
 import FogLayer from './FogLayer'
-import type { FogRect, MeasureArrow } from '../hooks/useGameSocket'
+import type { TokenData, FogRect, MeasureArrow } from '../hooks/useGameSocket'
 
-interface TokenData {
-  id: string
-  url: string
-  x: number
-  y: number
-}
+export type ActiveTool = 'select' | 'fog-reveal' | 'fog-hide' | 'measure'
 
 interface DraftRect {
   x: number
@@ -30,12 +25,11 @@ interface MapCanvasProps {
   onStageReady?: (stage: Konva.Stage) => void
   readOnly?: boolean
   fogRects?: FogRect[]
-  fogMode?: 'reveal' | 'hide' | null
+  tool?: ActiveTool
   onFogDraw?: (rect: DraftRect) => void
   onFogRemove?: (id: string) => void
   onDeleteTokens?: (ids: Set<string>) => void
   onUpdateToken?: (ids: Set<string>, update: { color?: string; borderWidth?: number }) => void
-  measureMode?: boolean
   measureArrow?: MeasureArrow | null
   onMeasureUpdate?: (arrow: MeasureArrow) => void
   onMeasureClear?: () => void
@@ -73,9 +67,11 @@ interface ContextMenu {
 export default function MapCanvas({
   mapUrl, mapSize, tokens, selectedTokenIds, onMoveToken, onSelectionChange,
   mapAreaRef, onStageReady, readOnly = false,
-  fogRects = [], fogMode = null, onFogDraw, onFogRemove, onDeleteTokens, onUpdateToken,
-  measureMode = false, measureArrow = null, onMeasureUpdate, onMeasureClear,
+  fogRects = [], tool = 'select', onFogDraw, onFogRemove, onDeleteTokens, onUpdateToken,
+  measureArrow = null, onMeasureUpdate, onMeasureClear,
 }: MapCanvasProps) {
+  const fogMode = tool === 'fog-reveal' ? 'reveal' : tool === 'fog-hide' ? 'hide' : null
+  const measureMode = tool === 'measure'
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null)
   const [draft, setDraft] = useState<DraftRect | null>(null)

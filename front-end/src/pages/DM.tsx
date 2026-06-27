@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
-import MapCanvas from '../components/MapCanvas'
+import MapCanvas, { type ActiveTool } from '../components/MapCanvas'
 import MapSizeInput from '../components/MapSizeInput'
 import { useGameSocket, uploadAsset, type TokenData, type MeasureArrow } from '../hooks/useGameSocket'
 import '../App.css'
-
-type ActiveTool = 'select' | 'fog-reveal' | 'fog-hide' | 'measure'
 
 type PageContextMenu = { pageId: string; x: number; y: number }
 
@@ -50,7 +48,6 @@ export default function DM() {
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0] ?? null
   const activeId = activePage?.id ?? ''
 
-  const fogMode = activeTool === 'fog-reveal' ? 'reveal' : activeTool === 'fog-hide' ? 'hide' : null
   const fogToolActive = activeTool !== 'select' && activeTool !== 'measure'
 
   // Track cursor position in world space for paste targeting.
@@ -445,12 +442,11 @@ export default function DM() {
             mapAreaRef={mapAreaRef}
             onStageReady={stage => { stageRef.current = stage }}
             fogRects={activePage?.fogRects ?? []}
-            fogMode={fogMode}
+            tool={activeTool}
             onFogDraw={handleFogDraw}
             onFogRemove={handleFogRemove}
             onDeleteTokens={handleDeleteTokens}
             onUpdateToken={handleUpdateToken}
-            measureMode={activeTool === 'measure'}
             measureArrow={measureArrow}
             onMeasureUpdate={handleMeasureUpdate}
             onMeasureClear={handleMeasureClear}
