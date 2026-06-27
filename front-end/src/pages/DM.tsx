@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import MapCanvas, { type ActiveTool } from '../components/MapCanvas'
 import MapSizeInput from '../components/MapSizeInput'
-import { useGameSocket, uploadAsset, type TokenData, type MeasureArrow } from '../hooks/useGameSocket'
+import { useGameSocket, uploadAsset, type TokenData, type ArrowOverlay, type RadiusCircle } from '../hooks/useGameSocket'
 import '../App.css'
 
 type PageContextMenu = { pageId: string; x: number; y: number }
@@ -13,7 +13,7 @@ type Clipboard = {
 }
 
 export default function DM() {
-  const { pages, presentedPageId, measureArrow, connected, send } = useGameSocket()
+  const { pages, presentedPageId, arrowOverlay, radiusCircle, connected, send } = useGameSocket()
   const [activePageId, setActivePageId] = useState<string | null>(null)
   const [aspectLocked, setAspectLocked] = useState(true)
   const [activeTool, setActiveTool] = useState<ActiveTool>('select')
@@ -48,7 +48,8 @@ export default function DM() {
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0] ?? null
   const activeId = activePage?.id ?? ''
 
-  const fogToolActive = activeTool !== 'select' && activeTool !== 'measure'
+  const measureToolActive = activeTool === 'arrow' || activeTool === 'radius'
+  const fogToolActive = activeTool === 'fog-reveal' || activeTool === 'fog-hide'
 
   // Track cursor position in world space for paste targeting.
   useEffect(() => {
@@ -212,12 +213,20 @@ export default function DM() {
     for (const id of ids) send({ type: 'token_update', pageId: activeId, id, ...update })
   }
 
-  function handleMeasureUpdate(arrow: MeasureArrow) {
-    send({ type: 'measure_update', ...arrow })
+  function handleArrowUpdate(arrow: ArrowOverlay) {
+    send({ type: 'arrow_update', ...arrow })
   }
 
-  function handleMeasureClear() {
-    send({ type: 'measure_clear' })
+  function handleArrowClear() {
+    send({ type: 'arrow_clear' })
+  }
+
+  function handleRadiusUpdate(circle: RadiusCircle) {
+    send({ type: 'radius_update', ...circle })
+  }
+
+  function handleRadiusClear() {
+    send({ type: 'radius_clear' })
   }
 
   function switchToPage(pageId: string) {
@@ -401,11 +410,26 @@ export default function DM() {
               >
                 Select
               </li>
-              <li
-                className={activeTool === 'measure' ? 'active' : ''}
-                onClick={() => setActiveTool('measure')}
-              >
-                Measure
+              <li>
+                <details>
+                  <summary className={measureToolActive ? 'active' : ''}>
+                    Measure{measureToolActive && <em> ({activeTool === 'arrow' ? 'Arrow' : 'Radius'})</em>}
+                  </summary>
+                  <ul>
+                    <li
+                      className={activeTool === 'arrow' ? 'active' : ''}
+                      onClick={() => setActiveTool('arrow')}
+                    >
+                      Arrow
+                    </li>
+                    <li
+                      className={activeTool === 'radius' ? 'active' : ''}
+                      onClick={() => setActiveTool('radius')}
+                    >
+                      Radius
+                    </li>
+                  </ul>
+                </details>
               </li>
               <li>
                 <details>
@@ -447,9 +471,12 @@ export default function DM() {
             onFogRemove={handleFogRemove}
             onDeleteTokens={handleDeleteTokens}
             onUpdateToken={handleUpdateToken}
-            measureArrow={measureArrow}
-            onMeasureUpdate={handleMeasureUpdate}
-            onMeasureClear={handleMeasureClear}
+            arrowOverlay={arrowOverlay}
+            onArrowUpdate={handleArrowUpdate}
+            onArrowClear={handleArrowClear}
+            radiusCircle={radiusCircle}
+            onRadiusUpdate={handleRadiusUpdate}
+            onRadiusClear={handleRadiusClear}
           />
         </div>
       </div>

@@ -188,9 +188,16 @@ type pagePresentMsg struct {
 	ID string `json:"id"`
 }
 
-type measureUpdateMsg struct {
+type arrowUpdateMsg struct {
 	X1 float64 `json:"x1"`
 	Y1 float64 `json:"y1"`
+	X2 float64 `json:"x2"`
+	Y2 float64 `json:"y2"`
+}
+
+type radiusUpdateMsg struct {
+	X  float64 `json:"x"`
+	Y  float64 `json:"y"`
 	X2 float64 `json:"x2"`
 	Y2 float64 `json:"y2"`
 }
@@ -294,19 +301,34 @@ func (s *Session) Apply(msg []byte) bool {
 		s.PresentedPageID = m.ID
 		return true
 
-	case "measure_update":
-		var m measureUpdateMsg
+	case "arrow_update":
+		var m arrowUpdateMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
-			log.Printf("session.Apply measure_update: %v", err)
+			log.Printf("session.Apply arrow_update: %v", err)
 			return false
 		}
 		if !finiteFloat(m.X1) || !finiteFloat(m.Y1) || !finiteFloat(m.X2) || !finiteFloat(m.Y2) {
-			log.Printf("session.Apply measure_update: non-finite coordinates")
+			log.Printf("session.Apply arrow_update: non-finite coordinates")
 			return false
 		}
 		return true // ephemeral: broadcast without mutating session state
 
-	case "measure_clear":
+	case "arrow_clear":
+		return true // ephemeral: broadcast without mutating session state
+
+	case "radius_update":
+		var m radiusUpdateMsg
+		if err := json.Unmarshal(msg, &m); err != nil {
+			log.Printf("session.Apply radius_update: %v", err)
+			return false
+		}
+		if !finiteFloat(m.X) || !finiteFloat(m.Y) || !finiteFloat(m.X2) || !finiteFloat(m.Y2) {
+			log.Printf("session.Apply radius_update: invalid payload")
+			return false
+		}
+		return true // ephemeral: broadcast without mutating session state
+
+	case "radius_clear":
 		return true // ephemeral: broadcast without mutating session state
 	}
 

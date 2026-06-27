@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Stage, Layer, Image as KonvaImage, Rect, Arrow, Text } from 'react-konva'
+import { Stage, Layer, Image as KonvaImage, Rect, Arrow, Circle, Line, Text } from 'react-konva'
 import type Konva from 'konva'
 import Token, { type TokenHandle } from './Token'
 import FogLayer from './FogLayer'
-import type { TokenData, FogRect, MeasureArrow } from '../hooks/useGameSocket'
+import type { TokenData, FogRect, ArrowOverlay, RadiusCircle } from '../hooks/useGameSocket'
 
-export type ActiveTool = 'select' | 'fog-reveal' | 'fog-hide' | 'measure'
+export type ActiveTool = 'select' | 'fog-reveal' | 'fog-hide' | 'arrow' | 'radius'
 
 interface DraftRect {
   x: number
@@ -30,9 +30,12 @@ interface MapCanvasProps {
   onFogRemove?: (id: string) => void
   onDeleteTokens?: (ids: Set<string>) => void
   onUpdateToken?: (ids: Set<string>, update: { color?: string; borderWidth?: number }) => void
-  measureArrow?: MeasureArrow | null
-  onMeasureUpdate?: (arrow: MeasureArrow) => void
-  onMeasureClear?: () => void
+  arrowOverlay?: ArrowOverlay | null
+  onArrowUpdate?: (arrow: ArrowOverlay) => void
+  onArrowClear?: () => void
+  radiusCircle?: RadiusCircle | null
+  onRadiusUpdate?: (circle: RadiusCircle) => void
+  onRadiusClear?: () => void
 }
 
 const MIN_SCALE = 0.1
@@ -68,10 +71,12 @@ export default function MapCanvas({
   mapUrl, mapSize, tokens, selectedTokenIds, onMoveToken, onSelectionChange,
   mapAreaRef, onStageReady, readOnly = false,
   fogRects = [], tool = 'select', onFogDraw, onFogRemove, onDeleteTokens, onUpdateToken,
-  measureArrow = null, onMeasureUpdate, onMeasureClear,
+  arrowOverlay = null, onArrowUpdate, onArrowClear,
+  radiusCircle = null, onRadiusUpdate, onRadiusClear,
 }: MapCanvasProps) {
   const fogMode = tool === 'fog-reveal' ? 'reveal' : tool === 'fog-hide' ? 'hide' : null
-  const measureMode = tool === 'measure'
+  const arrowMode = tool === 'arrow'
+  const radiusMode = tool === 'radius'
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null)
   const [draft, setDraft] = useState<DraftRect | null>(null)
@@ -293,15 +298,28 @@ export default function MapCanvas({
       return
     }
 
-    if (measureMode) {
+    if (arrowMode) {
       const start = clientToWorld(stage, e.evt.clientX, e.evt.clientY)
-      onMeasureUpdate?.({ x1: start.x, y1: start.y, x2: start.x, y2: start.y })
+      onArrowUpdate?.({ x1: start.x, y1: start.y, x2: start.x, y2: start.y })
       startDrag(
         ev => {
           const cur = clientToWorld(stage, ev.clientX, ev.clientY)
-          onMeasureUpdate?.({ x1: start.x, y1: start.y, x2: cur.x, y2: cur.y })
+          onArrowUpdate?.({ x1: start.x, y1: start.y, x2: cur.x, y2: cur.y })
         },
-        () => onMeasureClear?.(),
+        () => onArrowClear?.(),
+      )
+      return
+    }
+
+    if (radiusMode) {
+      const center = clientToWorld(stage, e.evt.clientX, e.evt.clientY)
+      onRadiusUpdate?.({ x: center.x, y: center.y, x2: center.x, y2: center.y })
+      startDrag(
+        ev => {
+          const cur = clientToWorld(stage, ev.clientX, ev.clientY)
+          onRadiusUpdate?.({ x: center.x, y: center.y, x2: cur.x, y2: cur.y })
+        },
+        () => onRadiusClear?.(),
       )
       return
     }
@@ -339,7 +357,7 @@ export default function MapCanvas({
     )
   }
 
-  const tokensInteractive = !readOnly && !fogMode && !measureMode
+  const tokensInteractive = !readOnly && !fogMode && !arrowMode && !radiusMode
   const fogOpacity = readOnly ? 1 : 0.65
   const selFogRect = selectedFogId ? fogRects.find(r => r.id === selectedFogId) : null
 
@@ -348,7 +366,7 @@ export default function MapCanvas({
       ref={mapAreaRef}
       className="map-area"
       style={
-        measureMode
+        arrowMode || radiusMode
           ? { cursor: 'crosshair' }
           : fogMode
           ? { cursor: fogMode === 'reveal' ? 'crosshair' : 'cell' }
@@ -433,8 +451,8 @@ export default function MapCanvas({
             />
           </Layer>
         )}
-        {measureArrow && (() => {
-          const { x1, y1, x2, y2 } = measureArrow
+        {arrowOverlay && (() => {
+          const { x1, y1, x2, y2 } = arrowOverlay
           const dist = (Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) / 60 * 5).toFixed(1)
           return (
             <Layer listening={false}>
@@ -459,6 +477,54 @@ export default function MapCanvas({
               <Text
                 x={(x1 + x2) / 2 + 6}
                 y={(y1 + y2) / 2 - 18}
+                text={`${dist} ft.`}
+                fontSize={28}
+                fill="white"
+                stroke="black"
+                strokeWidth={4}
+                fillAfterStrokeEnabled
+                listening={false}
+              />
+            </Layer>
+          )
+        })()}
+        {radiusCircle && (() => {
+          const { x, y, x2, y2 } = radiusCircle
+          const radius = Math.sqrt((x2 - x) ** 2 + (y2 - y) ** 2)
+          const dist = (radius / 60 * 5).toFixed(1)
+          const mx = (x + x2) / 2
+          const my = (y + y2) / 2
+          return (
+            <Layer listening={false}>
+              <Circle
+                x={x} y={y} radius={radius}
+                stroke="rgba(0,0,0,0.9)"
+                strokeWidth={5}
+                fill="transparent"
+                listening={false}
+              />
+              <Circle
+                x={x} y={y} radius={radius}
+                stroke="rgba(255,235,59,0.95)"
+                strokeWidth={2}
+                fill="transparent"
+                listening={false}
+              />
+              <Line
+                points={[x, y, x2, y2]}
+                stroke="rgba(0,0,0,0.9)"
+                strokeWidth={5}
+                listening={false}
+              />
+              <Line
+                points={[x, y, x2, y2]}
+                stroke="rgba(255,235,59,0.95)"
+                strokeWidth={2}
+                listening={false}
+              />
+              <Text
+                x={mx + 6}
+                y={my - 14}
                 text={`${dist} ft.`}
                 fontSize={28}
                 fill="white"

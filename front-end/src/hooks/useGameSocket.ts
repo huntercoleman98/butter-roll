@@ -17,9 +17,16 @@ export interface FogRect {
   height: number
 }
 
-export interface MeasureArrow {
+export interface ArrowOverlay {
   x1: number
   y1: number
+  x2: number
+  y2: number
+}
+
+export interface RadiusCircle {
+  x: number
+  y: number
   x2: number
   y2: number
 }
@@ -49,13 +56,16 @@ type OutgoingMsg =
   | { type: 'page_remove'; id: string }
   | { type: 'page_rename'; id: string; name: string }
   | { type: 'page_present'; id: string }
-  | { type: 'measure_update'; x1: number; y1: number; x2: number; y2: number }
-  | { type: 'measure_clear' }
+  | { type: 'arrow_update'; x1: number; y1: number; x2: number; y2: number }
+  | { type: 'arrow_clear' }
+  | { type: 'radius_update'; x: number; y: number; x2: number; y2: number }
+  | { type: 'radius_clear' }
 
 export function useGameSocket() {
   const [pages, setPages] = useState<Page[]>([])
   const [presentedPageId, setPresentedPageId] = useState<string | null>(null)
-  const [measureArrow, setMeasureArrow] = useState<MeasureArrow | null>(null)
+  const [arrowOverlay, setArrowOverlay] = useState<ArrowOverlay | null>(null)
+  const [radiusCircle, setRadiusCircle] = useState<RadiusCircle | null>(null)
   const [connected, setConnected] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -221,8 +231,8 @@ export function useGameSocket() {
           setPresentedPageId(msg.id as string)
           break
 
-        case 'measure_update':
-          setMeasureArrow({
+        case 'arrow_update':
+          setArrowOverlay({
             x1: msg.x1 as number,
             y1: msg.y1 as number,
             x2: msg.x2 as number,
@@ -230,8 +240,16 @@ export function useGameSocket() {
           })
           break
 
-        case 'measure_clear':
-          setMeasureArrow(null)
+        case 'arrow_clear':
+          setArrowOverlay(null)
+          break
+
+        case 'radius_update':
+          setRadiusCircle({ x: msg.x as number, y: msg.y as number, x2: msg.x2 as number, y2: msg.y2 as number })
+          break
+
+        case 'radius_clear':
+          setRadiusCircle(null)
           break
 
         default:
@@ -248,7 +266,7 @@ export function useGameSocket() {
     }
   }
 
-  return { pages, presentedPageId, measureArrow, connected, send }
+  return { pages, presentedPageId, arrowOverlay, radiusCircle, connected, send }
 }
 
 /** Upload a file to the server's asset store. Returns the absolute URL. */

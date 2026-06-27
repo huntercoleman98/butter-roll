@@ -4,7 +4,7 @@ import { useGameSocket } from '../hooks/useGameSocket'
 import '../App.css'
 
 export default function Viewer() {
-  const { pages, presentedPageId, measureArrow } = useGameSocket()
+  const { pages, presentedPageId, arrowOverlay, radiusCircle } = useGameSocket()
   const mapAreaRef = useRef<HTMLDivElement>(null)
   const presentedPage = pages.find(p => p.id === presentedPageId) ?? null
 
@@ -16,7 +16,8 @@ export default function Viewer() {
         tokens={presentedPage?.tokens ?? []}
         fogRects={presentedPage?.fogRects ?? []}
         mapAreaRef={mapAreaRef}
-        measureArrow={measureArrow}
+        arrowOverlay={arrowOverlay}
+        radiusCircle={radiusCircle}
         readOnly
       />
     </div>
