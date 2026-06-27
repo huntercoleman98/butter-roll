@@ -34,6 +34,7 @@ interface MapCanvasProps {
   onFogDraw?: (rect: DraftRect) => void
   onFogRemove?: (id: string) => void
   onDeleteTokens?: (ids: Set<string>) => void
+  onUpdateToken?: (ids: Set<string>, update: { color?: string; borderWidth?: number }) => void
 }
 
 const MIN_SCALE = 0.1
@@ -68,7 +69,7 @@ interface ContextMenu {
 export default function MapCanvas({
   mapUrl, mapSize, tokens, selectedTokenIds, onMoveToken, onSelectionChange,
   mapAreaRef, onStageReady, readOnly = false,
-  fogRects = [], fogMode = null, onFogDraw, onFogRemove, onDeleteTokens,
+  fogRects = [], fogMode = null, onFogDraw, onFogRemove, onDeleteTokens, onUpdateToken,
 }: MapCanvasProps) {
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null)
@@ -76,8 +77,11 @@ export default function MapCanvas({
   const [selectionRect, setSelectionRect] = useState<DraftRect | null>(null)
   const [selectedFogId, setSelectedFogId] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
+  const [menuColor, setMenuColor] = useState<string | null>(null)
+  const [menuBorderWidth, setMenuBorderWidth] = useState<number | null>(null)
   const selectedFogIdRef = useRef<string | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
+  const updateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const stageRef = useRef<Konva.Stage>(null)
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map())
   const tokenHandles = useRef<Map<string, TokenHandle>>(new Map())
@@ -184,17 +188,32 @@ export default function MapCanvas({
   }
 
   function handleTokenContextMenu(id: string, x: number, y: number) {
-    if (!selectedTokenIds?.has(id)) {
-      onSelectionChange?.(new Set([id]))
-    }
+    const affectedIds = selectedTokenIds?.has(id) ? selectedTokenIds : new Set([id])
+    if (!selectedTokenIds?.has(id)) onSelectionChange?.(new Set([id]))
+    const affected = tokens.filter(t => affectedIds.has(t.id))
+    const firstColor = affected[0]?.color ?? '#c084fc'
+    const sharedColor = affected.every(t => (t.color ?? '#c084fc') === firstColor) ? firstColor : null
+    const firstBW = affected[0]?.borderWidth ?? 2
+    const sharedBW = affected.every(t => (t.borderWidth ?? 2) === firstBW) ? firstBW : null
+    setMenuColor(sharedColor)
+    setMenuBorderWidth(sharedBW)
     setContextMenu({ x, y, tokenId: id })
+  }
+
+  function contextMenuAffectedIds() {
+    if (!contextMenu) return new Set<string>()
+    const { tokenId } = contextMenu
+    return selectedTokenIds?.has(tokenId) ? selectedTokenIds : new Set([tokenId])
+  }
+
+  function scheduleUpdate(ids: Set<string>, update: { color?: string; borderWidth?: number }) {
+    if (updateDebounceRef.current) clearTimeout(updateDebounceRef.current)
+    updateDebounceRef.current = setTimeout(() => onUpdateToken?.(ids, update), 300)
   }
 
   function handleContextMenuDelete() {
     if (!contextMenu) return
-    const { tokenId } = contextMenu
-    const ids = selectedTokenIds?.has(tokenId) ? selectedTokenIds : new Set([tokenId])
-    onDeleteTokens?.(ids)
+    onDeleteTokens?.(contextMenuAffectedIds())
     setContextMenu(null)
   }
 
@@ -410,6 +429,29 @@ export default function MapCanvas({
             <ul className="tree-view">
               <li onClick={handleContextMenuDelete}>Delete</li>
             </ul>
+            <div className="context-menu-fields">
+              <label>Border color</label>
+              <input
+                type="color"
+                value={menuColor ?? '#808080'}
+                onChange={e => {
+                  setMenuColor(e.target.value)
+                  scheduleUpdate(contextMenuAffectedIds(), { color: e.target.value })
+                }}
+              />
+              <label>Border width</label>
+              <input
+                type="number"
+                value={menuBorderWidth !== null ? menuBorderWidth : ''}
+                placeholder="—"
+                min={0}
+                onChange={e => {
+                  const v = e.target.value === '' ? null : Number(e.target.value)
+                  setMenuBorderWidth(v)
+                  if (v !== null) scheduleUpdate(contextMenuAffectedIds(), { borderWidth: v })
+                }}
+              />
+            </div>
           </div>
         </div>
       )}

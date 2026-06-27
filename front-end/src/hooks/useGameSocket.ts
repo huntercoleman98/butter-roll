@@ -5,6 +5,8 @@ export interface TokenData {
   url: string
   x: number
   y: number
+  color?: string
+  borderWidth?: number
 }
 
 export interface FogRect {
@@ -23,6 +25,7 @@ type OutgoingMsg =
   | { type: 'token_add'; id: string; url: string; x: number; y: number }
   | { type: 'token_move'; id: string; x: number; y: number }
   | { type: 'token_remove'; id: string }
+  | { type: 'token_update'; id: string; color?: string; borderWidth?: number }
   | { type: 'fog_add'; id: string; x: number; y: number; width: number; height: number }
   | { type: 'fog_remove'; id: string }
   | { type: 'fog_clear' }
@@ -97,6 +100,16 @@ export function useGameSocket() {
         case 'token_remove':
           setTokens(prev => prev.filter(t => t.id !== msg.id))
           break
+
+        case 'token_update': {
+          const id = msg.id as string
+          setTokens(prev => prev.map(t => t.id !== id ? t : {
+            ...t,
+            ...(msg.color !== undefined && { color: msg.color as string }),
+            ...(msg.borderWidth !== undefined && { borderWidth: msg.borderWidth as number }),
+          }))
+          break
+        }
 
         case 'fog_add':
           setFogRects(prev => [

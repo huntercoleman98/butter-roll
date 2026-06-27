@@ -127,3 +127,15 @@
   background: #000080;
   color: #fff;
 }
+
+.context-menu-fields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 6px;
+}
+
+.context-menu-fields input[type="number"] {
+  width: 52px;
+}

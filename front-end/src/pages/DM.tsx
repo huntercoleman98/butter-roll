@@ -89,6 +89,10 @@ export default function DM() {
     setSelectedTokenIds(new Set())
   }
 
+  function handleUpdateToken(ids: Set<string>, update: { color?: string; borderWidth?: number }) {
+    for (const id of ids) send({ type: 'token_update', id, ...update })
+  }
+
   return (
     <div className="window app">
 
@@ -187,6 +191,7 @@ export default function DM() {
             onFogDraw={handleFogDraw}
             onFogRemove={handleFogRemove}
             onDeleteTokens={handleDeleteTokens}
+            onUpdateToken={handleUpdateToken}
           />
         </div>
       </div>

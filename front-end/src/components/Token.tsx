@@ -11,6 +11,8 @@ interface TokenProps {
   url: string
   x: number
   y: number
+  color?: string
+  borderWidth?: number
   isSelected?: boolean
   draggable?: boolean
   onClick?: (id: string, shift: boolean) => void
@@ -23,7 +25,7 @@ interface TokenProps {
 const TOKEN_SIZE = 60
 
 const Token = forwardRef<TokenHandle, TokenProps>(function Token(
-  { id, url, x, y, isSelected, draggable = true, onClick, onDragStart, onDragMove, onDragEnd, onContextMenu },
+  { id, url, x, y, color = '#c084fc', borderWidth = 2, isSelected, draggable = true, onClick, onDragStart, onDragMove, onDragEnd, onContextMenu },
   ref,
 ) {
   const imageRef = useRef<Konva.Image>(null)
@@ -74,8 +76,8 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
       offsetX={TOKEN_SIZE / 2}
       offsetY={TOKEN_SIZE / 2}
       cornerRadius={TOKEN_SIZE / 2}
-      stroke={isSelected ? '#facc15' : '#c084fc'}
-      strokeWidth={isSelected ? 3 : 2}
+      stroke={isSelected ? '#facc15' : color}
+      strokeWidth={isSelected ? borderWidth + 1 : borderWidth}
       shadowColor={isSelected ? 'rgba(250,204,21,0.7)' : 'rgba(192,132,252,0.6)'}
       shadowBlur={isSelected ? 14 : 8}
       draggable={draggable}
