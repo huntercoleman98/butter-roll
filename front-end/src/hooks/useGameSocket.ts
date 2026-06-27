@@ -17,6 +17,13 @@ export interface FogRect {
   height: number
 }
 
+export interface MeasureArrow {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+}
+
 export interface Page {
   id: string
   name: string
@@ -42,10 +49,13 @@ type OutgoingMsg =
   | { type: 'page_remove'; id: string }
   | { type: 'page_rename'; id: string; name: string }
   | { type: 'page_present'; id: string }
+  | { type: 'measure_update'; x1: number; y1: number; x2: number; y2: number }
+  | { type: 'measure_clear' }
 
 export function useGameSocket() {
   const [pages, setPages] = useState<Page[]>([])
   const [presentedPageId, setPresentedPageId] = useState<string | null>(null)
+  const [measureArrow, setMeasureArrow] = useState<MeasureArrow | null>(null)
   const [connected, setConnected] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -211,6 +221,19 @@ export function useGameSocket() {
           setPresentedPageId(msg.id as string)
           break
 
+        case 'measure_update':
+          setMeasureArrow({
+            x1: msg.x1 as number,
+            y1: msg.y1 as number,
+            x2: msg.x2 as number,
+            y2: msg.y2 as number,
+          })
+          break
+
+        case 'measure_clear':
+          setMeasureArrow(null)
+          break
+
         default:
           console.warn('unknown message type', msg.type)
       }
@@ -225,7 +248,7 @@ export function useGameSocket() {
     }
   }
 
-  return { pages, presentedPageId, connected, send }
+  return { pages, presentedPageId, measureArrow, connected, send }
 }
 
 /** Upload a file to the server's asset store. Returns the absolute URL. */

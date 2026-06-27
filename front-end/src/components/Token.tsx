@@ -96,7 +96,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
       shadowBlur={isSelected ? 14 : 8}
       shadowForStrokeEnabled={false}
       draggable={draggable}
-      onClick={draggable ? e => onClick?.(id, e.evt.shiftKey) : undefined}
+      onClick={draggable ? e => { if (e.evt.button === 0) onClick?.(id, e.evt.shiftKey) } : undefined}
       onDragStart={draggable ? e => {
         e.target.moveToTop()
         onDragStart?.(id, e.target.x(), e.target.y())

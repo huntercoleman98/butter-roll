@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import MapCanvas from '../components/MapCanvas'
 import MapSizeInput from '../components/MapSizeInput'
-import { useGameSocket, uploadAsset, type TokenData } from '../hooks/useGameSocket'
+import { useGameSocket, uploadAsset, type TokenData, type MeasureArrow } from '../hooks/useGameSocket'
 import '../App.css'
 
-type ActiveTool = 'select' | 'fog-reveal' | 'fog-hide'
+type ActiveTool = 'select' | 'fog-reveal' | 'fog-hide' | 'measure'
 
 type PageContextMenu = { pageId: string; x: number; y: number }
 
@@ -15,7 +15,7 @@ type Clipboard = {
 }
 
 export default function DM() {
-  const { pages, presentedPageId, connected, send } = useGameSocket()
+  const { pages, presentedPageId, measureArrow, connected, send } = useGameSocket()
   const [activePageId, setActivePageId] = useState<string | null>(null)
   const [aspectLocked, setAspectLocked] = useState(true)
   const [activeTool, setActiveTool] = useState<ActiveTool>('select')
@@ -51,7 +51,7 @@ export default function DM() {
   const activeId = activePage?.id ?? ''
 
   const fogMode = activeTool === 'fog-reveal' ? 'reveal' : activeTool === 'fog-hide' ? 'hide' : null
-  const fogToolActive = activeTool !== 'select'
+  const fogToolActive = activeTool !== 'select' && activeTool !== 'measure'
 
   // Track cursor position in world space for paste targeting.
   useEffect(() => {
@@ -213,6 +213,14 @@ export default function DM() {
   function handleUpdateToken(ids: Set<string>, update: { color?: string; borderWidth?: number }) {
     if (!activeId) return
     for (const id of ids) send({ type: 'token_update', pageId: activeId, id, ...update })
+  }
+
+  function handleMeasureUpdate(arrow: MeasureArrow) {
+    send({ type: 'measure_update', ...arrow })
+  }
+
+  function handleMeasureClear() {
+    send({ type: 'measure_clear' })
   }
 
   function switchToPage(pageId: string) {
@@ -396,6 +404,12 @@ export default function DM() {
               >
                 Select
               </li>
+              <li
+                className={activeTool === 'measure' ? 'active' : ''}
+                onClick={() => setActiveTool('measure')}
+              >
+                Measure
+              </li>
               <li>
                 <details>
                   <summary className={fogToolActive ? 'active' : ''}>
@@ -436,6 +450,10 @@ export default function DM() {
             onFogRemove={handleFogRemove}
             onDeleteTokens={handleDeleteTokens}
             onUpdateToken={handleUpdateToken}
+            measureMode={activeTool === 'measure'}
+            measureArrow={measureArrow}
+            onMeasureUpdate={handleMeasureUpdate}
+            onMeasureClear={handleMeasureClear}
           />
         </div>
       </div>

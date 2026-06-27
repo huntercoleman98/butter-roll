@@ -188,6 +188,13 @@ type pagePresentMsg struct {
 	ID string `json:"id"`
 }
 
+type measureUpdateMsg struct {
+	X1 float64 `json:"x1"`
+	Y1 float64 `json:"y1"`
+	X2 float64 `json:"x2"`
+	Y2 float64 `json:"y2"`
+}
+
 func finiteFloat(f float64) bool {
 	return !math.IsNaN(f) && !math.IsInf(f, 0)
 }
@@ -286,6 +293,21 @@ func (s *Session) Apply(msg []byte) bool {
 		}
 		s.PresentedPageID = m.ID
 		return true
+
+	case "measure_update":
+		var m measureUpdateMsg
+		if err := json.Unmarshal(msg, &m); err != nil {
+			log.Printf("session.Apply measure_update: %v", err)
+			return false
+		}
+		if !finiteFloat(m.X1) || !finiteFloat(m.Y1) || !finiteFloat(m.X2) || !finiteFloat(m.Y2) {
+			log.Printf("session.Apply measure_update: non-finite coordinates")
+			return false
+		}
+		return true // ephemeral: broadcast without mutating session state
+
+	case "measure_clear":
+		return true // ephemeral: broadcast without mutating session state
 	}
 
 	// All other messages require a valid pageId.

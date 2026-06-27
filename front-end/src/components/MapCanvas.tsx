@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Stage, Layer, Image as KonvaImage, Rect } from 'react-konva'
+import { Stage, Layer, Image as KonvaImage, Rect, Arrow, Text } from 'react-konva'
 import type Konva from 'konva'
 import Token, { type TokenHandle } from './Token'
 import FogLayer from './FogLayer'
-import type { FogRect } from '../hooks/useGameSocket'
+import type { FogRect, MeasureArrow } from '../hooks/useGameSocket'
 
 interface TokenData {
   id: string
@@ -35,6 +35,10 @@ interface MapCanvasProps {
   onFogRemove?: (id: string) => void
   onDeleteTokens?: (ids: Set<string>) => void
   onUpdateToken?: (ids: Set<string>, update: { color?: string; borderWidth?: number }) => void
+  measureMode?: boolean
+  measureArrow?: MeasureArrow | null
+  onMeasureUpdate?: (arrow: MeasureArrow) => void
+  onMeasureClear?: () => void
 }
 
 const MIN_SCALE = 0.1
@@ -70,6 +74,7 @@ export default function MapCanvas({
   mapUrl, mapSize, tokens, selectedTokenIds, onMoveToken, onSelectionChange,
   mapAreaRef, onStageReady, readOnly = false,
   fogRects = [], fogMode = null, onFogDraw, onFogRemove, onDeleteTokens, onUpdateToken,
+  measureMode = false, measureArrow = null, onMeasureUpdate, onMeasureClear,
 }: MapCanvasProps) {
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null)
@@ -143,6 +148,7 @@ export default function MapCanvas({
       else next.add(id)
       onSelectionChange(next)
     } else {
+      console.log('hello')
       onSelectionChange(new Set([id]))
     }
   }
@@ -291,6 +297,19 @@ export default function MapCanvas({
       return
     }
 
+    if (measureMode) {
+      const start = clientToWorld(stage, e.evt.clientX, e.evt.clientY)
+      onMeasureUpdate?.({ x1: start.x, y1: start.y, x2: start.x, y2: start.y })
+      startDrag(
+        ev => {
+          const cur = clientToWorld(stage, ev.clientX, ev.clientY)
+          onMeasureUpdate?.({ x1: start.x, y1: start.y, x2: cur.x, y2: cur.y })
+        },
+        () => onMeasureClear?.(),
+      )
+      return
+    }
+
     // Select mode: marquee on empty space (not on a token)
     if (readOnly || e.target.name() === 'token') return
 
@@ -324,7 +343,7 @@ export default function MapCanvas({
     )
   }
 
-  const tokensInteractive = !readOnly && !fogMode
+  const tokensInteractive = !readOnly && !fogMode && !measureMode
   const fogOpacity = readOnly ? 1 : 0.65
   const selFogRect = selectedFogId ? fogRects.find(r => r.id === selectedFogId) : null
 
@@ -332,7 +351,13 @@ export default function MapCanvas({
     <div
       ref={mapAreaRef}
       className="map-area"
-      style={fogMode ? { cursor: fogMode === 'reveal' ? 'crosshair' : 'cell' } : undefined}
+      style={
+        measureMode
+          ? { cursor: 'crosshair' }
+          : fogMode
+          ? { cursor: fogMode === 'reveal' ? 'crosshair' : 'cell' }
+          : undefined
+      }
     >
       {!mapUrl && <div className="map-placeholder">Load a map to get started</div>}
       <Stage
@@ -412,6 +437,43 @@ export default function MapCanvas({
             />
           </Layer>
         )}
+        {measureArrow && (() => {
+          const { x1, y1, x2, y2 } = measureArrow
+          const dist = (Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) / 60 * 5).toFixed(1)
+          return (
+            <Layer listening={false}>
+              <Arrow
+                points={[x1, y1, x2, y2]}
+                stroke="rgba(0,0,0,0.9)"
+                strokeWidth={5}
+                fill="rgba(0,0,0,0.9)"
+                pointerLength={12}
+                pointerWidth={10}
+                listening={false}
+              />
+              <Arrow
+                points={[x1, y1, x2, y2]}
+                stroke="rgba(255,235,59,0.95)"
+                strokeWidth={2}
+                fill="rgba(255,235,59,0.95)"
+                pointerLength={12}
+                pointerWidth={10}
+                listening={false}
+              />
+              <Text
+                x={(x1 + x2) / 2 + 6}
+                y={(y1 + y2) / 2 - 18}
+                text={`${dist} ft.`}
+                fontSize={28}
+                fill="white"
+                stroke="black"
+                strokeWidth={4}
+                fillAfterStrokeEnabled
+                listening={false}
+              />
+            </Layer>
+          )
+        })()}
       </Stage>
       {contextMenu && (
         <div
