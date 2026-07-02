@@ -3,7 +3,7 @@ import { Stage, Layer, Image as KonvaImage, Rect, Arrow, Circle, Line, Text } fr
 import type Konva from 'konva'
 import Token, { type TokenHandle } from './Token'
 import FogLayer from './FogLayer'
-import type { TokenData, FogRect, ArrowOverlay, RadiusCircle } from '../hooks/useGameSocket'
+import type { TokenData, FogRect, ArrowOverlay, RadiusCircle, Ping } from '../hooks/useGameSocket'
 
 export type ActiveTool = 'select' | 'fog-reveal' | 'fog-hide' | 'arrow' | 'radius'
 
@@ -36,6 +36,8 @@ interface MapCanvasProps {
   radiusCircle?: RadiusCircle | null
   onRadiusUpdate?: (circle: RadiusCircle) => void
   onRadiusClear?: () => void
+  ping?: Ping | null
+  onPing?: (pos: { x: number; y: number }) => void
 }
 
 const MIN_SCALE = 0.1
@@ -73,6 +75,7 @@ export default function MapCanvas({
   fogRects = [], tool = 'select', onFogDraw, onFogRemove, onDeleteTokens, onUpdateToken,
   arrowOverlay = null, onArrowUpdate, onArrowClear,
   radiusCircle = null, onRadiusUpdate, onRadiusClear,
+  ping = null, onPing,
 }: MapCanvasProps) {
   const fogMode = tool === 'fog-reveal' ? 'reveal' : tool === 'fog-hide' ? 'hide' : null
   const arrowMode = tool === 'arrow'
@@ -86,6 +89,7 @@ export default function MapCanvas({
   const [menuColor, setMenuColor] = useState<string | null>(null)
   const [menuBorderWidth, setMenuBorderWidth] = useState<number | null>(null)
   const selectedFogIdRef = useRef<string | null>(null)
+  const suppressNextTokenClickRef = useRef(false)
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const updateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const stageRef = useRef<Konva.Stage>(null)
@@ -142,6 +146,10 @@ export default function MapCanvas({
   // ── Token interaction handlers ──────────────────────────────────────────────
 
   function handleTokenClick(id: string, shift: boolean) {
+    if (suppressNextTokenClickRef.current) {
+      suppressNextTokenClickRef.current = false
+      return
+    }
     if (!onSelectionChange) return
     if (shift) {
       const next = new Set(selectedTokenIds)
@@ -324,11 +332,34 @@ export default function MapCanvas({
       return
     }
 
+    // Long-press ping (select mode only, any target including tokens)
+    if (!readOnly && tool === 'select' && onPing) {
+      let pingCancelled = false
+      const pingTimer = setTimeout(() => {
+        if (!pingCancelled) {
+          if (e.target.name() === 'token') suppressNextTokenClickRef.current = true
+          onPing(start)
+        }
+      }, 500)
+      function cancelPing() {
+        pingCancelled = true
+        clearTimeout(pingTimer)
+        window.removeEventListener('mouseup', cancelPing)
+        window.removeEventListener('mousemove', checkPingMove)
+      }
+      function checkPingMove(ev: MouseEvent) {
+        const dx = ev.clientX - e.evt.clientX
+        const dy = ev.clientY - e.evt.clientY
+        if (dx * dx + dy * dy > 25) cancelPing()
+      }
+      window.addEventListener('mouseup', cancelPing)
+      window.addEventListener('mousemove', checkPingMove)
+    }
+
     // Select mode: marquee on empty space (not on a token)
     if (readOnly || e.target.name() === 'token') return
 
     let localRect: DraftRect = { x: start.x, y: start.y, width: 0, height: 0 }
-    setSelectionRect(localRect)
     startDrag(
       ev => {
         const cur = clientToWorld(stage, ev.clientX, ev.clientY)
@@ -488,6 +519,13 @@ export default function MapCanvas({
             </Layer>
           )
         })()}
+        {ping && (
+          <Layer listening={false}>
+            <Circle x={ping.x} y={ping.y} radius={10} fill="rgba(255,235,59,0.95)" listening={false} />
+            <Circle x={ping.x} y={ping.y} radius={30} stroke="rgba(255,235,59,0.6)" strokeWidth={3} fill="transparent" listening={false} />
+            <Circle x={ping.x} y={ping.y} radius={55} stroke="rgba(255,235,59,0.25)" strokeWidth={2} fill="transparent" listening={false} />
+          </Layer>
+        )}
         {radiusCircle && (() => {
           const { x, y, x2, y2 } = radiusCircle
           const radius = Math.sqrt((x2 - x) ** 2 + (y2 - y) ** 2)

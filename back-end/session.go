@@ -195,6 +195,11 @@ type arrowUpdateMsg struct {
 	Y2 float64 `json:"y2"`
 }
 
+type pingMsg struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
 type radiusUpdateMsg struct {
 	X  float64 `json:"x"`
 	Y  float64 `json:"y"`
@@ -329,6 +334,18 @@ func (s *Session) Apply(msg []byte) bool {
 		return true // ephemeral: broadcast without mutating session state
 
 	case "radius_clear":
+		return true // ephemeral: broadcast without mutating session state
+
+	case "ping":
+		var m pingMsg
+		if err := json.Unmarshal(msg, &m); err != nil {
+			log.Printf("session.Apply ping: %v", err)
+			return false
+		}
+		if !finiteFloat(m.X) || !finiteFloat(m.Y) {
+			log.Printf("session.Apply ping: non-finite coordinates")
+			return false
+		}
 		return true // ephemeral: broadcast without mutating session state
 	}
 

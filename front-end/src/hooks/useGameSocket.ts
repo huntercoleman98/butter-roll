@@ -24,6 +24,11 @@ export interface ArrowOverlay {
   y2: number
 }
 
+export interface Ping {
+  x: number
+  y: number
+}
+
 export interface RadiusCircle {
   x: number
   y: number
@@ -60,15 +65,18 @@ type OutgoingMsg =
   | { type: 'arrow_clear' }
   | { type: 'radius_update'; x: number; y: number; x2: number; y2: number }
   | { type: 'radius_clear' }
+  | { type: 'ping'; x: number; y: number }
 
 export function useGameSocket() {
   const [pages, setPages] = useState<Page[]>([])
   const [presentedPageId, setPresentedPageId] = useState<string | null>(null)
   const [arrowOverlay, setArrowOverlay] = useState<ArrowOverlay | null>(null)
   const [radiusCircle, setRadiusCircle] = useState<RadiusCircle | null>(null)
+  const [ping, setPing] = useState<Ping | null>(null)
   const [connected, setConnected] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
+  const pingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const ws = new WebSocket(`ws://localhost:8080/ws`)
@@ -252,6 +260,12 @@ export function useGameSocket() {
           setRadiusCircle(null)
           break
 
+        case 'ping':
+          if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current)
+          setPing({ x: msg.x as number, y: msg.y as number })
+          pingTimeoutRef.current = setTimeout(() => setPing(null), 2000)
+          break
+
         default:
           console.warn('unknown message type', msg.type)
       }
@@ -266,7 +280,7 @@ export function useGameSocket() {
     }
   }
 
-  return { pages, presentedPageId, arrowOverlay, radiusCircle, connected, send }
+  return { pages, presentedPageId, arrowOverlay, radiusCircle, ping, connected, send }
 }
 
 /** Upload a file to the server's asset store. Returns the absolute URL. */

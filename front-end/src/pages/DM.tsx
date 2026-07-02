@@ -13,7 +13,7 @@ type Clipboard = {
 }
 
 export default function DM() {
-  const { pages, presentedPageId, arrowOverlay, radiusCircle, connected, send } = useGameSocket()
+  const { pages, presentedPageId, arrowOverlay, radiusCircle, ping, connected, send } = useGameSocket()
   const [activePageId, setActivePageId] = useState<string | null>(null)
   const [aspectLocked, setAspectLocked] = useState(true)
   const [activeTool, setActiveTool] = useState<ActiveTool>('select')
@@ -227,6 +227,10 @@ export default function DM() {
 
   function handleRadiusClear() {
     send({ type: 'radius_clear' })
+  }
+
+  function handlePing(pos: { x: number; y: number }) {
+    send({ type: 'ping', ...pos })
   }
 
   function switchToPage(pageId: string) {
@@ -477,6 +481,8 @@ export default function DM() {
             radiusCircle={radiusCircle}
             onRadiusUpdate={handleRadiusUpdate}
             onRadiusClear={handleRadiusClear}
+            ping={ping}
+            onPing={handlePing}
           />
         </div>
       </div>
