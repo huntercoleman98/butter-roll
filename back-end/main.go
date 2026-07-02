@@ -10,13 +10,26 @@ import (
 const allowedOrigin = "http://localhost:5173"
 
 func main() {
-	assetsDir := filepath.Join(".", "assets")
+	dataDir := os.Getenv("DATA_DIR")
+	if dataDir == "" {
+		dataDir = "."
+	}
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		log.Fatalf("cannot create data dir: %v", err)
+	}
+
+	assetsDir := filepath.Join(dataDir, "assets")
 	if err := os.MkdirAll(assetsDir, 0755); err != nil {
 		log.Fatalf("cannot create assets dir: %v", err)
 	}
 
-	session := NewSession()
-	hub := NewHub(session)
+	sessionPath := filepath.Join(dataDir, "session.json")
+	session, err := LoadSession(sessionPath)
+	if err != nil {
+		log.Fatalf("cannot load session: %v", err)
+	}
+
+	hub := NewHub(session, sessionPath)
 	go hub.Run()
 
 	mux := http.NewServeMux()

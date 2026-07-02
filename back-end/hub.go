@@ -5,20 +5,22 @@ import "log"
 // Hub maintains the set of active clients and routes messages.
 // All access to Session happens inside Run(), so no mutex is needed.
 type Hub struct {
-	clients    map[*Client]bool
-	broadcast  chan []byte // buffered to decouple read pumps from the hub loop
-	register   chan *Client
-	unregister chan *Client
-	session    *Session
+	clients     map[*Client]bool
+	broadcast   chan []byte // buffered to decouple read pumps from the hub loop
+	register    chan *Client
+	unregister  chan *Client
+	session     *Session
+	sessionPath string
 }
 
-func NewHub(session *Session) *Hub {
+func NewHub(session *Session, sessionPath string) *Hub {
 	return &Hub{
-		clients:    make(map[*Client]bool),
-		broadcast:  make(chan []byte, 256),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		session:    session,
+		clients:     make(map[*Client]bool),
+		broadcast:   make(chan []byte, 256),
+		register:    make(chan *Client),
+		unregister:  make(chan *Client),
+		session:     session,
+		sessionPath: sessionPath,
 	}
 }
 
@@ -47,6 +49,9 @@ func (h *Hub) Run() {
 		case msg := <-h.broadcast:
 			if !h.session.Apply(msg) {
 				continue
+			}
+			if err := h.session.Save(h.sessionPath); err != nil {
+				log.Printf("hub: persist error: %v", err)
 			}
 			for c := range h.clients {
 				select {

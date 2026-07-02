@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"math"
+	"os"
 )
 
 // Token mirrors the frontend TokenData shape.
@@ -114,6 +116,63 @@ func (s *Session) Snapshot() []byte {
 		return nil
 	}
 	return b
+}
+
+// Save atomically persists the session to path as JSON.
+func (s *Session) Save(path string) error {
+	data := s.Snapshot()
+	if data == nil {
+		return nil
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
+// LoadSession reads a previously saved session from path.
+// If the file does not exist, a fresh session is returned.
+func LoadSession(path string) (*Session, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return NewSession(), nil
+		}
+		return nil, err
+	}
+	var snap snapshotMsg
+	if err := json.Unmarshal(data, &snap); err != nil {
+		return nil, err
+	}
+	s := &Session{
+		Pages:           make(map[string]*Page, len(snap.Pages)),
+		PageOrder:       make([]string, 0, len(snap.Pages)),
+		PresentedPageID: snap.PresentedPageID,
+	}
+	for _, pd := range snap.Pages {
+		p := &Page{
+			ID:        pd.ID,
+			Name:      pd.Name,
+			MapURL:    pd.MapURL,
+			MapWidth:  pd.MapWidth,
+			MapHeight: pd.MapHeight,
+			Tokens:    make(map[string]Token, len(pd.Tokens)),
+			FogRects:  make(map[string]FogRect, len(pd.FogRects)),
+		}
+		for _, t := range pd.Tokens {
+			p.Tokens[t.ID] = t
+		}
+		for _, r := range pd.FogRects {
+			p.FogRects[r.ID] = r
+		}
+		s.Pages[p.ID] = p
+		s.PageOrder = append(s.PageOrder, p.ID)
+	}
+	if len(s.Pages) == 0 {
+		return NewSession(), nil
+	}
+	return s, nil
 }
 
 // rawMsg is used to dispatch on "type" and route by "pageId" before full decode.
