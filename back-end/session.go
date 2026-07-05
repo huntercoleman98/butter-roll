@@ -375,10 +375,10 @@ func (s *Session) Apply(msg []byte) bool {
 			log.Printf("session.Apply arrow_update: non-finite coordinates")
 			return false
 		}
-		return true // ephemeral: broadcast without mutating session state
+		return true // ephemeral: broadcast to all clients
 
 	case "arrow_clear":
-		return true // ephemeral: broadcast without mutating session state
+		return true // ephemeral
 
 	case "radius_update":
 		var m radiusUpdateMsg
@@ -390,10 +390,10 @@ func (s *Session) Apply(msg []byte) bool {
 			log.Printf("session.Apply radius_update: invalid payload")
 			return false
 		}
-		return true // ephemeral: broadcast without mutating session state
+		return true // ephemeral
 
 	case "radius_clear":
-		return true // ephemeral: broadcast without mutating session state
+		return true // ephemeral
 
 	case "ping":
 		var m pingMsg
@@ -405,7 +405,23 @@ func (s *Session) Apply(msg []byte) bool {
 			log.Printf("session.Apply ping: non-finite coordinates")
 			return false
 		}
-		return true // ephemeral: broadcast without mutating session state
+		return true // ephemeral
+
+	case "viewport_sync":
+		var m struct {
+			WorldCenterX float64 `json:"worldCenterX"`
+			WorldCenterY float64 `json:"worldCenterY"`
+			Scale        float64 `json:"scale"`
+		}
+		if err := json.Unmarshal(msg, &m); err != nil {
+			log.Printf("session.Apply viewport_sync: %v", err)
+			return false
+		}
+		if !finiteFloat(m.WorldCenterX) || !finiteFloat(m.WorldCenterY) || !finiteFloat(m.Scale) || m.Scale <= 0 {
+			log.Printf("session.Apply viewport_sync: invalid payload")
+			return false
+		}
+		return true // ephemeral
 	}
 
 	// All other messages require a valid pageId.

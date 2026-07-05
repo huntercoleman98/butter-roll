@@ -36,6 +36,12 @@ export interface RadiusCircle {
   y2: number
 }
 
+export interface ViewportSync {
+  worldCenterX: number
+  worldCenterY: number
+  scale: number
+}
+
 export interface Page {
   id: string
   name: string
@@ -61,11 +67,12 @@ type OutgoingMsg =
   | { type: 'page_remove'; id: string }
   | { type: 'page_rename'; id: string; name: string }
   | { type: 'page_present'; id: string }
-  | { type: 'arrow_update'; x1: number; y1: number; x2: number; y2: number }
-  | { type: 'arrow_clear' }
-  | { type: 'radius_update'; x: number; y: number; x2: number; y2: number }
-  | { type: 'radius_clear' }
-  | { type: 'ping'; x: number; y: number }
+  | { type: 'arrow_update'; pageId: string; x1: number; y1: number; x2: number; y2: number }
+  | { type: 'arrow_clear'; pageId: string }
+  | { type: 'radius_update'; pageId: string; x: number; y: number; x2: number; y2: number }
+  | { type: 'radius_clear'; pageId: string }
+  | { type: 'ping'; pageId: string; x: number; y: number }
+  | { type: 'viewport_sync'; pageId: string; worldCenterX: number; worldCenterY: number; scale: number }
 
 export function useGameSocket() {
   const [pages, setPages] = useState<Page[]>([])
@@ -73,10 +80,12 @@ export function useGameSocket() {
   const [arrowOverlay, setArrowOverlay] = useState<ArrowOverlay | null>(null)
   const [radiusCircle, setRadiusCircle] = useState<RadiusCircle | null>(null)
   const [ping, setPing] = useState<Ping | null>(null)
+  const [viewportSync, setViewportSync] = useState<ViewportSync | null>(null)
   const [connected, setConnected] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
   const pingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const presentedPageIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     const ws = new WebSocket(`ws://localhost:8080/ws`)
@@ -114,6 +123,7 @@ export function useGameSocket() {
             tokens: p.tokens ?? [],
             fogRects: p.fogRects ?? [],
           })))
+          presentedPageIdRef.current = msg.presentedPageId as string
           setPresentedPageId(msg.presentedPageId as string)
           break
         }
@@ -236,34 +246,41 @@ export function useGameSocket() {
           break
 
         case 'page_present':
+          presentedPageIdRef.current = msg.id as string
           setPresentedPageId(msg.id as string)
           break
 
         case 'arrow_update':
-          setArrowOverlay({
-            x1: msg.x1 as number,
-            y1: msg.y1 as number,
-            x2: msg.x2 as number,
-            y2: msg.y2 as number,
-          })
+          if (msg.pageId === presentedPageIdRef.current)
+            setArrowOverlay({ x1: msg.x1 as number, y1: msg.y1 as number, x2: msg.x2 as number, y2: msg.y2 as number })
           break
 
         case 'arrow_clear':
-          setArrowOverlay(null)
+          if (msg.pageId === presentedPageIdRef.current)
+            setArrowOverlay(null)
           break
 
         case 'radius_update':
-          setRadiusCircle({ x: msg.x as number, y: msg.y as number, x2: msg.x2 as number, y2: msg.y2 as number })
+          if (msg.pageId === presentedPageIdRef.current)
+            setRadiusCircle({ x: msg.x as number, y: msg.y as number, x2: msg.x2 as number, y2: msg.y2 as number })
           break
 
         case 'radius_clear':
-          setRadiusCircle(null)
+          if (msg.pageId === presentedPageIdRef.current)
+            setRadiusCircle(null)
           break
 
         case 'ping':
-          if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current)
-          setPing({ x: msg.x as number, y: msg.y as number })
-          pingTimeoutRef.current = setTimeout(() => setPing(null), 2000)
+          if (msg.pageId === presentedPageIdRef.current) {
+            if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current)
+            setPing({ x: msg.x as number, y: msg.y as number })
+            pingTimeoutRef.current = setTimeout(() => setPing(null), 2000)
+          }
+          break
+
+        case 'viewport_sync':
+          if (msg.pageId === presentedPageIdRef.current)
+            setViewportSync({ worldCenterX: msg.worldCenterX as number, worldCenterY: msg.worldCenterY as number, scale: msg.scale as number })
           break
 
         default:
@@ -280,7 +297,7 @@ export function useGameSocket() {
     }
   }
 
-  return { pages, presentedPageId, arrowOverlay, radiusCircle, ping, connected, send }
+  return { pages, presentedPageId, arrowOverlay, radiusCircle, ping, viewportSync, connected, send }
 }
 
 /** Upload a file to the server's asset store. Returns the absolute URL. */

@@ -24,6 +24,8 @@ export default function DM() {
   const [pageContextMenu, setPageContextMenu] = useState<PageContextMenu | null>(null)
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(new Set())
   const [clipboard, setClipboard] = useState<Clipboard | null>(null)
+  const [localArrow, setLocalArrow] = useState<ArrowOverlay | null>(null)
+  const [localRadius, setLocalRadius] = useState<RadiusCircle | null>(null)
 
   const mapAreaRef = useRef<HTMLDivElement>(null)
   const mapInputRef = useRef<HTMLInputElement>(null)
@@ -214,23 +216,31 @@ export default function DM() {
   }
 
   function handleArrowUpdate(arrow: ArrowOverlay) {
-    send({ type: 'arrow_update', ...arrow })
+    setLocalArrow(arrow)
+    send({ type: 'arrow_update', pageId: activeId, ...arrow })
   }
 
   function handleArrowClear() {
-    send({ type: 'arrow_clear' })
+    setLocalArrow(null)
+    send({ type: 'arrow_clear', pageId: activeId })
   }
 
   function handleRadiusUpdate(circle: RadiusCircle) {
-    send({ type: 'radius_update', ...circle })
+    setLocalRadius(circle)
+    send({ type: 'radius_update', pageId: activeId, ...circle })
   }
 
   function handleRadiusClear() {
-    send({ type: 'radius_clear' })
+    setLocalRadius(null)
+    send({ type: 'radius_clear', pageId: activeId })
   }
 
   function handlePing(pos: { x: number; y: number }) {
-    send({ type: 'ping', ...pos })
+    send({ type: 'ping', pageId: activeId, ...pos })
+  }
+
+  function handleBringPlayersHere(worldCenterX: number, worldCenterY: number, scale: number) {
+    send({ type: 'viewport_sync', pageId: activeId, worldCenterX, worldCenterY, scale })
   }
 
   function switchToPage(pageId: string) {
@@ -475,14 +485,15 @@ export default function DM() {
             onFogRemove={handleFogRemove}
             onDeleteTokens={handleDeleteTokens}
             onUpdateToken={handleUpdateToken}
-            arrowOverlay={arrowOverlay}
+            arrowOverlay={localArrow}
             onArrowUpdate={handleArrowUpdate}
             onArrowClear={handleArrowClear}
-            radiusCircle={radiusCircle}
+            radiusCircle={localRadius}
             onRadiusUpdate={handleRadiusUpdate}
             onRadiusClear={handleRadiusClear}
             ping={ping}
             onPing={handlePing}
+            onBringPlayersHere={handleBringPlayersHere}
           />
         </div>
       </div>

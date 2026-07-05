@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Image as KonvaImage, Rect, Arrow, Circle, Line, Text } from 'react-konva'
-import type Konva from 'konva'
+import Konva from 'konva'
 import Token, { type TokenHandle } from './Token'
 import FogLayer from './FogLayer'
-import type { TokenData, FogRect, ArrowOverlay, RadiusCircle, Ping } from '../hooks/useGameSocket'
+import type { TokenData, FogRect, ArrowOverlay, RadiusCircle, Ping, ViewportSync } from '../hooks/useGameSocket'
 
 export type ActiveTool = 'select' | 'fog-reveal' | 'fog-hide' | 'arrow' | 'radius'
 
@@ -38,6 +38,8 @@ interface MapCanvasProps {
   onRadiusClear?: () => void
   ping?: Ping | null
   onPing?: (pos: { x: number; y: number }) => void
+  onBringPlayersHere?: (worldCenterX: number, worldCenterY: number, scale: number) => void
+  syncedViewport?: ViewportSync | null
 }
 
 const MIN_SCALE = 0.1
@@ -76,6 +78,7 @@ export default function MapCanvas({
   arrowOverlay = null, onArrowUpdate, onArrowClear,
   radiusCircle = null, onRadiusUpdate, onRadiusClear,
   ping = null, onPing,
+  onBringPlayersHere, syncedViewport = null,
 }: MapCanvasProps) {
   const fogMode = tool === 'fog-reveal' ? 'reveal' : tool === 'fog-hide' ? 'hide' : null
   const arrowMode = tool === 'arrow'
@@ -88,13 +91,16 @@ export default function MapCanvas({
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const [menuColor, setMenuColor] = useState<string | null>(null)
   const [menuBorderWidth, setMenuBorderWidth] = useState<number | null>(null)
+  const [canvasContextMenu, setCanvasContextMenu] = useState<{ x: number; y: number } | null>(null)
   const selectedFogIdRef = useRef<string | null>(null)
   const suppressNextTokenClickRef = useRef(false)
   const contextMenuRef = useRef<HTMLDivElement>(null)
+  const canvasContextMenuRef = useRef<HTMLDivElement>(null)
   const updateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const stageRef = useRef<Konva.Stage>(null)
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(new Map())
   const tokenHandles = useRef<Map<string, TokenHandle>>(new Map())
+  const viewportTweenRef = useRef<Konva.Tween | null>(null)
 
   function setFogSelection(id: string | null) {
     selectedFogIdRef.current = id
@@ -106,7 +112,7 @@ export default function MapCanvas({
     if (fogMode !== 'hide') setFogSelection(null)
   }, [fogMode])
 
-  // Close context menu on outside click
+  // Close token context menu on outside click
   useEffect(() => {
     if (!contextMenu) return
     function handleClick(e: MouseEvent) {
@@ -117,6 +123,40 @@ export default function MapCanvas({
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [contextMenu])
+
+  // Close canvas context menu on outside click
+  useEffect(() => {
+    if (!canvasContextMenu) return
+    function handleClick(e: MouseEvent) {
+      if (canvasContextMenuRef.current && !canvasContextMenuRef.current.contains(e.target as Node)) {
+        setCanvasContextMenu(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [canvasContextMenu])
+
+  // Apply viewport sync from DM with tween (viewer only)
+  useEffect(() => {
+    if (!syncedViewport || !stageRef.current || !mapAreaRef.current) return
+    const { worldCenterX, worldCenterY, scale } = syncedViewport
+    const w = mapAreaRef.current.clientWidth
+    const h = mapAreaRef.current.clientHeight
+    const targetX = w / 2 - worldCenterX * scale
+    const targetY = h / 2 - worldCenterY * scale
+    viewportTweenRef.current?.destroy()
+    viewportTweenRef.current = new Konva.Tween({
+      node: stageRef.current,
+      x: targetX,
+      y: targetY,
+      scaleX: scale,
+      scaleY: scale,
+      duration: 0.4,
+      easing: Konva.Easings.EaseInOut,
+      onFinish: () => { viewportTweenRef.current = null },
+    })
+    viewportTweenRef.current.play()
+  }, [syncedViewport])
 
   // Track container size
   useEffect(() => {
@@ -249,15 +289,23 @@ export default function MapCanvas({
   }
 
   function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent>) {
-    // Right-click → pan (unless on a token, which handles its own context menu)
+    // Right-click → pan, or context menu if mouse barely moved
     if (e.evt.button === 2) {
       if (e.target.name() === 'token') return
       e.evt.preventDefault()
       const stage = stageRef.current!
+      const startClientX = e.evt.clientX
+      const startClientY = e.evt.clientY
       const startPos = { x: e.evt.clientX - stage.x(), y: e.evt.clientY - stage.y() }
       startDrag(
         ev => stage.position({ x: ev.clientX - startPos.x, y: ev.clientY - startPos.y }),
-        () => {},
+        ev => {
+          const dx = ev.clientX - startClientX
+          const dy = ev.clientY - startClientY
+          if (dx * dx + dy * dy < 16 && onBringPlayersHere) {
+            setCanvasContextMenu({ x: ev.clientX, y: ev.clientY })
+          }
+        },
       )
       return
     }
@@ -575,6 +623,32 @@ export default function MapCanvas({
           )
         })()}
       </Stage>
+      {canvasContextMenu && onBringPlayersHere && (
+        <div
+          ref={canvasContextMenuRef}
+          className="window context-menu"
+          style={{ position: 'fixed', left: canvasContextMenu.x, top: canvasContextMenu.y, zIndex: 1000 }}
+        >
+          <div className="title-bar">
+            <div className="title-bar-text">Canvas</div>
+            <div className="title-bar-controls">
+              <button aria-label="Close" onClick={() => setCanvasContextMenu(null)} />
+            </div>
+          </div>
+          <div className="window-body">
+            <ul className="tree-view">
+              <li onClick={() => {
+                const stage = stageRef.current!
+                const scale = stage.scaleX()
+                const worldCenterX = (size.width / 2 - stage.x()) / scale
+                const worldCenterY = (size.height / 2 - stage.y()) / scale
+                onBringPlayersHere(worldCenterX, worldCenterY, scale)
+                setCanvasContextMenu(null)
+              }}>Bring player view here</li>
+            </ul>
+          </div>
+        </div>
+      )}
       {contextMenu && (
         <div
           ref={contextMenuRef}
