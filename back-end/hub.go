@@ -47,15 +47,20 @@ func (h *Hub) Run() {
 			}
 
 		case msg := <-h.broadcast:
-			if !h.session.Apply(msg) {
+			out, ok := h.session.Apply(msg)
+			if !ok {
 				continue
 			}
 			if err := h.session.Save(h.sessionPath); err != nil {
 				log.Printf("hub: persist error: %v", err)
 			}
+			toSend := msg
+			if out != nil {
+				toSend = out
+			}
 			for c := range h.clients {
 				select {
-				case c.send <- msg:
+				case c.send <- toSend:
 				default:
 					// Slow consumer — drop the connection.
 					delete(h.clients, c)

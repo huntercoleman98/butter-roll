@@ -37,6 +37,15 @@ export interface RadiusCircle {
   y2: number
 }
 
+export interface DiceRollResult {
+  expression: string
+  sides: number
+  rolls: number[]
+  modifier: number
+  total: number
+  private?: boolean
+}
+
 export interface ViewportSync {
   worldCenterX: number
   worldCenterY: number
@@ -75,6 +84,8 @@ type OutgoingMsg =
   | { type: 'radius_clear'; pageId: string }
   | { type: 'ping'; pageId: string; x: number; y: number }
   | { type: 'viewport_sync'; pageId: string; worldCenterX: number; worldCenterY: number; scale: number }
+  | { type: 'dice_roll_request'; expression: string }
+  | { type: 'dice_roll_result'; expression: string; sides: number; rolls: number[]; modifier: number; total: number }
 
 export function useGameSocket() {
   const [pages, setPages] = useState<Page[]>([])
@@ -83,6 +94,8 @@ export function useGameSocket() {
   const [radiusCircle, setRadiusCircle] = useState<RadiusCircle | null>(null)
   const [ping, setPing] = useState<Ping | null>(null)
   const [viewportSync, setViewportSync] = useState<ViewportSync | null>(null)
+  const [diceRequest, setDiceRequest] = useState<{ expression: string } | null>(null)
+  const [diceResult, setDiceResult] = useState<DiceRollResult | null>(null)
   const [connected, setConnected] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
@@ -295,6 +308,20 @@ export function useGameSocket() {
             setViewportSync({ worldCenterX: msg.worldCenterX as number, worldCenterY: msg.worldCenterY as number, scale: msg.scale as number })
           break
 
+        case 'dice_roll_request':
+          setDiceRequest({ expression: msg.expression as string })
+          break
+
+        case 'dice_roll_result':
+          setDiceResult({
+            expression: msg.expression as string,
+            sides: msg.sides as number,
+            rolls: msg.rolls as number[],
+            modifier: msg.modifier as number,
+            total: msg.total as number,
+          })
+          break
+
         default:
           console.warn('unknown message type', msg.type)
       }
@@ -309,7 +336,7 @@ export function useGameSocket() {
     }
   }
 
-  return { pages, presentedPageId, arrowOverlay, radiusCircle, ping, viewportSync, connected, send }
+  return { pages, presentedPageId, arrowOverlay, radiusCircle, ping, viewportSync, diceRequest, diceResult, connected, send }
 }
 
 /** Upload a file to the server's asset store. Returns the absolute URL. */

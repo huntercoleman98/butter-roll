@@ -273,17 +273,31 @@ type radiusUpdateMsg struct {
 	Y2 float64 `json:"y2"`
 }
 
+type diceRollRequestMsg struct {
+	Expression string `json:"expression"`
+}
+
+type diceRollResultMsg struct {
+	Expression string `json:"expression"`
+	Sides      int    `json:"sides"`
+	Rolls      []int  `json:"rolls"`
+	Modifier   int    `json:"modifier"`
+	Total      int    `json:"total"`
+}
+
 func finiteFloat(f float64) bool {
 	return !math.IsNaN(f) && !math.IsInf(f, 0)
 }
 
 // Apply parses and validates an incoming message, mutates session state, and
-// returns true if the message should be broadcast to other clients.
-func (s *Session) Apply(msg []byte) bool {
+// returns (toSend, true) if the message should be broadcast. toSend is nil to
+// broadcast the original message, or non-nil bytes to broadcast instead (e.g.
+// a server-computed response like dice_roll_result).
+func (s *Session) Apply(msg []byte) ([]byte, bool) {
 	var raw rawMsg
 	if err := json.Unmarshal(msg, &raw); err != nil {
 		log.Printf("session.Apply: bad JSON: %v", err)
-		return false
+		return nil, false
 	}
 
 	// Page management messages — no pageId needed.
@@ -292,15 +306,15 @@ func (s *Session) Apply(msg []byte) bool {
 		var m pageAddMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply page_add: %v", err)
-			return false
+			return nil, false
 		}
 		if m.ID == "" || m.Name == "" {
 			log.Printf("session.Apply page_add: invalid payload (id=%q name=%q)", m.ID, m.Name)
-			return false
+			return nil, false
 		}
 		if _, exists := s.Pages[m.ID]; exists {
 			log.Printf("session.Apply page_add: duplicate id %q", m.ID)
-			return false
+			return nil, false
 		}
 		s.Pages[m.ID] = &Page{
 			ID:       m.ID,
@@ -309,21 +323,21 @@ func (s *Session) Apply(msg []byte) bool {
 			FogRects: make(map[string]FogRect),
 		}
 		s.PageOrder = append(s.PageOrder, m.ID)
-		return true
+		return nil, true
 
 	case "page_remove":
 		var m pageRemoveMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply page_remove: %v", err)
-			return false
+			return nil, false
 		}
 		if m.ID == "" {
 			log.Printf("session.Apply page_remove: empty id")
-			return false
+			return nil, false
 		}
 		if len(s.Pages) <= 1 {
 			log.Printf("session.Apply page_remove: cannot remove last page")
-			return false
+			return nil, false
 		}
 		delete(s.Pages, m.ID)
 		for i, id := range s.PageOrder {
@@ -335,84 +349,84 @@ func (s *Session) Apply(msg []byte) bool {
 		if s.PresentedPageID == m.ID {
 			s.PresentedPageID = s.PageOrder[0]
 		}
-		return true
+		return nil, true
 
 	case "page_rename":
 		var m pageRenameMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply page_rename: %v", err)
-			return false
+			return nil, false
 		}
 		if m.ID == "" || m.Name == "" {
 			log.Printf("session.Apply page_rename: invalid payload")
-			return false
+			return nil, false
 		}
 		p, ok := s.Pages[m.ID]
 		if !ok {
 			log.Printf("session.Apply page_rename: unknown page %q", m.ID)
-			return false
+			return nil, false
 		}
 		p.Name = m.Name
-		return true
+		return nil, true
 
 	case "page_present":
 		var m pagePresentMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply page_present: %v", err)
-			return false
+			return nil, false
 		}
 		if m.ID == "" {
 			log.Printf("session.Apply page_present: empty id")
-			return false
+			return nil, false
 		}
 		if _, ok := s.Pages[m.ID]; !ok {
 			log.Printf("session.Apply page_present: unknown page %q", m.ID)
-			return false
+			return nil, false
 		}
 		s.PresentedPageID = m.ID
-		return true
+		return nil, true
 
 	case "arrow_update":
 		var m arrowUpdateMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply arrow_update: %v", err)
-			return false
+			return nil, false
 		}
 		if !finiteFloat(m.X1) || !finiteFloat(m.Y1) || !finiteFloat(m.X2) || !finiteFloat(m.Y2) {
 			log.Printf("session.Apply arrow_update: non-finite coordinates")
-			return false
+			return nil, false
 		}
-		return true // ephemeral: broadcast to all clients
+		return nil, true // ephemeral: broadcast to all clients
 
 	case "arrow_clear":
-		return true // ephemeral
+		return nil, true // ephemeral
 
 	case "radius_update":
 		var m radiusUpdateMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply radius_update: %v", err)
-			return false
+			return nil, false
 		}
 		if !finiteFloat(m.X) || !finiteFloat(m.Y) || !finiteFloat(m.X2) || !finiteFloat(m.Y2) {
 			log.Printf("session.Apply radius_update: invalid payload")
-			return false
+			return nil, false
 		}
-		return true // ephemeral
+		return nil, true // ephemeral
 
 	case "radius_clear":
-		return true // ephemeral
+		return nil, true // ephemeral
 
 	case "ping":
 		var m pingMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply ping: %v", err)
-			return false
+			return nil, false
 		}
 		if !finiteFloat(m.X) || !finiteFloat(m.Y) {
 			log.Printf("session.Apply ping: non-finite coordinates")
-			return false
+			return nil, false
 		}
-		return true // ephemeral
+		return nil, true // ephemeral
 
 	case "viewport_sync":
 		var m struct {
@@ -422,20 +436,43 @@ func (s *Session) Apply(msg []byte) bool {
 		}
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply viewport_sync: %v", err)
-			return false
+			return nil, false
 		}
 		if !finiteFloat(m.WorldCenterX) || !finiteFloat(m.WorldCenterY) || !finiteFloat(m.Scale) || m.Scale <= 0 {
 			log.Printf("session.Apply viewport_sync: invalid payload")
-			return false
+			return nil, false
 		}
-		return true // ephemeral
+		return nil, true // ephemeral
+
+	case "dice_roll_request":
+		var m diceRollRequestMsg
+		if err := json.Unmarshal(msg, &m); err != nil {
+			log.Printf("session.Apply dice_roll_request: %v", err)
+			return nil, false
+		}
+		if m.Expression == "" {
+			return nil, false
+		}
+		return nil, true // ephemeral: broadcast to all clients so /view can animate
+
+	case "dice_roll_result":
+		var m diceRollResultMsg
+		if err := json.Unmarshal(msg, &m); err != nil {
+			log.Printf("session.Apply dice_roll_result: %v", err)
+			return nil, false
+		}
+		if m.Expression == "" || m.Sides == 0 || len(m.Rolls) == 0 {
+			log.Printf("session.Apply dice_roll_result: invalid payload")
+			return nil, false
+		}
+		return nil, true // ephemeral: broadcast to all clients for history
 	}
 
 	// All other messages require a valid pageId.
 	page, ok := s.Pages[raw.PageID]
 	if !ok {
 		log.Printf("session.Apply: unknown pageId %q for type %q", raw.PageID, raw.Type)
-		return false
+		return nil, false
 	}
 
 	switch raw.Type {
@@ -443,11 +480,11 @@ func (s *Session) Apply(msg []byte) bool {
 		var m mapSetMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply map_set: %v", err)
-			return false
+			return nil, false
 		}
 		if m.URL == "" || m.Width <= 0 || m.Height <= 0 {
 			log.Printf("session.Apply map_set: invalid payload (url=%q w=%d h=%d)", m.URL, m.Width, m.Height)
-			return false
+			return nil, false
 		}
 		page.MapURL = m.URL
 		page.MapWidth = m.Width
@@ -457,11 +494,11 @@ func (s *Session) Apply(msg []byte) bool {
 		var m mapResizeMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply map_resize: %v", err)
-			return false
+			return nil, false
 		}
 		if m.Width <= 0 || m.Height <= 0 {
 			log.Printf("session.Apply map_resize: invalid dimensions (%dx%d)", m.Width, m.Height)
-			return false
+			return nil, false
 		}
 		page.MapWidth = m.Width
 		page.MapHeight = m.Height
@@ -470,11 +507,11 @@ func (s *Session) Apply(msg []byte) bool {
 		var m tokenAddMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply token_add: %v", err)
-			return false
+			return nil, false
 		}
 		if m.ID == "" || m.URL == "" || !finiteFloat(m.X) || !finiteFloat(m.Y) {
 			log.Printf("session.Apply token_add: invalid payload (id=%q url=%q)", m.ID, m.URL)
-			return false
+			return nil, false
 		}
 		page.Tokens[m.ID] = Token{ID: m.ID, URL: m.URL, X: m.X, Y: m.Y, Color: m.Color, BorderWidth: m.BorderWidth, StatusEffects: m.StatusEffects}
 
@@ -482,16 +519,16 @@ func (s *Session) Apply(msg []byte) bool {
 		var m tokenMoveMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply token_move: %v", err)
-			return false
+			return nil, false
 		}
 		if m.ID == "" || !finiteFloat(m.X) || !finiteFloat(m.Y) {
 			log.Printf("session.Apply token_move: invalid payload (id=%q)", m.ID)
-			return false
+			return nil, false
 		}
 		t, ok := page.Tokens[m.ID]
 		if !ok {
 			log.Printf("session.Apply token_move: unknown token %q", m.ID)
-			return false
+			return nil, false
 		}
 		t.X = m.X
 		t.Y = m.Y
@@ -501,11 +538,11 @@ func (s *Session) Apply(msg []byte) bool {
 		var m tokenRemoveMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply token_remove: %v", err)
-			return false
+			return nil, false
 		}
 		if m.ID == "" {
 			log.Printf("session.Apply token_remove: empty id")
-			return false
+			return nil, false
 		}
 		delete(page.Tokens, m.ID)
 
@@ -513,16 +550,16 @@ func (s *Session) Apply(msg []byte) bool {
 		var m tokenUpdateMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply token_update: %v", err)
-			return false
+			return nil, false
 		}
 		if m.ID == "" {
 			log.Printf("session.Apply token_update: empty id")
-			return false
+			return nil, false
 		}
 		t, ok := page.Tokens[m.ID]
 		if !ok {
 			log.Printf("session.Apply token_update: unknown token %q", m.ID)
-			return false
+			return nil, false
 		}
 		if m.Color != nil {
 			t.Color = *m.Color
@@ -536,16 +573,16 @@ func (s *Session) Apply(msg []byte) bool {
 		var m tokenStatusMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply token_status: %v", err)
-			return false
+			return nil, false
 		}
 		if m.ID == "" {
 			log.Printf("session.Apply token_status: empty id")
-			return false
+			return nil, false
 		}
 		t, ok := page.Tokens[m.ID]
 		if !ok {
 			log.Printf("session.Apply token_status: unknown token %q", m.ID)
-			return false
+			return nil, false
 		}
 		t.StatusEffects = m.StatusEffects
 		page.Tokens[m.ID] = t
@@ -554,11 +591,11 @@ func (s *Session) Apply(msg []byte) bool {
 		var m fogAddMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply fog_add: %v", err)
-			return false
+			return nil, false
 		}
 		if m.ID == "" || m.Width <= 0 || m.Height <= 0 || !finiteFloat(m.X) || !finiteFloat(m.Y) {
 			log.Printf("session.Apply fog_add: invalid payload (id=%q w=%f h=%f)", m.ID, m.Width, m.Height)
-			return false
+			return nil, false
 		}
 		page.FogRects[m.ID] = FogRect{ID: m.ID, X: m.X, Y: m.Y, Width: m.Width, Height: m.Height}
 
@@ -566,11 +603,11 @@ func (s *Session) Apply(msg []byte) bool {
 		var m fogRemoveMsg
 		if err := json.Unmarshal(msg, &m); err != nil {
 			log.Printf("session.Apply fog_remove: %v", err)
-			return false
+			return nil, false
 		}
 		if m.ID == "" {
 			log.Printf("session.Apply fog_remove: empty id")
-			return false
+			return nil, false
 		}
 		delete(page.FogRects, m.ID)
 
@@ -579,7 +616,7 @@ func (s *Session) Apply(msg []byte) bool {
 
 	default:
 		log.Printf("session.Apply: unknown type %q", raw.Type)
-		return false
+		return nil, false
 	}
-	return true
+	return nil, true
 }

@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import MapCanvas, { type ActiveTool } from '../components/MapCanvas'
 import MapSizeInput from '../components/MapSizeInput'
-import { useGameSocket, uploadAsset, type TokenData, type ArrowOverlay, type RadiusCircle } from '../hooks/useGameSocket'
+import DicePanel from '../components/DicePanel'
+import DiceOverlay from '../components/DiceOverlay'
+import { useGameSocket, uploadAsset, type TokenData, type ArrowOverlay, type RadiusCircle, type DiceRollResult } from '../hooks/useGameSocket'
 import '../App.css'
 
 type PageContextMenu = { pageId: string; x: number; y: number }
@@ -13,7 +15,7 @@ type Clipboard = {
 }
 
 export default function DM() {
-  const { pages, presentedPageId, ping, connected, send } = useGameSocket()
+  const { pages, presentedPageId, ping, diceResult, connected, send } = useGameSocket()
   const [activePageId, setActivePageId] = useState<string | null>(null)
   const [aspectLocked, setAspectLocked] = useState(true)
   const [activeTool, setActiveTool] = useState<ActiveTool>('select')
@@ -26,6 +28,9 @@ export default function DM() {
   const [clipboard, setClipboard] = useState<Clipboard | null>(null)
   const [localArrow, setLocalArrow] = useState<ArrowOverlay | null>(null)
   const [localRadius, setLocalRadius] = useState<RadiusCircle | null>(null)
+  const [dicePanelOpen, setDicePanelOpen] = useState(false)
+  const [diceHistory, setDiceHistory] = useState<DiceRollResult[]>([])
+  const [privateRollRequest, setPrivateRollRequest] = useState<{ expression: string } | null>(null)
 
   const mapAreaRef = useRef<HTMLDivElement>(null)
   const mapInputRef = useRef<HTMLInputElement>(null)
@@ -112,6 +117,22 @@ export default function DM() {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [activePage, selectedTokenIds, clipboard, activeId, send])
+
+  useEffect(() => {
+    if (diceResult) setDiceHistory(prev => [...prev, diceResult])
+  }, [diceResult])
+
+  function handleDiceResult(result: DiceRollResult) {
+    setDiceHistory(prev => [...prev, { ...result, private: true }])
+  }
+
+  function handleRoll(expression: string, isPrivate: boolean) {
+    if (isPrivate) {
+      setPrivateRollRequest({ expression })
+    } else {
+      send({ type: 'dice_roll_request', expression })
+    }
+  }
 
   // Close map menu on outside click.
   useEffect(() => {
@@ -398,7 +419,13 @@ export default function DM() {
             )}
           </div>
 
-          <span className="connection-status">{connected ? '● Connected' : '○ Offline'}</span>
+          <div className="toolbar-right">
+            <button
+              className={dicePanelOpen ? 'toolbar-btn-active' : ''}
+              onClick={() => setDicePanelOpen(o => !o)}
+            >Dice</button>
+            <span className="connection-status">{connected ? '● Connected' : '○ Offline'}</span>
+          </div>
         </div>
 
         {/* ── Page context menu ── */}
@@ -514,6 +541,8 @@ export default function DM() {
           />
         </div>
       </div>
+      {dicePanelOpen && <DicePanel history={diceHistory} onRoll={handleRoll} onClose={() => setDicePanelOpen(false)} />}
+      <DiceOverlay request={privateRollRequest} onResult={handleDiceResult} />
     </div>
   )
 }

@@ -26,9 +26,19 @@
   border-bottom: 1px solid #808080;
 }
 
-.toolbar-row .connection-status {
+.toolbar-right {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-right .connection-status {
   font-size: 11px;
+}
+
+.toolbar-btn-active {
+  box-shadow: inset 1px 1px #808080, inset 2px 2px #000, inset -1px -1px #dfdfdf !important;
 }
 
 .menu-group {
@@ -207,4 +217,78 @@
   margin-top: 2px;
   padding-top: 4px;
   color: inherit;
+}
+
+.dice-box-canvas {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  pointer-events: none !important;
+  z-index: 1000 !important;
+}
+
+.dice-window {
+  width: 210px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dice-window-body {
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  height: 300px;
+}
+
+.dice-controls {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.dice-resize-handle {
+  height: 5px;
+  flex-shrink: 0;
+  cursor: ns-resize;
+  background: #c0c0c0;
+  border-top: 1px solid #808080;
+  border-bottom: 1px solid #808080;
+}
+
+.dice-resize-handle:hover {
+  background: #a0a0a0;
+}
+
+.dice-die-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px;
+  border-bottom: 1px solid #808080;
+}
+
+.dice-roll-row {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-bottom: 1px solid #808080;
+}
+
+.dice-roll-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.dice-history {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 11px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
