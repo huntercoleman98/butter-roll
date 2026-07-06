@@ -103,6 +103,7 @@ export default function DM() {
             y: py + (t.y - cy),
             ...(t.color !== undefined && { color: t.color }),
             ...(t.borderWidth !== undefined && { borderWidth: t.borderWidth }),
+            ...(t.statusEffects !== undefined && { statusEffects: t.statusEffects }),
           })
         }
         e.preventDefault()

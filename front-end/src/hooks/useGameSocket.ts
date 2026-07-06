@@ -57,7 +57,7 @@ export const SERVER_URL = 'http://localhost:8080'
 type OutgoingMsg =
   | { type: 'map_set'; pageId: string; url: string; width: number; height: number }
   | { type: 'map_resize'; pageId: string; width: number; height: number }
-  | { type: 'token_add'; pageId: string; id: string; url: string; x: number; y: number; color?: string; borderWidth?: number }
+  | { type: 'token_add'; pageId: string; id: string; url: string; x: number; y: number; color?: string; borderWidth?: number; statusEffects?: string[] }
   | { type: 'token_move'; pageId: string; id: string; x: number; y: number }
   | { type: 'token_remove'; pageId: string; id: string }
   | { type: 'token_update'; pageId: string; id: string; color?: string; borderWidth?: number }

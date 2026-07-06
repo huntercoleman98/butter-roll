@@ -194,12 +194,13 @@ type mapResizeMsg struct {
 }
 
 type tokenAddMsg struct {
-	ID          string  `json:"id"`
-	URL         string  `json:"url"`
-	X           float64 `json:"x"`
-	Y           float64 `json:"y"`
-	Color       string  `json:"color,omitempty"`
-	BorderWidth int     `json:"borderWidth,omitempty"`
+	ID            string   `json:"id"`
+	URL           string   `json:"url"`
+	X             float64  `json:"x"`
+	Y             float64  `json:"y"`
+	Color         string   `json:"color,omitempty"`
+	BorderWidth   int      `json:"borderWidth,omitempty"`
+	StatusEffects []string `json:"statusEffects,omitempty"`
 }
 
 type tokenMoveMsg struct {
@@ -475,7 +476,7 @@ func (s *Session) Apply(msg []byte) bool {
 			log.Printf("session.Apply token_add: invalid payload (id=%q url=%q)", m.ID, m.URL)
 			return false
 		}
-		page.Tokens[m.ID] = Token{ID: m.ID, URL: m.URL, X: m.X, Y: m.Y, Color: m.Color, BorderWidth: m.BorderWidth}
+		page.Tokens[m.ID] = Token{ID: m.ID, URL: m.URL, X: m.X, Y: m.Y, Color: m.Color, BorderWidth: m.BorderWidth, StatusEffects: m.StatusEffects}
 
 	case "token_move":
 		var m tokenMoveMsg
