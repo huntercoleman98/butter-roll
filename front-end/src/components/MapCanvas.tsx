@@ -95,6 +95,7 @@ export default function MapCanvas({
   const [menuBorderWidth, setMenuBorderWidth] = useState<number | null>(null)
   const [menuSharedStatuses, setMenuSharedStatuses] = useState<Set<string>>(new Set())
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
+  const [menuOffset, setMenuOffset] = useState({ x: 0, y: 0 })
   const [canvasContextMenu, setCanvasContextMenu] = useState<{ x: number; y: number } | null>(null)
   const selectedFogIdRef = useRef<string | null>(null)
   const suppressNextTokenClickRef = useRef(false)
@@ -273,6 +274,7 @@ export default function MapCanvas({
     setMenuBorderWidth(sharedBW)
     setMenuSharedStatuses(sharedStatuses)
     setStatusDropdownOpen(false)
+    setMenuOffset({ x: 0, y: 0 })
     setContextMenu({ x, y, tokenId: id })
   }
 
@@ -680,9 +682,21 @@ export default function MapCanvas({
         <div
           ref={contextMenuRef}
           className="window context-menu"
-          style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 1000 }}
+          style={{ position: 'fixed', left: contextMenu.x + menuOffset.x, top: contextMenu.y + menuOffset.y, zIndex: 1000 }}
         >
-          <div className="title-bar">
+          <div
+            className="title-bar"
+            style={{ cursor: 'move' }}
+            onMouseDown={e => {
+              if (e.button !== 0) return
+              const startX = e.clientX - menuOffset.x
+              const startY = e.clientY - menuOffset.y
+              startDrag(
+                ev => setMenuOffset({ x: ev.clientX - startX, y: ev.clientY - startY }),
+                () => {},
+              )
+            }}
+          >
             <div className="title-bar-text">Token</div>
             <div className="title-bar-controls">
               <button aria-label="Close" onClick={() => setContextMenu(null)} />

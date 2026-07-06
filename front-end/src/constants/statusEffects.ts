@@ -1,5 +1,5 @@
 import type { IconType } from 'react-icons'
-import { GiDeathSkull, GiPoison, GiBlindfold, GiFlame, GiDroplets, GiSpikedHalo, GiBeveledStar, GiKnockout, GiSkullBolt, GiCharm, GiScreaming } from 'react-icons/gi'
+import { GiDeathSkull, GiPoison, GiBlindfold, GiFlame, GiDroplets, GiSpikedHalo, GiBeveledStar, GiKnockout, GiElectric, GiCharm, GiScreaming } from 'react-icons/gi'
 
 export interface StatusEffect {
   id: string
@@ -17,7 +17,7 @@ export const STATUS_EFFECTS: StatusEffect[] = [
   { id: 'unconscious', label: 'Unconscious', Icon: GiKnockout,       badgeColor: '#4b5563' },
   { id: 'wet',         label: 'Wet',         Icon: GiDroplets,     badgeColor: '#0c4a6e' },
   { id: 'blessed',     label: 'Blessed',     Icon: GiSpikedHalo,   badgeColor: '#78350f' },
-  { id: 'paralyzed',  label: 'Paralyzed',   Icon: GiSkullBolt,    badgeColor: '#4a1d96' },
+  { id: 'paralyzed',  label: 'Paralyzed',   Icon: GiElectric,    badgeColor: '#98a82e' },
   { id: 'charmed',    label: 'Charmed',     Icon: GiCharm,        badgeColor: '#831843' },
   { id: 'frightened', label: 'Frightened',  Icon: GiScreaming,    badgeColor: '#7c2d12' },
 ]
