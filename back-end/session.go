@@ -11,12 +11,13 @@ import (
 // Token mirrors the frontend TokenData shape.
 // X and Y are float64 to match JavaScript numbers exactly.
 type Token struct {
-	ID          string  `json:"id"`
-	URL         string  `json:"url"`
-	X           float64 `json:"x"`
-	Y           float64 `json:"y"`
-	Color       string  `json:"color,omitempty"`
-	BorderWidth int     `json:"borderWidth,omitempty"`
+	ID            string   `json:"id"`
+	URL           string   `json:"url"`
+	X             float64  `json:"x"`
+	Y             float64  `json:"y"`
+	Color         string   `json:"color,omitempty"`
+	BorderWidth   int      `json:"borderWidth,omitempty"`
+	StatusEffects []string `json:"statusEffects,omitempty"`
 }
 
 // FogRect is one revealed rectangle cut out of the fog overlay.
@@ -215,6 +216,11 @@ type tokenUpdateMsg struct {
 	ID          string  `json:"id"`
 	Color       *string `json:"color"`
 	BorderWidth *int    `json:"borderWidth"`
+}
+
+type tokenStatusMsg struct {
+	ID            string   `json:"id"`
+	StatusEffects []string `json:"statusEffects"`
 }
 
 type fogAddMsg struct {
@@ -523,6 +529,24 @@ func (s *Session) Apply(msg []byte) bool {
 		if m.BorderWidth != nil {
 			t.BorderWidth = *m.BorderWidth
 		}
+		page.Tokens[m.ID] = t
+
+	case "token_status":
+		var m tokenStatusMsg
+		if err := json.Unmarshal(msg, &m); err != nil {
+			log.Printf("session.Apply token_status: %v", err)
+			return false
+		}
+		if m.ID == "" {
+			log.Printf("session.Apply token_status: empty id")
+			return false
+		}
+		t, ok := page.Tokens[m.ID]
+		if !ok {
+			log.Printf("session.Apply token_status: unknown token %q", m.ID)
+			return false
+		}
+		t.StatusEffects = m.StatusEffects
 		page.Tokens[m.ID] = t
 
 	case "fog_add":

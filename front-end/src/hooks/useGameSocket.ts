@@ -7,6 +7,7 @@ export interface TokenData {
   y: number
   color?: string
   borderWidth?: number
+  statusEffects?: string[]
 }
 
 export interface FogRect {
@@ -60,6 +61,7 @@ type OutgoingMsg =
   | { type: 'token_move'; pageId: string; id: string; x: number; y: number }
   | { type: 'token_remove'; pageId: string; id: string }
   | { type: 'token_update'; pageId: string; id: string; color?: string; borderWidth?: number }
+  | { type: 'token_status'; pageId: string; id: string; statusEffects: string[] }
   | { type: 'fog_add'; pageId: string; id: string; x: number; y: number; width: number; height: number }
   | { type: 'fog_remove'; pageId: string; id: string }
   | { type: 'fog_clear'; pageId: string }
@@ -193,6 +195,16 @@ export function useGameSocket() {
               ...(msg.color !== undefined && { color: msg.color as string }),
               ...(msg.borderWidth !== undefined && { borderWidth: msg.borderWidth as number }),
             }),
+          }))
+          break
+        }
+
+        case 'token_status': {
+          const pageId = msg.pageId as string
+          const id = msg.id as string
+          updatePage(pageId, p => ({
+            ...p,
+            tokens: p.tokens.map(t => t.id !== id ? t : { ...t, statusEffects: msg.statusEffects as string[] }),
           }))
           break
         }

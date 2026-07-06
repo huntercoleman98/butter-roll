@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
-import { Image as KonvaImage } from 'react-konva'
+import { Group, Image as KonvaImage } from 'react-konva'
 import Konva from 'konva'
+import StatusBadge from './StatusBadge'
 
 export interface TokenHandle {
   setPosition(x: number, y: number): void
@@ -15,6 +16,7 @@ interface TokenProps {
   borderWidth?: number
   isSelected?: boolean
   draggable?: boolean
+  statusEffects?: string[]
   onClick?: (id: string, shift: boolean) => void
   onDragStart?: (id: string, x: number, y: number) => void
   onDragMove?: (id: string, x: number, y: number) => void
@@ -25,9 +27,10 @@ interface TokenProps {
 const TOKEN_SIZE = 60
 
 const Token = forwardRef<TokenHandle, TokenProps>(function Token(
-  { id, url, x, y, color = '#c084fc', borderWidth = 2, isSelected, draggable = true, onClick, onDragStart, onDragMove, onDragEnd, onContextMenu },
+  { id, url, x, y, color = '#c084fc', borderWidth = 2, isSelected, draggable = true, statusEffects, onClick, onDragStart, onDragMove, onDragEnd, onContextMenu },
   ref,
 ) {
+  const groupRef = useRef<Konva.Group>(null)
   const imageRef = useRef<Konva.Image>(null)
   const imgEl = useRef<HTMLImageElement | null>(null)
   const xRef = useRef(x)
@@ -37,7 +40,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
     setPosition(newX: number, newY: number) {
       xRef.current = newX
       yRef.current = newY
-      const node = imageRef.current
+      const node = groupRef.current
       if (node) { node.x(newX); node.y(newY) }
     },
   }), [])
@@ -67,7 +70,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
   }, [isSelected, color, borderWidth])
 
   useEffect(() => {
-    const node = imageRef.current
+    const node = groupRef.current
     if (!node || (xRef.current === x && yRef.current === y)) return
     node.to({
       x, y,
@@ -78,23 +81,12 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
   }, [x, y])
 
   return (
-    <KonvaImage
-      ref={imageRef}
+    <Group
+      ref={groupRef}
       id={id}
       name="token"
-      image={imgEl.current ?? undefined}
       x={xRef.current}
       y={yRef.current}
-      width={TOKEN_SIZE}
-      height={TOKEN_SIZE}
-      offsetX={TOKEN_SIZE / 2}
-      offsetY={TOKEN_SIZE / 2}
-      cornerRadius={TOKEN_SIZE / 2}
-      stroke={isSelected ? '#facc15' : color}
-      strokeWidth={isSelected ? borderWidth + 1 : borderWidth}
-      shadowColor={isSelected ? 'rgba(250,204,21,0.7)' : 'rgba(192,132,252,0.6)'}
-      shadowBlur={isSelected ? 14 : 8}
-      shadowForStrokeEnabled={false}
       draggable={draggable}
       onClick={draggable ? e => { if (e.evt.button === 0) onClick?.(id, e.evt.shiftKey) } : undefined}
       onDragStart={draggable ? e => {
@@ -115,7 +107,26 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
         onContextMenu(id, e.evt.clientX, e.evt.clientY)
       } : undefined}
       listening={draggable}
-    />
+    >
+      <KonvaImage
+        ref={imageRef}
+        name="token"
+        image={imgEl.current ?? undefined}
+        width={TOKEN_SIZE}
+        height={TOKEN_SIZE}
+        offsetX={TOKEN_SIZE / 2}
+        offsetY={TOKEN_SIZE / 2}
+        cornerRadius={TOKEN_SIZE / 2}
+        stroke={isSelected ? '#facc15' : color}
+        strokeWidth={isSelected ? borderWidth + 1 : borderWidth}
+        shadowColor={isSelected ? 'rgba(250,204,21,0.7)' : 'rgba(192,132,252,0.6)'}
+        shadowBlur={isSelected ? 14 : 8}
+        shadowForStrokeEnabled={false}
+      />
+      {statusEffects?.map((effectId, i) => (
+        <StatusBadge key={effectId} effectId={effectId} index={i} />
+      ))}
+    </Group>
   )
 })
 

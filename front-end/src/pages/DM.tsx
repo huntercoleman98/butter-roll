@@ -13,7 +13,7 @@ type Clipboard = {
 }
 
 export default function DM() {
-  const { pages, presentedPageId, arrowOverlay, radiusCircle, ping, connected, send } = useGameSocket()
+  const { pages, presentedPageId, ping, connected, send } = useGameSocket()
   const [activePageId, setActivePageId] = useState<string | null>(null)
   const [aspectLocked, setAspectLocked] = useState(true)
   const [activeTool, setActiveTool] = useState<ActiveTool>('select')
@@ -213,6 +213,21 @@ export default function DM() {
   function handleUpdateToken(ids: Set<string>, update: { color?: string; borderWidth?: number }) {
     if (!activeId) return
     for (const id of ids) send({ type: 'token_update', pageId: activeId, id, ...update })
+  }
+
+  function handleUpdateTokenStatus(ids: Set<string>, action: 'add' | 'remove', effectId: string) {
+    if (!activeId) return
+    const page = pages.find(p => p.id === activeId)
+    if (!page) return
+    for (const id of ids) {
+      const token = page.tokens.find(t => t.id === id)
+      if (!token) continue
+      const current = token.statusEffects ?? []
+      const next = action === 'add'
+        ? current.includes(effectId) ? current : [...current, effectId]
+        : current.filter(e => e !== effectId)
+      send({ type: 'token_status', pageId: activeId, id, statusEffects: next })
+    }
   }
 
   function handleArrowUpdate(arrow: ArrowOverlay) {
@@ -485,6 +500,7 @@ export default function DM() {
             onFogRemove={handleFogRemove}
             onDeleteTokens={handleDeleteTokens}
             onUpdateToken={handleUpdateToken}
+            onUpdateTokenStatus={handleUpdateTokenStatus}
             arrowOverlay={localArrow}
             onArrowUpdate={handleArrowUpdate}
             onArrowClear={handleArrowClear}

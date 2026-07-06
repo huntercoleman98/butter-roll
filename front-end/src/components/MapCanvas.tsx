@@ -4,6 +4,7 @@ import Konva from 'konva'
 import Token, { type TokenHandle } from './Token'
 import FogLayer from './FogLayer'
 import type { TokenData, FogRect, ArrowOverlay, RadiusCircle, Ping, ViewportSync } from '../hooks/useGameSocket'
+import { STATUS_EFFECTS, STATUS_EFFECT_MAP } from '../constants/statusEffects'
 
 export type ActiveTool = 'select' | 'fog-reveal' | 'fog-hide' | 'arrow' | 'radius'
 
@@ -30,6 +31,7 @@ interface MapCanvasProps {
   onFogRemove?: (id: string) => void
   onDeleteTokens?: (ids: Set<string>) => void
   onUpdateToken?: (ids: Set<string>, update: { color?: string; borderWidth?: number }) => void
+  onUpdateTokenStatus?: (ids: Set<string>, action: 'add' | 'remove', effectId: string) => void
   arrowOverlay?: ArrowOverlay | null
   onArrowUpdate?: (arrow: ArrowOverlay) => void
   onArrowClear?: () => void
@@ -74,7 +76,7 @@ interface ContextMenu {
 export default function MapCanvas({
   mapUrl, mapSize, tokens, selectedTokenIds, onMoveToken, onSelectionChange,
   mapAreaRef, onStageReady, readOnly = false,
-  fogRects = [], tool = 'select', onFogDraw, onFogRemove, onDeleteTokens, onUpdateToken,
+  fogRects = [], tool = 'select', onFogDraw, onFogRemove, onDeleteTokens, onUpdateToken, onUpdateTokenStatus,
   arrowOverlay = null, onArrowUpdate, onArrowClear,
   radiusCircle = null, onRadiusUpdate, onRadiusClear,
   ping = null, onPing,
@@ -91,10 +93,13 @@ export default function MapCanvas({
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const [menuColor, setMenuColor] = useState<string | null>(null)
   const [menuBorderWidth, setMenuBorderWidth] = useState<number | null>(null)
+  const [menuSharedStatuses, setMenuSharedStatuses] = useState<Set<string>>(new Set())
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
   const [canvasContextMenu, setCanvasContextMenu] = useState<{ x: number; y: number } | null>(null)
   const selectedFogIdRef = useRef<string | null>(null)
   const suppressNextTokenClickRef = useRef(false)
   const contextMenuRef = useRef<HTMLDivElement>(null)
+  const statusDropdownRef = useRef<HTMLDivElement>(null)
   const canvasContextMenuRef = useRef<HTMLDivElement>(null)
   const updateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const stageRef = useRef<Konva.Stage>(null)
@@ -123,6 +128,18 @@ export default function MapCanvas({
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [contextMenu])
+
+  // Close status dropdown on outside click
+  useEffect(() => {
+    if (!statusDropdownOpen) return
+    function handleClick(e: MouseEvent) {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target as Node)) {
+        setStatusDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [statusDropdownOpen])
 
   // Close canvas context menu on outside click
   useEffect(() => {
@@ -250,8 +267,12 @@ export default function MapCanvas({
     const sharedColor = affected.every(t => (t.color ?? '#c084fc') === firstColor) ? firstColor : null
     const firstBW = affected[0]?.borderWidth ?? 2
     const sharedBW = affected.every(t => (t.borderWidth ?? 2) === firstBW) ? firstBW : null
+    const firstEffects = new Set(affected[0]?.statusEffects ?? [])
+    const sharedStatuses = new Set([...firstEffects].filter(e => affected.every(t => t.statusEffects?.includes(e))))
     setMenuColor(sharedColor)
     setMenuBorderWidth(sharedBW)
+    setMenuSharedStatuses(sharedStatuses)
+    setStatusDropdownOpen(false)
     setContextMenu({ x, y, tokenId: id })
   }
 
@@ -434,6 +455,12 @@ export default function MapCanvas({
         ))
       },
     )
+  }
+
+  function effectSelectText(effects: Set<string>): string {
+    if (effects.size === 0) return 'None selected'
+    if (effects.size < 3) return [...effects].map(id => STATUS_EFFECT_MAP.get(id)?.label).join(', ')
+    return `${effects.size} effects selected`
   }
 
   const tokensInteractive = !readOnly && !fogMode && !arrowMode && !radiusMode
@@ -687,6 +714,42 @@ export default function MapCanvas({
                   if (v !== null) scheduleUpdate(contextMenuAffectedIds(), { borderWidth: v })
                 }}
               />
+              <label style={{ marginTop: 6 }}>Status effects</label>
+              <div ref={statusDropdownRef} style={{ position: 'relative', minWidth: 150 }}>
+                <button
+                  style={{ width: '100%', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  onClick={() => setStatusDropdownOpen(v => !v)}
+                >
+                  {effectSelectText(menuSharedStatuses)} ▾
+                </button>
+                {statusDropdownOpen && (
+                  <div className="window" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, margin: 0 }}>
+                    <ul className="tree-view" style={{ margin: 0, maxHeight: 120, overflowY: 'auto' }}>
+                      {STATUS_EFFECTS.map(effect => {
+                        const checked = menuSharedStatuses.has(effect.id)
+                        return (
+                          <li
+                            key={effect.id}
+                            className={checked ? 'active' : ''}
+                            style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', userSelect: 'none' }}
+                            onMouseDown={e => {
+                              e.preventDefault()
+                              const ids = contextMenuAffectedIds()
+                              const next = new Set(menuSharedStatuses)
+                              checked ? next.delete(effect.id) : next.add(effect.id)
+                              setMenuSharedStatuses(next)
+                              onUpdateTokenStatus?.(ids, checked ? 'remove' : 'add', effect.id)
+                            }}
+                          >
+                            <input type="checkbox" checked={checked} onChange={() => {}} tabIndex={-1} />
+                            {effect.label}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
