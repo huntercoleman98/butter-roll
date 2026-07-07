@@ -1,0 +1,7 @@
+front-end/node_modules
+front-end/dist
+back-end/dist
+back-end/butter-roll
+back-end/session.json
+data/
+*.tar.gz

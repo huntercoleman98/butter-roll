@@ -1,13 +1,17 @@
 package main
 
 import (
+	"embed"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-const allowedOrigin = "http://localhost:5173"
+//go:embed dist
+var frontendFS embed.FS
 
 func main() {
 	dataDir := os.Getenv("DATA_DIR")
@@ -32,26 +36,49 @@ func main() {
 	hub := NewHub(session, sessionPath)
 	go hub.Run()
 
+	distFS, err := fs.Sub(frontendFS, "dist")
+	if err != nil {
+		log.Fatalf("cannot create frontend fs: %v", err)
+	}
+
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /ws", cors(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/ws", cors(allowedOrigin, func(w http.ResponseWriter, r *http.Request) {
 		serveWS(hub, w, r)
 	}))
-	mux.HandleFunc("POST /assets", cors(uploadAsset(assetsDir)))
-	mux.HandleFunc("GET /assets/{file}", cors(serveAsset(assetsDir)))
+	mux.HandleFunc("POST /api/assets", cors(allowedOrigin, uploadAsset(assetsDir)))
+	mux.HandleFunc("GET /api/assets/{file}", cors(allowedOrigin, serveAsset(assetsDir)))
+	mux.HandleFunc("/", spaHandler(distFS))
 
 	log.Println("butter-roll server listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
 
-func cors(next http.HandlerFunc) http.HandlerFunc {
+func spaHandler(fsys fs.FS) http.HandlerFunc {
+	fileServer := http.FileServerFS(fsys)
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
+		urlPath := strings.TrimPrefix(r.URL.Path, "/")
+		if urlPath == "" {
+			urlPath = "index.html"
+		}
+		if _, err := fs.Stat(fsys, urlPath); err != nil {
+			http.ServeFileFS(w, r, fsys, "index.html")
 			return
+		}
+		fileServer.ServeHTTP(w, r)
+	}
+}
+
+func cors(origin string, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
 		}
 		next(w, r)
 	}

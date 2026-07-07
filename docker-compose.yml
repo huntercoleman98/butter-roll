@@ -1,0 +1,10 @@
+services:
+  butter-roll:
+    image: butter-roll:latest
+    ports:
+      - "8076:8080"
+    volumes:
+      - /volume1/docker/butter-roll:/data
+    environment:
+      - DATA_DIR=/data
+    restart: unless-stopped

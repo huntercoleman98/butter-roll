@@ -1,43 +1,47 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from "react";
 
 interface Props {
-  label: string
-  value: number
-  onChange: (n: number) => void
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
 }
 
 function evaluate(raw: string): number | null {
-  const expr = raw.trim()
-  const opMatch = expr.match(/^(\d+)\s*([+\-*\/])?\s*(\d+)$/)
+  const expr = raw.trim();
+  const opMatch = expr.match(/^(\d+)\s*([+\-*\/])?\s*(\d+)$/);
   if (opMatch) {
-    const current = parseFloat(opMatch[1])
-    const operand = parseFloat(opMatch[3])
+    const current = parseFloat(opMatch[1]);
+    const operand = parseFloat(opMatch[3]);
     switch (opMatch[2]) {
-      case '+': return Math.round(current + operand)
-      case '-': return Math.round(current - operand)
-      case '*': return Math.round(current * operand)
-      case '/': return operand !== 0 ? Math.round(current / operand) : null
+      case "+":
+        return Math.round(current + operand);
+      case "-":
+        return Math.round(current - operand);
+      case "*":
+        return Math.round(current * operand);
+      case "/":
+        return operand !== 0 ? Math.round(current / operand) : null;
     }
   }
-  const n = parseFloat(expr)
-  return isNaN(n) ? null : Math.round(n)
+  const n = parseFloat(expr);
+  return isNaN(n) ? null : Math.round(n);
 }
 
 export default function MapSizeInput({ label, value, onChange }: Props) {
-  const [display, setDisplay] = useState(String(value))
+  const [display, setDisplay] = useState(String(value));
 
   // Sync display when value changes externally (e.g. aspect-ratio lock updates the other axis)
   useEffect(() => {
-    setDisplay(String(value))
-  }, [value])
+    setDisplay(String(value));
+  }, [value]);
 
   function commit(raw: string) {
-    const result = evaluate(raw)
+    const result = evaluate(raw);
     if (result !== null && result > 0) {
-      onChange(result)
-      setDisplay(String(result))
+      onChange(result);
+      setDisplay(String(result));
     } else {
-      setDisplay(String(value))
+      setDisplay(String(value));
     }
   }
 
@@ -48,14 +52,14 @@ export default function MapSizeInput({ label, value, onChange }: Props) {
         type="text"
         value={display}
         style={{ width: 72 }}
-        onChange={e => setDisplay(e.target.value)}
-        onBlur={e => commit(e.target.value)}
-        onKeyDown={e => {
-          if (e.key === 'Enter') {
-            e.currentTarget.blur()
+        onChange={(e) => setDisplay(e.target.value)}
+        onBlur={(e) => commit(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.currentTarget.blur();
           }
         }}
       />
     </div>
-  )
+  );
 }

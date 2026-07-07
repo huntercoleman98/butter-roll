@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -15,10 +16,18 @@ const (
 	maxMessageSize = 512 * 1024           // 512 KB
 )
 
+// allowedOrigin is set via ALLOWED_ORIGIN env var for dev (e.g. http://localhost:5173).
+// Empty in production means same-origin only — the upgrader allows all origins since
+// the browser enforces same-origin for same-host requests.
+var allowedOrigin = os.Getenv("ALLOWED_ORIGIN")
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
+		if allowedOrigin == "" {
+			return true
+		}
 		return r.Header.Get("Origin") == allowedOrigin
 	},
 }

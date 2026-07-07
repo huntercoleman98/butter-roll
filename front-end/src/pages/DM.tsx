@@ -1,330 +1,415 @@
-import { useEffect, useRef, useState } from 'react'
-import type Konva from 'konva'
-import MapCanvas, { type ActiveTool } from '../components/MapCanvas'
-import MapSizeInput from '../components/MapSizeInput'
-import DicePanel from '../components/DicePanel'
-import DiceOverlay from '../components/DiceOverlay'
-import { useGameSocket, uploadAsset, type TokenData, type ArrowOverlay, type RadiusCircle, type DiceRollResult } from '../hooks/useGameSocket'
-import '../App.css'
+import { useEffect, useRef, useState } from "react";
 
-type PageContextMenu = { pageId: string; x: number; y: number }
+function uuid(): string {
+  if (typeof crypto.randomUUID === "function") return uuid();
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => {
+    const n = parseInt(c);
+    return (n ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (n / 4)))).toString(16);
+  });
+}
+import type Konva from "konva";
+import MapCanvas, { type ActiveTool } from "../components/MapCanvas";
+import MapSizeInput from "../components/MapSizeInput";
+import DicePanel from "../components/DicePanel";
+import DiceOverlay from "../components/DiceOverlay";
+import {
+  useGameSocket,
+  uploadAsset,
+  type TokenData,
+  type ArrowOverlay,
+  type RadiusCircle,
+  type DiceRollResult,
+} from "../hooks/useGameSocket";
+import "../App.css";
+
+type PageContextMenu = { pageId: string; x: number; y: number };
 
 type Clipboard = {
-  tokens: TokenData[]
-  centroid: { x: number; y: number }
-}
+  tokens: TokenData[];
+  centroid: { x: number; y: number };
+};
 
 export default function DM() {
-  const { pages, presentedPageId, ping, diceResult, connected, send } = useGameSocket()
-  const [activePageId, setActivePageId] = useState<string | null>(null)
-  const [aspectLocked, setAspectLocked] = useState(true)
-  const [activeTool, setActiveTool] = useState<ActiveTool>('select')
-  const [mapMenuOpen, setMapMenuOpen] = useState(false)
-  const [pagesMenuOpen, setPagesMenuOpen] = useState(false)
-  const [renamingPageId, setRenamingPageId] = useState<string | null>(null)
-  const [renameValue, setRenameValue] = useState('')
-  const [pageContextMenu, setPageContextMenu] = useState<PageContextMenu | null>(null)
-  const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(new Set())
-  const [clipboard, setClipboard] = useState<Clipboard | null>(null)
-  const [localArrow, setLocalArrow] = useState<ArrowOverlay | null>(null)
-  const [localRadius, setLocalRadius] = useState<RadiusCircle | null>(null)
-  const [dicePanelOpen, setDicePanelOpen] = useState(false)
-  const [diceHistory, setDiceHistory] = useState<DiceRollResult[]>([])
-  const [privateRollRequest, setPrivateRollRequest] = useState<{ expression: string } | null>(null)
+  const { pages, presentedPageId, ping, diceResult, connected, send } =
+    useGameSocket();
+  const [activePageId, setActivePageId] = useState<string | null>(null);
+  const [aspectLocked, setAspectLocked] = useState(true);
+  const [activeTool, setActiveTool] = useState<ActiveTool>("select");
+  const [mapMenuOpen, setMapMenuOpen] = useState(false);
+  const [pagesMenuOpen, setPagesMenuOpen] = useState(false);
+  const [renamingPageId, setRenamingPageId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [pageContextMenu, setPageContextMenu] =
+    useState<PageContextMenu | null>(null);
+  const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [clipboard, setClipboard] = useState<Clipboard | null>(null);
+  const [localArrow, setLocalArrow] = useState<ArrowOverlay | null>(null);
+  const [localRadius, setLocalRadius] = useState<RadiusCircle | null>(null);
+  const [dicePanelOpen, setDicePanelOpen] = useState(false);
+  const [diceHistory, setDiceHistory] = useState<DiceRollResult[]>([]);
+  const [privateRollRequest, setPrivateRollRequest] = useState<{
+    expression: string;
+  } | null>(null);
 
-  const mapAreaRef = useRef<HTMLDivElement>(null)
-  const mapInputRef = useRef<HTMLInputElement>(null)
-  const tokenInputRef = useRef<HTMLInputElement>(null)
-  const stageRef = useRef<Konva.Stage | null>(null)
-  const cursorWorldPos = useRef({ x: 0, y: 0 })
+  const mapAreaRef = useRef<HTMLDivElement>(null);
+  const mapInputRef = useRef<HTMLInputElement>(null);
+  const tokenInputRef = useRef<HTMLInputElement>(null);
+  const stageRef = useRef<Konva.Stage | null>(null);
+  const cursorWorldPos = useRef({ x: 0, y: 0 });
 
   // On first snapshot, initialize active page to the presented page.
   useEffect(() => {
     if (activePageId === null && pages.length > 0) {
-      setActivePageId(presentedPageId ?? pages[0].id)
+      setActivePageId(presentedPageId ?? pages[0].id);
     }
-  }, [pages, presentedPageId, activePageId])
+  }, [pages, presentedPageId, activePageId]);
 
   // If the active page is deleted remotely, fall back to the first page.
   useEffect(() => {
-    if (activePageId && pages.length > 0 && !pages.find(p => p.id === activePageId)) {
-      setActivePageId(pages[0].id)
+    if (
+      activePageId &&
+      pages.length > 0 &&
+      !pages.find((p) => p.id === activePageId)
+    ) {
+      setActivePageId(pages[0].id);
     }
-  }, [pages, activePageId])
+  }, [pages, activePageId]);
 
-  const activePage = pages.find(p => p.id === activePageId) ?? pages[0] ?? null
-  const activeId = activePage?.id ?? ''
+  const activePage =
+    pages.find((p) => p.id === activePageId) ?? pages[0] ?? null;
+  const activeId = activePage?.id ?? "";
 
-  const measureToolActive = activeTool === 'arrow' || activeTool === 'radius'
-  const fogToolActive = activeTool === 'fog-reveal' || activeTool === 'fog-hide'
+  const measureToolActive = activeTool === "arrow" || activeTool === "radius";
+  const fogToolActive =
+    activeTool === "fog-reveal" || activeTool === "fog-hide";
 
   // Track cursor position in world space for paste targeting.
   useEffect(() => {
     function handleMouseMove(e: MouseEvent) {
-      const stage = stageRef.current
-      const container = mapAreaRef.current
-      if (!stage || !container) return
-      const rect = container.getBoundingClientRect()
-      const scale = stage.scaleX()
+      const stage = stageRef.current;
+      const container = mapAreaRef.current;
+      if (!stage || !container) return;
+      const rect = container.getBoundingClientRect();
+      const scale = stage.scaleX();
       cursorWorldPos.current = {
         x: (e.clientX - rect.left - stage.x()) / scale,
         y: (e.clientY - rect.top - stage.y()) / scale,
-      }
+      };
     }
-    window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
-  }, [])
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
 
   // Ctrl/Cmd+C to copy selected tokens; Ctrl/Cmd+V to paste at cursor.
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (!e.metaKey && !e.ctrlKey) return
-      const tag = (document.activeElement as HTMLElement)?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (!e.metaKey && !e.ctrlKey) return;
+      const tag = (document.activeElement as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
 
-      if (e.key === 'c') {
-        if (!activePage || selectedTokenIds.size === 0) return
-        const selected = activePage.tokens.filter(t => selectedTokenIds.has(t.id))
-        if (selected.length === 0) return
+      if (e.key === "c") {
+        if (!activePage || selectedTokenIds.size === 0) return;
+        const selected = activePage.tokens.filter((t) =>
+          selectedTokenIds.has(t.id),
+        );
+        if (selected.length === 0) return;
         const centroid = {
           x: selected.reduce((s, t) => s + t.x, 0) / selected.length,
           y: selected.reduce((s, t) => s + t.y, 0) / selected.length,
-        }
-        setClipboard({ tokens: selected, centroid })
-        e.preventDefault()
+        };
+        setClipboard({ tokens: selected, centroid });
+        e.preventDefault();
       }
 
-      if (e.key === 'v') {
-        if (!clipboard || !activeId) return
-        const { x: cx, y: cy } = clipboard.centroid
-        const { x: px, y: py } = cursorWorldPos.current
+      if (e.key === "v") {
+        if (!clipboard || !activeId) return;
+        const { x: cx, y: cy } = clipboard.centroid;
+        const { x: px, y: py } = cursorWorldPos.current;
         for (const t of clipboard.tokens) {
           send({
-            type: 'token_add',
+            type: "token_add",
             pageId: activeId,
-            id: crypto.randomUUID(),
+            id: uuid(),
             url: t.url,
             x: px + (t.x - cx),
             y: py + (t.y - cy),
             ...(t.color !== undefined && { color: t.color }),
             ...(t.borderWidth !== undefined && { borderWidth: t.borderWidth }),
-            ...(t.statusEffects !== undefined && { statusEffects: t.statusEffects }),
-          })
+            ...(t.statusEffects !== undefined && {
+              statusEffects: t.statusEffects,
+            }),
+          });
         }
-        e.preventDefault()
+        e.preventDefault();
       }
     }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [activePage, selectedTokenIds, clipboard, activeId, send])
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [activePage, selectedTokenIds, clipboard, activeId, send]);
 
   useEffect(() => {
-    if (diceResult) setDiceHistory(prev => [...prev, diceResult])
-  }, [diceResult])
+    if (diceResult) setDiceHistory((prev) => [...prev, diceResult]);
+  }, [diceResult]);
 
   function handleDiceResult(result: DiceRollResult) {
-    setDiceHistory(prev => [...prev, { ...result, private: true }])
+    setDiceHistory((prev) => [...prev, { ...result, private: true }]);
   }
 
   function handleRoll(expression: string, isPrivate: boolean) {
     if (isPrivate) {
-      setPrivateRollRequest({ expression })
+      setPrivateRollRequest({ expression });
     } else {
-      send({ type: 'dice_roll_request', expression })
+      send({ type: "dice_roll_request", expression });
     }
   }
 
   // Close map menu on outside click.
   useEffect(() => {
-    if (!mapMenuOpen) return
+    if (!mapMenuOpen) return;
     function handleClick(e: MouseEvent) {
-      if (!(e.target as HTMLElement).closest('.map-menu-group')) setMapMenuOpen(false)
+      if (!(e.target as HTMLElement).closest(".map-menu-group"))
+        setMapMenuOpen(false);
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [mapMenuOpen])
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [mapMenuOpen]);
 
   // Close pages menu on outside click.
   useEffect(() => {
-    if (!pagesMenuOpen) return
+    if (!pagesMenuOpen) return;
     function handleClick(e: MouseEvent) {
-      if (!(e.target as HTMLElement).closest('.pages-menu-group')) {
-        setPagesMenuOpen(false)
-        setRenamingPageId(null)
+      if (!(e.target as HTMLElement).closest(".pages-menu-group")) {
+        setPagesMenuOpen(false);
+        setRenamingPageId(null);
       }
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [pagesMenuOpen])
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [pagesMenuOpen]);
 
   // Close page context menu on outside click or Escape.
   useEffect(() => {
-    if (!pageContextMenu) return
-    function handleClick() { setPageContextMenu(null) }
-    function handleKey(e: KeyboardEvent) { if (e.key === 'Escape') setPageContextMenu(null) }
-    document.addEventListener('mousedown', handleClick)
-    document.addEventListener('keydown', handleKey)
-    return () => {
-      document.removeEventListener('mousedown', handleClick)
-      document.removeEventListener('keydown', handleKey)
+    if (!pageContextMenu) return;
+    function handleClick() {
+      setPageContextMenu(null);
     }
-  }, [pageContextMenu])
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setPageContextMenu(null);
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [pageContextMenu]);
 
   async function handleMapFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file || !activeId) return
-    e.target.value = ''
-    const url = await uploadAsset(file)
-    const img = new Image()
-    img.onload = () => send({ type: 'map_set', pageId: activeId, url, width: img.naturalWidth, height: img.naturalHeight })
-    img.src = url
+    const file = e.target.files?.[0];
+    if (!file || !activeId) return;
+    e.target.value = "";
+    const url = await uploadAsset(file);
+    const img = new Image();
+    img.onload = () =>
+      send({
+        type: "map_set",
+        pageId: activeId,
+        url,
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      });
+    img.src = url;
   }
 
   async function handleTokenFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file || !activeId) return
-    e.target.value = ''
-    const url = await uploadAsset(file)
-    const stage = stageRef.current
-    let x = (mapAreaRef.current?.clientWidth ?? window.innerWidth) / 2
-    let y = (mapAreaRef.current?.clientHeight ?? window.innerHeight) / 2
+    const file = e.target.files?.[0];
+    if (!file || !activeId) return;
+    e.target.value = "";
+    const url = await uploadAsset(file);
+    const stage = stageRef.current;
+    let x = (mapAreaRef.current?.clientWidth ?? window.innerWidth) / 2;
+    let y = (mapAreaRef.current?.clientHeight ?? window.innerHeight) / 2;
     if (stage) {
-      const scale = stage.scaleX()
-      x = (x - stage.x()) / scale
-      y = (y - stage.y()) / scale
+      const scale = stage.scaleX();
+      x = (x - stage.x()) / scale;
+      y = (y - stage.y()) / scale;
     }
-    send({ type: 'token_add', pageId: activeId, id: crypto.randomUUID(), url, x, y })
+    send({
+      type: "token_add",
+      pageId: activeId,
+      id: uuid(),
+      url,
+      x,
+      y,
+    });
   }
 
   function handleMoveToken(id: string, x: number, y: number) {
-    if (!activeId) return
-    send({ type: 'token_move', pageId: activeId, id, x, y })
+    if (!activeId) return;
+    send({ type: "token_move", pageId: activeId, id, x, y });
   }
 
-  function handleMapSizeInput(axis: 'width' | 'height', value: string) {
-    const n = parseInt(value, 10)
-    if (!activePage?.mapSize || isNaN(n) || n <= 0 || !activeId) return
-    let { width, height } = activePage.mapSize
+  function handleMapSizeInput(axis: "width" | "height", value: string) {
+    const n = parseInt(value, 10);
+    if (!activePage?.mapSize || isNaN(n) || n <= 0 || !activeId) return;
+    let { width, height } = activePage.mapSize;
     if (aspectLocked) {
-      const ratio = activePage.mapSize.width / activePage.mapSize.height
-      if (axis === 'width') { width = n; height = Math.round(n / ratio) }
-      else { height = n; width = Math.round(n * ratio) }
+      const ratio = activePage.mapSize.width / activePage.mapSize.height;
+      if (axis === "width") {
+        width = n;
+        height = Math.round(n / ratio);
+      } else {
+        height = n;
+        width = Math.round(n * ratio);
+      }
     } else {
-      if (axis === 'width') width = n
-      else height = n
+      if (axis === "width") width = n;
+      else height = n;
     }
-    send({ type: 'map_resize', pageId: activeId, width, height })
+    send({ type: "map_resize", pageId: activeId, width, height });
   }
 
-  function handleFogDraw(rect: { x: number; y: number; width: number; height: number }) {
-    if (!activeId) return
-    send({ type: 'fog_add', pageId: activeId, id: crypto.randomUUID(), ...rect })
+  function handleFogDraw(rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) {
+    if (!activeId) return;
+    send({
+      type: "fog_add",
+      pageId: activeId,
+      id: uuid(),
+      ...rect,
+    });
   }
 
   function handleFogRemove(id: string) {
-    if (!activeId) return
-    send({ type: 'fog_remove', pageId: activeId, id })
+    if (!activeId) return;
+    send({ type: "fog_remove", pageId: activeId, id });
   }
 
   function handleDeleteTokens(ids: Set<string>) {
-    if (!activeId) return
-    for (const id of ids) send({ type: 'token_remove', pageId: activeId, id })
-    setSelectedTokenIds(new Set())
+    if (!activeId) return;
+    for (const id of ids) send({ type: "token_remove", pageId: activeId, id });
+    setSelectedTokenIds(new Set());
   }
 
-  function handleUpdateToken(ids: Set<string>, update: { color?: string; borderWidth?: number }) {
-    if (!activeId) return
-    for (const id of ids) send({ type: 'token_update', pageId: activeId, id, ...update })
+  function handleUpdateToken(
+    ids: Set<string>,
+    update: { color?: string; borderWidth?: number },
+  ) {
+    if (!activeId) return;
+    for (const id of ids)
+      send({ type: "token_update", pageId: activeId, id, ...update });
   }
 
-  function handleUpdateTokenStatus(ids: Set<string>, action: 'add' | 'remove', effectId: string) {
-    if (!activeId) return
-    const page = pages.find(p => p.id === activeId)
-    if (!page) return
+  function handleUpdateTokenStatus(
+    ids: Set<string>,
+    action: "add" | "remove",
+    effectId: string,
+  ) {
+    if (!activeId) return;
+    const page = pages.find((p) => p.id === activeId);
+    if (!page) return;
     for (const id of ids) {
-      const token = page.tokens.find(t => t.id === id)
-      if (!token) continue
-      const current = token.statusEffects ?? []
-      const next = action === 'add'
-        ? current.includes(effectId) ? current : [...current, effectId]
-        : current.filter(e => e !== effectId)
-      send({ type: 'token_status', pageId: activeId, id, statusEffects: next })
+      const token = page.tokens.find((t) => t.id === id);
+      if (!token) continue;
+      const current = token.statusEffects ?? [];
+      const next =
+        action === "add"
+          ? current.includes(effectId)
+            ? current
+            : [...current, effectId]
+          : current.filter((e) => e !== effectId);
+      send({ type: "token_status", pageId: activeId, id, statusEffects: next });
     }
   }
 
   function handleArrowUpdate(arrow: ArrowOverlay) {
-    setLocalArrow(arrow)
-    send({ type: 'arrow_update', pageId: activeId, ...arrow })
+    setLocalArrow(arrow);
+    send({ type: "arrow_update", pageId: activeId, ...arrow });
   }
 
   function handleArrowClear() {
-    setLocalArrow(null)
-    send({ type: 'arrow_clear', pageId: activeId })
+    setLocalArrow(null);
+    send({ type: "arrow_clear", pageId: activeId });
   }
 
   function handleRadiusUpdate(circle: RadiusCircle) {
-    setLocalRadius(circle)
-    send({ type: 'radius_update', pageId: activeId, ...circle })
+    setLocalRadius(circle);
+    send({ type: "radius_update", pageId: activeId, ...circle });
   }
 
   function handleRadiusClear() {
-    setLocalRadius(null)
-    send({ type: 'radius_clear', pageId: activeId })
+    setLocalRadius(null);
+    send({ type: "radius_clear", pageId: activeId });
   }
 
   function handlePing(pos: { x: number; y: number }) {
-    send({ type: 'ping', pageId: activeId, ...pos })
+    send({ type: "ping", pageId: activeId, ...pos });
   }
 
-  function handleBringPlayersHere(worldCenterX: number, worldCenterY: number, scale: number) {
-    send({ type: 'viewport_sync', pageId: activeId, worldCenterX, worldCenterY, scale })
+  function handleBringPlayersHere(
+    worldCenterX: number,
+    worldCenterY: number,
+    scale: number,
+  ) {
+    send({
+      type: "viewport_sync",
+      pageId: activeId,
+      worldCenterX,
+      worldCenterY,
+      scale,
+    });
   }
 
   function switchToPage(pageId: string) {
-    setActivePageId(pageId)
-    setSelectedTokenIds(new Set())
-    setPagesMenuOpen(false)
-    setRenamingPageId(null)
+    setActivePageId(pageId);
+    setSelectedTokenIds(new Set());
+    setPagesMenuOpen(false);
+    setRenamingPageId(null);
   }
 
   function handleAddPage() {
-    const id = crypto.randomUUID()
-    const name = `Page ${pages.length + 1}`
-    send({ type: 'page_add', id, name })
-    setActivePageId(id)
-    setPagesMenuOpen(false)
+    const id = uuid();
+    const name = `Page ${pages.length + 1}`;
+    send({ type: "page_add", id, name });
+    setActivePageId(id);
+    setPagesMenuOpen(false);
   }
 
   function handlePresentPage(id: string) {
-    send({ type: 'page_present', id })
-    setPagesMenuOpen(false)
+    send({ type: "page_present", id });
+    setPagesMenuOpen(false);
   }
 
   function handleDeletePage(id: string) {
-    setPageContextMenu(null)
+    setPageContextMenu(null);
     if (id === activeId) {
-      const other = pages.find(p => p.id !== id)
-      if (other) setActivePageId(other.id)
+      const other = pages.find((p) => p.id !== id);
+      if (other) setActivePageId(other.id);
     }
-    send({ type: 'page_remove', id })
+    send({ type: "page_remove", id });
   }
 
   function startRename(page: { id: string; name: string }) {
-    setPageContextMenu(null)
-    setRenamingPageId(page.id)
-    setRenameValue(page.name)
-    if (!pagesMenuOpen) setPagesMenuOpen(true)
+    setPageContextMenu(null);
+    setRenamingPageId(page.id);
+    setRenameValue(page.name);
+    if (!pagesMenuOpen) setPagesMenuOpen(true);
   }
 
   function commitRename(pageId: string, currentName: string) {
-    const name = renameValue.trim() || currentName
-    send({ type: 'page_rename', id: pageId, name })
-    setRenamingPageId(null)
+    const name = renameValue.trim() || currentName;
+    send({ type: "page_rename", id: pageId, name });
+    setRenamingPageId(null);
   }
 
   return (
     <div className="window app">
-
       {/* ── Title bar ── */}
       <div className="title-bar">
         <div className="title-bar-text">Butter Roll — DM</div>
@@ -336,29 +421,65 @@ export default function DM() {
       </div>
 
       <div className="window-body app-body">
-
         {/* ── Toolbar row ── */}
         <div className="toolbar-row">
-          <button onClick={() => tokenInputRef.current?.click()}>Add Token</button>
-          <input ref={tokenInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleTokenFile} />
+          <button onClick={() => tokenInputRef.current?.click()}>
+            Add Token
+          </button>
+          <input
+            ref={tokenInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handleTokenFile}
+          />
 
-          <input ref={mapInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleMapFile} />
+          <input
+            ref={mapInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handleMapFile}
+          />
           <div className="menu-group map-menu-group">
-            <button onClick={() => setMapMenuOpen(o => !o)}>Map ▾</button>
+            <button onClick={() => setMapMenuOpen((o) => !o)}>Map ▾</button>
             {mapMenuOpen && (
               <div className="window map-dropdown">
                 <div className="window-body">
-                  <button onClick={() => { mapInputRef.current?.click(); setMapMenuOpen(false) }}>Set Map…</button>
+                  <button
+                    onClick={() => {
+                      mapInputRef.current?.click();
+                      setMapMenuOpen(false);
+                    }}
+                  >
+                    Set Map…
+                  </button>
                   {activePage?.mapSize && (
                     <div className="map-dropdown-row">
-                      <MapSizeInput label="W" value={activePage.mapSize.width} onChange={n => handleMapSizeInput('width', String(n))} />
-                      <MapSizeInput label="H" value={activePage.mapSize.height} onChange={n => handleMapSizeInput('height', String(n))} />
+                      <MapSizeInput
+                        label="W"
+                        value={activePage.mapSize.width}
+                        onChange={(n) => handleMapSizeInput("width", String(n))}
+                      />
+                      <MapSizeInput
+                        label="H"
+                        value={activePage.mapSize.height}
+                        onChange={(n) =>
+                          handleMapSizeInput("height", String(n))
+                        }
+                      />
                       <button
-                        style={{ padding: '2px 4px' }}
-                        onClick={() => setAspectLocked(l => !l)}
-                        title={aspectLocked ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+                        style={{ padding: "2px 4px" }}
+                        onClick={() => setAspectLocked((l) => !l)}
+                        title={
+                          aspectLocked
+                            ? "Unlock aspect ratio"
+                            : "Lock aspect ratio"
+                        }
                       >
-                        {aspectLocked ? 'Aspect ratio locked' : 'Aspect ratio unlocked'}
+                        {aspectLocked
+                          ? "Aspect ratio locked"
+                          : "Aspect ratio unlocked"}
                       </button>
                     </div>
                   )}
@@ -368,18 +489,22 @@ export default function DM() {
           </div>
 
           <div className="menu-group pages-menu-group">
-            <button onClick={() => setPagesMenuOpen(o => !o)}>Pages ▾</button>
+            <button onClick={() => setPagesMenuOpen((o) => !o)}>Pages ▾</button>
             {pagesMenuOpen && (
               <div className="window pages-dropdown">
                 <div className="window-body">
-                  {pages.map(page => (
+                  {pages.map((page) => (
                     <div
                       key={page.id}
-                      className={`pages-row${activeId === page.id ? ' pages-row-active' : ''}`}
+                      className={`pages-row${activeId === page.id ? " pages-row-active" : ""}`}
                       onClick={() => switchToPage(page.id)}
-                      onContextMenu={e => {
-                        e.preventDefault()
-                        setPageContextMenu({ pageId: page.id, x: e.clientX, y: e.clientY })
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setPageContextMenu({
+                          pageId: page.id,
+                          x: e.clientX,
+                          y: e.clientY,
+                        });
                       }}
                     >
                       {renamingPageId === page.id ? (
@@ -387,14 +512,14 @@ export default function DM() {
                           className="pages-row-rename"
                           autoFocus
                           value={renameValue}
-                          onChange={e => setRenameValue(e.target.value)}
+                          onChange={(e) => setRenameValue(e.target.value)}
                           onBlur={() => commitRename(page.id, page.name)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') e.currentTarget.blur()
-                            if (e.key === 'Escape') setRenamingPageId(null)
-                            e.stopPropagation()
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") e.currentTarget.blur();
+                            if (e.key === "Escape") setRenamingPageId(null);
+                            e.stopPropagation();
                           }}
-                          onClick={e => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
                         <span className="pages-row-name">{page.name}</span>
@@ -404,14 +529,20 @@ export default function DM() {
                       ) : (
                         <button
                           className="present-btn"
-                          onClick={e => { e.stopPropagation(); handlePresentPage(page.id) }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePresentPage(page.id);
+                          }}
                         >
                           Present
                         </button>
                       )}
                     </div>
                   ))}
-                  <div className="pages-row pages-add-row" onClick={handleAddPage}>
+                  <div
+                    className="pages-row pages-add-row"
+                    onClick={handleAddPage}
+                  >
                     + New Page
                   </div>
                 </div>
@@ -421,67 +552,82 @@ export default function DM() {
 
           <div className="toolbar-right">
             <button
-              className={dicePanelOpen ? 'toolbar-btn-active' : ''}
-              onClick={() => setDicePanelOpen(o => !o)}
-            >Dice</button>
-            <span className="connection-status">{connected ? '● Connected' : '○ Offline'}</span>
+              className={dicePanelOpen ? "toolbar-btn-active" : ""}
+              onClick={() => setDicePanelOpen((o) => !o)}
+            >
+              Dice
+            </button>
+            <span className="connection-status">
+              {connected ? "● Connected" : "○ Offline"}
+            </span>
           </div>
         </div>
 
         {/* ── Page context menu ── */}
-        {pageContextMenu && (() => {
-          const page = pages.find(p => p.id === pageContextMenu.pageId)
-          if (!page) return null
-          return (
-            <div
-              className="window context-menu"
-              style={{ position: 'fixed', left: pageContextMenu.x, top: pageContextMenu.y, zIndex: 200 }}
-              onMouseDown={e => e.stopPropagation()}
-            >
-              <div className="title-bar">
-                <div className="title-bar-text">Page</div>
-                <div className="title-bar-controls">
-                  <button aria-label="Close" onClick={() => setPageContextMenu(null)} />
+        {pageContextMenu &&
+          (() => {
+            const page = pages.find((p) => p.id === pageContextMenu.pageId);
+            if (!page) return null;
+            return (
+              <div
+                className="window context-menu"
+                style={{
+                  position: "fixed",
+                  left: pageContextMenu.x,
+                  top: pageContextMenu.y,
+                  zIndex: 200,
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <div className="title-bar">
+                  <div className="title-bar-text">Page</div>
+                  <div className="title-bar-controls">
+                    <button
+                      aria-label="Close"
+                      onClick={() => setPageContextMenu(null)}
+                    />
+                  </div>
+                </div>
+                <div className="window-body">
+                  <ul className="tree-view">
+                    <li onClick={() => startRename(page)}>Rename</li>
+                    {pages.length > 1 && (
+                      <li onClick={() => handleDeletePage(page.id)}>Delete</li>
+                    )}
+                  </ul>
                 </div>
               </div>
-              <div className="window-body">
-                <ul className="tree-view">
-                  <li onClick={() => startRename(page)}>Rename</li>
-                  {pages.length > 1 && (
-                    <li onClick={() => handleDeletePage(page.id)}>Delete</li>
-                  )}
-                </ul>
-              </div>
-            </div>
-          )
-        })()}
+            );
+          })()}
 
         {/* ── Content area: sidebar + canvas ── */}
         <div className="content">
-
           <aside className="sidebar">
             <ul className="tree-view">
               <li
-                className={activeTool === 'select' ? 'active' : ''}
-                onClick={() => setActiveTool('select')}
+                className={activeTool === "select" ? "active" : ""}
+                onClick={() => setActiveTool("select")}
               >
                 Select
               </li>
               <li>
                 <details>
-                  <summary className={measureToolActive ? 'active' : ''}>
-                    Measure{measureToolActive && <em> ({activeTool === 'arrow' ? 'Arrow' : 'Radius'})</em>}
+                  <summary className={measureToolActive ? "active" : ""}>
+                    Measure
+                    {measureToolActive && (
+                      <em> ({activeTool === "arrow" ? "Arrow" : "Radius"})</em>
+                    )}
                   </summary>
                   <ul>
                     <li
-                      className={activeTool === 'arrow' ? 'active' : ''}
-                      onClick={() => setActiveTool('arrow')}
+                      className={activeTool === "arrow" ? "active" : ""}
+                      onClick={() => setActiveTool("arrow")}
                     >
                       Arrow
                     </li>
                     <li
-                      className={activeTool === 'radius' ? 'active' : ''}
-                      onClick={() => setActiveTool('radius')}
+                      className={activeTool === "radius" ? "active" : ""}
+                      onClick={() => setActiveTool("radius")}
                     >
                       Radius
                     </li>
@@ -490,23 +636,36 @@ export default function DM() {
               </li>
               <li>
                 <details>
-                  <summary className={fogToolActive ? 'active' : ''}>
-                    Fog{fogToolActive && <em> ({activeTool === 'fog-reveal' ? 'Reveal' : 'Hide'})</em>}
+                  <summary className={fogToolActive ? "active" : ""}>
+                    Fog
+                    {fogToolActive && (
+                      <em>
+                        {" "}
+                        ({activeTool === "fog-reveal" ? "Reveal" : "Hide"})
+                      </em>
+                    )}
                   </summary>
                   <ul>
                     <li
-                      className={activeTool === 'fog-reveal' ? 'active' : ''}
-                      onClick={() => setActiveTool('fog-reveal')}
+                      className={activeTool === "fog-reveal" ? "active" : ""}
+                      onClick={() => setActiveTool("fog-reveal")}
                     >
                       Reveal
                     </li>
                     <li
-                      className={activeTool === 'fog-hide' ? 'active' : ''}
-                      onClick={() => setActiveTool('fog-hide')}
+                      className={activeTool === "fog-hide" ? "active" : ""}
+                      onClick={() => setActiveTool("fog-hide")}
                     >
                       Hide
                     </li>
-                    <li onClick={() => activeId && send({ type: 'fog_clear', pageId: activeId })}>Clear Fog</li>
+                    <li
+                      onClick={() =>
+                        activeId &&
+                        send({ type: "fog_clear", pageId: activeId })
+                      }
+                    >
+                      Clear Fog
+                    </li>
                   </ul>
                 </details>
               </li>
@@ -521,7 +680,9 @@ export default function DM() {
             onMoveToken={handleMoveToken}
             onSelectionChange={setSelectedTokenIds}
             mapAreaRef={mapAreaRef}
-            onStageReady={stage => { stageRef.current = stage }}
+            onStageReady={(stage) => {
+              stageRef.current = stage;
+            }}
             fogRects={activePage?.fogRects ?? []}
             tool={activeTool}
             onFogDraw={handleFogDraw}
@@ -541,8 +702,14 @@ export default function DM() {
           />
         </div>
       </div>
-      {dicePanelOpen && <DicePanel history={diceHistory} onRoll={handleRoll} onClose={() => setDicePanelOpen(false)} />}
+      {dicePanelOpen && (
+        <DicePanel
+          history={diceHistory}
+          onRoll={handleRoll}
+          onClose={() => setDicePanelOpen(false)}
+        />
+      )}
       <DiceOverlay request={privateRollRequest} onResult={handleDiceResult} />
     </div>
-  )
+  );
 }

@@ -38,7 +38,10 @@
 }
 
 .toolbar-btn-active {
-  box-shadow: inset 1px 1px #808080, inset 2px 2px #000, inset -1px -1px #dfdfdf !important;
+  box-shadow:
+    inset 1px 1px #808080,
+    inset 2px 2px #000,
+    inset -1px -1px #dfdfdf !important;
 }
 
 .menu-group {

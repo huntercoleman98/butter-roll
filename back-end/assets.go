@@ -69,7 +69,7 @@ func uploadAsset(assetsDir string) http.HandlerFunc {
 			return
 		}
 
-		publicURL := "/assets/" + filename
+		publicURL := "/api/assets/" + filename
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"url": publicURL})
 	}
