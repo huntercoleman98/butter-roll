@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { GiBeastEye, GiEyeball, GiSemiClosedEye, GiSheikahEye, GiSightDisabled } from 'react-icons/gi'
 import type { DiceRollResult } from '../hooks/useGameSocket'
 import { parseDiceExpression } from '../utils/parseDiceExpression'
 
@@ -25,6 +26,7 @@ export default function DicePanel({ history, onRoll, onClose }: Props) {
   const [pos, setPos] = useState(() => ({ x: window.innerWidth - 240, y: 60 }))
   const panelRef = useRef<HTMLDivElement>(null)
   const historyRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const el = historyRef.current
@@ -40,7 +42,7 @@ export default function DicePanel({ history, onRoll, onClose }: Props) {
     }
     setError('')
     onRoll(trimmed, isPrivate)
-    setExpr('')
+    inputRef.current?.select()
   }
 
   function handleDragStart(e: React.MouseEvent) {
@@ -87,13 +89,6 @@ export default function DicePanel({ history, onRoll, onClose }: Props) {
       <div className="title-bar" onMouseDown={handleDragStart} style={{ cursor: 'move' }}>
         <div className="title-bar-text">Dice</div>
         <div className="title-bar-controls">
-          <button
-            onClick={() => setIsPrivate(p => !p)}
-            title={isPrivate ? 'Private' : 'Public'}
-            style={{ fontSize: 12 }}
-          >
-            {isPrivate ? '🔒' : '🔓'}
-          </button>
           <button aria-label="Close" onClick={onClose} />
         </div>
       </div>
@@ -111,6 +106,7 @@ export default function DicePanel({ history, onRoll, onClose }: Props) {
           </div>
           <div className="dice-roll-row">
             <input
+              ref={inputRef}
               type="text"
               placeholder="e.g. 2d6+3"
               value={expr}
@@ -118,6 +114,13 @@ export default function DicePanel({ history, onRoll, onClose }: Props) {
               onKeyDown={e => { if (e.key === 'Enter') submit() }}
             />
             <button onClick={submit}>Roll</button>
+            <button
+              onClick={() => setIsPrivate(p => !p)}
+              title={isPrivate ? 'Private' : 'Public'}
+              style={{ fontSize: 16, color: 'var(--text-color)', minWidth: 0, padding: '0 6px' }}
+            >
+              {isPrivate ? <GiSightDisabled /> : <GiSheikahEye />}
+            </button>
           </div>
           {error && <div style={{ padding: '2px 4px', fontSize: 10, color: '#c00' }}>{error}</div>}
         </div>
