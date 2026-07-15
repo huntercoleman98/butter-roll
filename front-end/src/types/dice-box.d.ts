@@ -21,11 +21,17 @@ declare module "@3d-dice/dice-box" {
     scale?: number;
   }
 
+  interface DiceBoxRollOptions {
+    theme?: string;
+    themeColor?: string;
+    newStartPoint?: boolean;
+  }
+
   export default class DiceBox {
     constructor(selector: string, options?: DiceBoxOptions);
     init(): Promise<void>;
-    roll(notation: string | string[]): Promise<unknown>;
-    add(notation: string | string[]): Promise<unknown>;
+    roll(notation: string | string[], options?: DiceBoxRollOptions): Promise<unknown>;
+    add(notation: string | string[], options?: DiceBoxRollOptions): Promise<unknown>;
     reroll(notation: unknown): Promise<unknown>;
     remove(notation: unknown): Promise<unknown>;
     clear(): void;

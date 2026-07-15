@@ -34,10 +34,12 @@ var upgrader = websocket.Upgrader{
 
 // Client is one connected WebSocket peer.
 type Client struct {
+	id   string
 	hub  *Hub
 	conn *websocket.Conn
 	send chan []byte // buffered; written by hub, drained by writePump
 }
+
 
 // serveWS upgrades the HTTP connection and starts the client pumps.
 func serveWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
@@ -46,7 +48,14 @@ func serveWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		log.Printf("ws upgrade error: %v", err)
 		return
 	}
+	clientID, err := newUUID()
+	if err != nil {
+		log.Printf("ws: generate client id: %v", err)
+		conn.Close()
+		return
+	}
 	client := &Client{
+		id:   clientID,
 		hub:  hub,
 		conn: conn,
 		send: make(chan []byte, 256),

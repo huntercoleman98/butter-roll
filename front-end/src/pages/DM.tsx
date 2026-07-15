@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 function uuid(): string {
-  if (typeof crypto.randomUUID === "function") return uuid();
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => {
     const n = parseInt(c);
     return (n ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (n / 4)))).toString(16);
@@ -19,6 +19,7 @@ import {
   type ArrowOverlay,
   type RadiusCircle,
   type DiceRollResult,
+  type DiceRequest,
 } from "../hooks/useGameSocket";
 import "../App.css";
 
@@ -49,9 +50,7 @@ export default function DM() {
   const [localRadius, setLocalRadius] = useState<RadiusCircle | null>(null);
   const [dicePanelOpen, setDicePanelOpen] = useState(false);
   const [diceHistory, setDiceHistory] = useState<DiceRollResult[]>([]);
-  const [privateRollRequest, setPrivateRollRequest] = useState<{
-    expression: string;
-  } | null>(null);
+  const [privateRollRequests, setPrivateRollRequests] = useState<DiceRequest[]>([]);
 
   const mapAreaRef = useRef<HTMLDivElement>(null);
   const mapInputRef = useRef<HTMLInputElement>(null);
@@ -154,14 +153,20 @@ export default function DM() {
   }, [diceResult]);
 
   function handleDiceResult(result: DiceRollResult) {
-    setDiceHistory((prev) => [...prev, { ...result, private: true }]);
+    setDiceHistory((prev) => [
+      ...prev,
+      { ...result, private: true, playerName: "DM" },
+    ]);
   }
 
   function handleRoll(expression: string, isPrivate: boolean) {
     if (isPrivate) {
-      setPrivateRollRequest({ expression });
+      setPrivateRollRequests((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), expression },
+      ]);
     } else {
-      send({ type: "dice_roll_request", expression });
+      send({ type: "dice_roll_request", expression, playerName: "DM" });
     }
   }
 
@@ -709,7 +714,7 @@ export default function DM() {
           onClose={() => setDicePanelOpen(false)}
         />
       )}
-      <DiceOverlay request={privateRollRequest} onResult={handleDiceResult} />
+      <DiceOverlay requests={privateRollRequests} onResult={handleDiceResult} />
     </div>
   );
 }

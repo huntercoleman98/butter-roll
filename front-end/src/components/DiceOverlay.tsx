@@ -1,20 +1,81 @@
 import { useEffect, useRef } from "react";
 import DiceBox from "@3d-dice/dice-box";
-import type { DiceRollResult } from "../hooks/useGameSocket";
+import type { DiceRequest, DiceRollResult } from "../hooks/useGameSocket";
 import { parseDiceExpression } from "../utils/parseDiceExpression";
 
 const DICE_CLEAR_DELAY_MS = 5000;
 
 interface Props {
-  request: { expression: string } | null;
+  requests: DiceRequest[];
   onResult: (result: DiceRollResult) => void;
 }
 
-export default function DiceOverlay({ request, onResult }: Props) {
+export default function DiceOverlay({ requests, onResult }: Props) {
   const boxRef = useRef<InstanceType<typeof DiceBox> | null>(null);
+  const readyRef = useRef(false);
+  const mountedRef = useRef(true);
+  const processedIdsRef = useRef(new Set<string>());
+  const pendingQueueRef = useRef<DiceRequest[]>([]);
+  const outstandingRef = useRef(0);
+  const clearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onResultRef = useRef(onResult);
+  onResultRef.current = onResult;
 
+  const doRoll = useRef((box: InstanceType<typeof DiceBox>, req: DiceRequest) => {
+    const parsed = parseDiceExpression(req.expression);
+    if (!parsed) return;
+    const { count, sides, modifier } = parsed;
+
+    if (clearTimeoutRef.current !== null) {
+      clearTimeout(clearTimeoutRef.current);
+      clearTimeoutRef.current = null;
+    }
+
+    outstandingRef.current += 1;
+
+    box
+      .add(`${count}d${sides}`, req.diceColor ? { themeColor: req.diceColor } : {})
+      .then((results: unknown) => {
+        if (!mountedRef.current) return;
+        outstandingRef.current -= 1;
+
+        const dice = results as Array<{ value: number; sides: number }>;
+        const rolls = dice.map((d) => d.value);
+        const total = rolls.reduce((s, v) => s + v, 0) + modifier;
+
+        onResultRef.current({
+          expression: req.expression,
+          sides,
+          rolls,
+          modifier,
+          total,
+          clientId: req.clientId,
+          playerName: req.playerName,
+          diceColor: req.diceColor,
+        });
+
+        // Start the clear timer only once all concurrent rolls have settled.
+        if (outstandingRef.current === 0) {
+          clearTimeoutRef.current = setTimeout(() => {
+            clearTimeoutRef.current = null;
+            if (mountedRef.current) {
+              try {
+                box.clear();
+              } catch {
+                /* ignore */
+              }
+            }
+          }, DICE_CLEAR_DELAY_MS);
+        }
+      })
+      .catch(console.error);
+  }).current;
+
+  // Initialize once — no color dependency, color is supplied per-roll.
   useEffect(() => {
-    let active = true;
+    mountedRef.current = true;
+    readyRef.current = false;
+
     const container = document.createElement("div");
     container.id = "dice-box-container";
     document.body.appendChild(container);
@@ -29,70 +90,46 @@ export default function DiceOverlay({ request, onResult }: Props) {
     box
       .init()
       .then(() => {
-        if (active) boxRef.current = box;
+        if (!mountedRef.current) return;
+        boxRef.current = box;
+        readyRef.current = true;
+        const queued = pendingQueueRef.current.splice(0);
+        for (const req of queued) {
+          doRoll(box, req);
+        }
       })
       .catch(console.error);
 
     return () => {
-      active = false;
+      mountedRef.current = false;
+      readyRef.current = false;
       boxRef.current = null;
+      if (clearTimeoutRef.current !== null) {
+        clearTimeout(clearTimeoutRef.current);
+        clearTimeoutRef.current = null;
+      }
       try {
         box.clear();
       } catch {
-        /* ignore if not yet initialized */
+        /* ignore */
       }
       container.remove();
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const prevRequestRef = useRef<{ expression: string } | null>(null);
-  const clearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const onResultRef = useRef(onResult);
-  onResultRef.current = onResult;
-
+  // Dispatch new requests as they arrive.
   useEffect(() => {
-    if (!request || !boxRef.current) return;
-    if (request === prevRequestRef.current) return;
-    prevRequestRef.current = request;
+    for (const req of requests) {
+      if (processedIdsRef.current.has(req.id)) continue;
+      processedIdsRef.current.add(req.id);
 
-    const parsed = parseDiceExpression(request.expression);
-    if (!parsed) return;
-    const { count, sides, modifier } = parsed;
-
-    if (clearTimeoutRef.current !== null) {
-      clearTimeout(clearTimeoutRef.current);
-      clearTimeoutRef.current = null;
+      if (readyRef.current && boxRef.current) {
+        doRoll(boxRef.current, req);
+      } else {
+        pendingQueueRef.current.push(req);
+      }
     }
-
-    const box = boxRef.current;
-    box
-      .add(`${count}d${sides}`)
-      .then((results: unknown) => {
-        // Cancel whatever timer is pending — this roll settling extends the window
-        if (clearTimeoutRef.current !== null) {
-          clearTimeout(clearTimeoutRef.current);
-        }
-        const dice = results as Array<{ value: number; sides: number }>;
-        const rolls = dice.map((d) => d.value);
-        const total = rolls.reduce((s, v) => s + v, 0) + modifier;
-        onResultRef.current({
-          expression: request.expression,
-          sides,
-          rolls,
-          modifier,
-          total,
-        });
-        clearTimeoutRef.current = setTimeout(() => {
-          clearTimeoutRef.current = null;
-          try {
-            box.clear();
-          } catch {
-            /* ignore */
-          }
-        }, DICE_CLEAR_DELAY_MS);
-      })
-      .catch(console.error);
-  }, [request]);
+  }, [requests, doRoll]);
 
   return null;
 }

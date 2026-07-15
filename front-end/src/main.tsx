@@ -5,6 +5,7 @@ import "98.css";
 import "./index.css";
 import DM from "./pages/DM";
 import Viewer from "./pages/Viewer";
+import Player from "./pages/Player";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -12,7 +13,8 @@ createRoot(document.getElementById("root")!).render(
       <Routes>
         <Route path="/dm" element={<DM />} />
         <Route path="/view" element={<Viewer />} />
-        <Route path="*" element={<Navigate to="/dm" replace />} />
+        <Route path="/player" element={<Player />} />
+        <Route path="*" element={<Navigate to="/player" replace />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

@@ -31,4 +31,4 @@ dev-frontend:
 
 # Run the Go server in dev mode (opens CORS to the Vite dev server)
 dev-backend:
-	cd back-end && ALLOWED_ORIGIN=http://localhost:5173 go run .
+	cd back-end && ALLOWED_ORIGIN=http://localhost:5173 go run -tags dev .

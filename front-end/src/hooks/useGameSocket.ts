@@ -37,6 +37,14 @@ export interface RadiusCircle {
   y2: number;
 }
 
+export interface DiceRequest {
+  id: string;
+  expression: string;
+  clientId?: string;
+  playerName?: string;
+  diceColor?: string;
+}
+
 export interface DiceRollResult {
   expression: string;
   sides: number;
@@ -44,6 +52,9 @@ export interface DiceRollResult {
   modifier: number;
   total: number;
   private?: boolean;
+  clientId?: string;
+  playerName?: string;
+  diceColor?: string;
 }
 
 export interface ViewportSync {
@@ -139,7 +150,7 @@ type OutgoingMsg =
       worldCenterY: number;
       scale: number;
     }
-  | { type: "dice_roll_request"; expression: string }
+  | { type: "dice_roll_request"; expression: string; clientId?: string; private?: boolean; playerName?: string; diceColor?: string }
   | {
       type: "dice_roll_result";
       expression: string;
@@ -147,6 +158,10 @@ type OutgoingMsg =
       rolls: number[];
       modifier: number;
       total: number;
+      clientId?: string;
+      private?: boolean;
+      playerName?: string;
+      diceColor?: string;
     };
 
 export function useGameSocket() {
@@ -156,11 +171,10 @@ export function useGameSocket() {
   const [radiusCircle, setRadiusCircle] = useState<RadiusCircle | null>(null);
   const [ping, setPing] = useState<Ping | null>(null);
   const [viewportSync, setViewportSync] = useState<ViewportSync | null>(null);
-  const [diceRequest, setDiceRequest] = useState<{ expression: string } | null>(
-    null,
-  );
+  const [diceRequests, setDiceRequests] = useState<DiceRequest[]>([]);
   const [diceResult, setDiceResult] = useState<DiceRollResult | null>(null);
   const [connected, setConnected] = useState(false);
+  const [myClientId, setMyClientId] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const pingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -436,8 +450,21 @@ export function useGameSocket() {
             });
           break;
 
+        case "hello":
+          setMyClientId(msg.clientId as string);
+          break;
+
         case "dice_roll_request":
-          setDiceRequest({ expression: msg.expression as string });
+          setDiceRequests((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              expression: msg.expression as string,
+              clientId: msg.clientId as string | undefined,
+              playerName: msg.playerName as string | undefined,
+              diceColor: msg.diceColor as string | undefined,
+            },
+          ]);
           break;
 
         case "dice_roll_result":
@@ -447,6 +474,10 @@ export function useGameSocket() {
             rolls: msg.rolls as number[],
             modifier: msg.modifier as number,
             total: msg.total as number,
+            clientId: msg.clientId as string | undefined,
+            private: msg.private as boolean | undefined,
+            playerName: msg.playerName as string | undefined,
+            diceColor: msg.diceColor as string | undefined,
           });
           break;
 
@@ -471,9 +502,10 @@ export function useGameSocket() {
     radiusCircle,
     ping,
     viewportSync,
-    diceRequest,
+    diceRequests,
     diceResult,
     connected,
+    myClientId,
     send,
   };
 }

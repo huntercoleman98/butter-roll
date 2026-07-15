@@ -1,6 +1,9 @@
 package main
 
-import "log"
+import (
+	"encoding/json"
+	"log"
+)
 
 // Hub maintains the set of active clients and routes messages.
 // All access to Session happens inside Run(), so no mutex is needed.
@@ -31,6 +34,12 @@ func (h *Hub) Run() {
 
 		case c := <-h.register:
 			h.clients[c] = true
+			hello, _ := json.Marshal(map[string]string{"type": "hello", "clientId": c.id})
+			select {
+			case c.send <- hello:
+			default:
+				log.Printf("hub: hello dropped for slow client")
+			}
 			snap := h.session.Snapshot()
 			if snap != nil {
 				select {

@@ -11,11 +11,12 @@ interface Props {
 
 const DIE_SIDES = [4, 6, 8, 10, 12, 20, 100];
 
-function formatEntry(r: DiceRollResult, isPrivate: boolean): string {
+function formatEntry(r: DiceRollResult): string {
+  const name = r.playerName ?? "?";
   const showRolls = r.rolls.length > 1 || r.modifier !== 0;
   const rollsStr = showRolls ? ` (${r.rolls.join(", ")})` : "";
-  const tag = isPrivate ? " 🔒" : "";
-  return `DM rolled ${r.expression} → ${r.total}${rollsStr}${tag}`;
+  const tag = r.private ? " 🔒" : "";
+  return `${name}: ${r.expression} → ${r.total}${rollsStr}${tag}`;
 }
 
 export default function DicePanel({ history, onRoll, onClose }: Props) {
@@ -153,7 +154,7 @@ export default function DicePanel({ history, onRoll, onClose }: Props) {
         <div className="dice-history" ref={historyRef}>
           {history.map((r, i) => (
             <div key={i} style={{ color: r.private ? "#888" : undefined }}>
-              {formatEntry(r, r.private ?? false)}
+              {formatEntry(r)}
             </div>
           ))}
         </div>

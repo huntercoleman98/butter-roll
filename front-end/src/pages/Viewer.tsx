@@ -14,7 +14,7 @@ export default function Viewer() {
     radiusCircle,
     ping,
     viewportSync,
-    diceRequest,
+    diceRequests,
     send,
   } = useGameSocket();
   const mapAreaRef = useRef<HTMLDivElement>(null);
@@ -51,7 +51,7 @@ export default function Viewer() {
         syncedViewport={viewportSync}
         readOnly
       />
-      <DiceOverlay request={diceRequest} onResult={handleDiceResult} />
+      <DiceOverlay requests={diceRequests} onResult={handleDiceResult} />
       {diceResult && (
         <div className="dice-result-popup">
           <div className="window">
@@ -59,6 +59,11 @@ export default function Viewer() {
               <div className="title-bar-text">Roll Result</div>
             </div>
             <div className="window-body dice-result-body">
+              {diceResult.playerName && (
+                <div className="dice-result-name">
+                  {diceResult.playerName} rolled:
+                </div>
+              )}
               <div className="dice-result-expression">
                 {diceResult.expression}
               </div>

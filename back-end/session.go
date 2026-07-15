@@ -275,6 +275,10 @@ type radiusUpdateMsg struct {
 
 type diceRollRequestMsg struct {
 	Expression string `json:"expression"`
+	ClientID   string `json:"clientId,omitempty"`
+	Private    bool   `json:"private,omitempty"`
+	PlayerName string `json:"playerName,omitempty"`
+	DiceColor  string `json:"diceColor,omitempty"`
 }
 
 type diceRollResultMsg struct {
@@ -283,6 +287,10 @@ type diceRollResultMsg struct {
 	Rolls      []int  `json:"rolls"`
 	Modifier   int    `json:"modifier"`
 	Total      int    `json:"total"`
+	ClientID   string `json:"clientId,omitempty"`
+	Private    bool   `json:"private,omitempty"`
+	PlayerName string `json:"playerName,omitempty"`
+	DiceColor  string `json:"diceColor,omitempty"`
 }
 
 func finiteFloat(f float64) bool {

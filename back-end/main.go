@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	"io/fs"
 	"log"
 	"net/http"
@@ -9,9 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 )
-
-//go:embed dist
-var frontendFS embed.FS
 
 func main() {
 	dataDir := os.Getenv("DATA_DIR")
@@ -36,7 +32,7 @@ func main() {
 	hub := NewHub(session, sessionPath)
 	go hub.Run()
 
-	distFS, err := fs.Sub(frontendFS, "dist")
+	distFS, err := getFrontendFS()
 	if err != nil {
 		log.Fatalf("cannot create frontend fs: %v", err)
 	}
