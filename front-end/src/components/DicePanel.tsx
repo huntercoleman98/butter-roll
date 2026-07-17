@@ -5,23 +5,35 @@ import { parseDiceExpression } from "../utils/parseDiceExpression";
 
 interface Props {
   history: DiceRollResult[];
-  onRoll: (expression: string, isPrivate: boolean) => void;
+  onRoll: (expression: string, isPrivate: boolean, advMode?: "advantage" | "disadvantage", label?: string) => void;
   onClose: () => void;
 }
 
 const DIE_SIDES = [4, 6, 8, 10, 12, 20, 100];
+const BONUS_VALUES = [4, 3, 2, 1, -1, -2, -3, -4];
 
 function formatEntry(r: DiceRollResult): string {
   const name = r.playerName ?? "?";
+  const desc = r.label ? `${r.expression} ${r.label}` : r.expression;
   const showRolls = r.rolls.length > 1 || r.modifier !== 0;
   const rollsStr = showRolls ? ` (${r.rolls.join(", ")})` : "";
   const tag = r.private ? " 🔒" : "";
-  return `${name}: ${r.expression} → ${r.total}${rollsStr}${tag}`;
+  return `${name}: ${desc} → ${r.total}${rollsStr}${tag}`;
+}
+
+function applyBonus(expr: string, b: number | null): string {
+  if (!b) return expr;
+  const p = parseDiceExpression(expr);
+  if (!p) return expr;
+  const m = p.modifier + b;
+  return `${p.count}d${p.sides}${m > 0 ? `+${m}` : m < 0 ? `${m}` : ""}`;
 }
 
 export default function DicePanel({ history, onRoll, onClose }: Props) {
   const [expr, setExpr] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [advMode, setAdvMode] = useState<"normal" | "advantage" | "disadvantage">("normal");
+  const [bonus, setBonus] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [controlsHeight, setControlsHeight] = useState<number | null>(null);
   const [pos, setPos] = useState(() => ({ x: window.innerWidth - 240, y: 60 }));
@@ -37,12 +49,18 @@ export default function DicePanel({ history, onRoll, onClose }: Props) {
   function submit() {
     const trimmed = expr.trim();
     if (!trimmed) return;
-    if (!parseDiceExpression(trimmed)) {
+    const withBonus = applyBonus(trimmed, bonus);
+    const parsed = parseDiceExpression(withBonus);
+    if (!parsed) {
       setError("Invalid expression. Use e.g. 2d6+3 (max 20 dice).");
       return;
     }
     setError("");
-    onRoll(trimmed, isPrivate);
+    const av = advMode !== "normal" ? advMode : undefined;
+    const label = parsed.sides === 20 && parsed.count === 1 && av
+      ? (av === "advantage" ? "with advantage" : "with disadvantage")
+      : undefined;
+    onRoll(withBonus, isPrivate, av, label);
     inputRef.current?.select();
   }
 
@@ -103,15 +121,48 @@ export default function DicePanel({ history, onRoll, onClose }: Props) {
           className="dice-controls"
           style={controlsHeight !== null ? { height: controlsHeight } : {}}
         >
-          <div className="dice-die-buttons">
-            {DIE_SIDES.map((sides) => (
-              <button
-                key={sides}
-                onClick={() => onRoll(`d${sides}`, isPrivate)}
-              >
-                d{sides}
-              </button>
-            ))}
+          <div className="dice-adv-row">
+            <button
+              className={`dice-adv-btn${advMode === "advantage" ? " is-active" : ""}`}
+              onClick={() => setAdvMode((m) => m === "advantage" ? "normal" : "advantage")}
+            >
+              Adv
+            </button>
+            <button
+              className={`dice-adv-btn${advMode === "disadvantage" ? " is-active" : ""}`}
+              onClick={() => setAdvMode((m) => m === "disadvantage" ? "normal" : "disadvantage")}
+            >
+              Dis
+            </button>
+          </div>
+          <div className="dice-mid">
+            <div className="dice-die-buttons">
+              {DIE_SIDES.map((sides) => (
+                <button
+                  key={sides}
+                  onClick={() => {
+                    const av = advMode !== "normal" ? advMode : undefined;
+                    const label = sides === 20 && av
+                      ? (av === "advantage" ? "with advantage" : "with disadvantage")
+                      : undefined;
+                    onRoll(applyBonus(`d${sides}`, bonus), isPrivate, av, label);
+                  }}
+                >
+                  d{sides}
+                </button>
+              ))}
+            </div>
+            <div className="dice-bonus-col">
+              {BONUS_VALUES.map((n) => (
+                <button
+                  key={n}
+                  className={`dice-bonus-btn${bonus === n ? " is-active" : ""}`}
+                  onClick={() => setBonus((b) => (b === n ? null : n))}
+                >
+                  {n > 0 ? `+${n}` : n}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="dice-roll-row">
             <input

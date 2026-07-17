@@ -53,10 +53,11 @@ function rollLocally(count: number, sides: number): number[] {
 }
 
 function formatEntry(r: DiceRollResult): string {
-  if (r.private) return `${r.expression} → 🗼 rolled in the tower`;
+  if (r.private) return `${r.label ?? r.expression} → 🗼 rolled in the tower`;
+  const desc = r.label ? `${r.expression} ${r.label}` : r.expression;
   const showRolls = r.rolls.length > 1 || r.modifier !== 0;
   const rollsStr = showRolls ? ` (${r.rolls.join(", ")})` : "";
-  return `${r.expression} → ${r.total}${rollsStr}`;
+  return `${desc} → ${r.total}${rollsStr}`;
 }
 
 function abilityMod(score: number): number {
@@ -81,6 +82,7 @@ export default function Player() {
   );
   const [expr, setExpr] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [advMode, setAdvMode] = useState<"normal" | "advantage" | "disadvantage">("normal");
   const [error, setError] = useState("");
   const [history, setHistory] = useState<DiceRollResult[]>([]);
   const historyRef = useRef<HTMLDivElement>(null);
@@ -113,7 +115,7 @@ export default function Player() {
     setProfile(p);
   }
 
-  function handleRoll(expression: string) {
+  function handleRoll(expression: string, label?: string) {
     if (!profile) return;
     const trimmed = expression.trim();
     if (!trimmed) return;
@@ -126,23 +128,27 @@ export default function Player() {
 
     if (isPrivate) {
       const { count, sides, modifier } = parsed;
-      const rolls = rollLocally(count, sides);
-      const total = rolls.reduce((a, b) => a + b, 0) + modifier;
+      const useAdvDisadv = advMode !== "normal" && count === 1 && sides === 20;
+      const rawRolls = useAdvDisadv ? rollLocally(2, sides) : rollLocally(count, sides);
+      const total = useAdvDisadv
+        ? (advMode === "advantage" ? Math.max(...rawRolls) : Math.min(...rawRolls)) + modifier
+        : rawRolls.reduce((a, b) => a + b, 0) + modifier;
       send({
         type: "dice_roll_result",
         expression: trimmed,
         sides,
-        rolls,
+        rolls: rawRolls,
         modifier,
         total,
         clientId: myClientId ?? undefined,
         private: true,
         playerName: profile.name,
         diceColor: profile.color,
+        label,
       });
       setHistory((prev) => [
         ...prev,
-        { expression: trimmed, sides, rolls, modifier, total, private: true },
+        { expression: trimmed, sides, rolls: rawRolls, modifier, total, private: true, label },
       ]);
     } else {
       send({
@@ -151,20 +157,30 @@ export default function Player() {
         clientId: myClientId ?? undefined,
         playerName: profile.name,
         diceColor: profile.color,
+        advMode: advMode !== "normal" ? advMode : undefined,
+        label,
       });
     }
   }
 
   function submit() {
-    handleRoll(expr);
+    const trimmed = expr.trim();
+    const parsed = parseDiceExpression(trimmed);
+    const label = parsed && parsed.sides === 20 && parsed.count === 1 && advMode !== "normal"
+      ? (advMode === "advantage" ? "with advantage" : "with disadvantage")
+      : undefined;
+    handleRoll(trimmed, label);
     inputRef.current?.select();
   }
 
   function rollStat(ability: AbilityName) {
     const mod = abilityMod(scores[ability]);
-    const expression =
-      mod === 0 ? "1d20" : mod > 0 ? `1d20+${mod}` : `1d20${mod}`;
-    handleRoll(expression);
+    const expression = mod === 0 ? "1d20" : mod > 0 ? `1d20+${mod}` : `1d20${mod}`;
+    const label =
+      advMode !== "normal"
+        ? `${ability} ${advMode === "advantage" ? "with advantage" : "with disadvantage"}`
+        : ability;
+    handleRoll(expression, label);
   }
 
   function handleScoreChange(ability: AbilityName, value: string) {
@@ -285,6 +301,25 @@ export default function Player() {
         </div>
 
         <div className="player-tab-body">
+          <div className="player-adv-row">
+            <button
+              disabled={!ready}
+              onClick={() => setAdvMode((m) => m === "advantage" ? "normal" : "advantage")}
+              title="Advantage"
+              className={`player-adv-btn${advMode === "advantage" ? " is-active" : ""}`}
+            >
+              Adv
+            </button>
+            <button
+              disabled={!ready}
+              onClick={() => setAdvMode((m) => m === "disadvantage" ? "normal" : "disadvantage")}
+              title="Disadvantage"
+              className={`player-adv-btn${advMode === "disadvantage" ? " is-active" : ""}`}
+            >
+              Dis
+            </button>
+          </div>
+
           {tab === "dice" && (
             <div className="player-controls">
               <div className="player-die-grid">
@@ -292,7 +327,12 @@ export default function Player() {
                   <button
                     key={sides}
                     disabled={!ready}
-                    onClick={() => handleRoll(`d${sides}`)}
+                    onClick={() => {
+                      const label = sides === 20 && advMode !== "normal"
+                        ? (advMode === "advantage" ? "with advantage" : "with disadvantage")
+                        : undefined;
+                      handleRoll(`d${sides}`, label);
+                    }}
                     className="player-die-btn"
                     style={{ borderLeft: `4px solid ${profile.color}` }}
                   >
@@ -349,7 +389,7 @@ export default function Player() {
                     onClick={() => rollStat(ability)}
                     className="player-stat-roll"
                   >
-                    d20
+                    Roll
                   </button>
                 </div>
               ))}

@@ -61,7 +61,7 @@ export default function Viewer() {
             <div className="window-body dice-result-body">
               {diceResult.playerName && (
                 <div className="dice-result-name">
-                  {diceResult.playerName} rolled:
+                  {diceResult.playerName} rolled{diceResult.label ? ` ${diceResult.label}` : ""}:
                 </div>
               )}
               <div className="dice-result-expression">

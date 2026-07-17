@@ -26,6 +26,9 @@ export default function DiceOverlay({ requests, onResult }: Props) {
     if (!parsed) return;
     const { count, sides, modifier } = parsed;
 
+    const useAdvDisadv = req.advMode != null && count === 1 && sides === 20;
+    const notation = useAdvDisadv ? `2d${sides}` : `${count}d${sides}`;
+
     if (clearTimeoutRef.current !== null) {
       clearTimeout(clearTimeoutRef.current);
       clearTimeoutRef.current = null;
@@ -34,14 +37,26 @@ export default function DiceOverlay({ requests, onResult }: Props) {
     outstandingRef.current += 1;
 
     box
-      .add(`${count}d${sides}`, req.diceColor ? { themeColor: req.diceColor } : {})
+      .add(notation, req.diceColor ? { themeColor: req.diceColor } : {})
       .then((results: unknown) => {
         if (!mountedRef.current) return;
         outstandingRef.current -= 1;
 
         const dice = results as Array<{ value: number; sides: number }>;
-        const rolls = dice.map((d) => d.value);
-        const total = rolls.reduce((s, v) => s + v, 0) + modifier;
+        const values = dice.map((d) => d.value);
+        let rolls: number[];
+        let total: number;
+        if (useAdvDisadv) {
+          const picked =
+            req.advMode === "advantage"
+              ? Math.max(...values)
+              : Math.min(...values);
+          rolls = values;
+          total = picked + modifier;
+        } else {
+          rolls = values;
+          total = rolls.reduce((s, v) => s + v, 0) + modifier;
+        }
 
         onResultRef.current({
           expression: req.expression,
@@ -52,6 +67,7 @@ export default function DiceOverlay({ requests, onResult }: Props) {
           clientId: req.clientId,
           playerName: req.playerName,
           diceColor: req.diceColor,
+          label: req.label,
         });
 
         // Start the clear timer only once all concurrent rolls have settled.

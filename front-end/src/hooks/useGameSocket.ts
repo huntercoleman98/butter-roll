@@ -43,6 +43,8 @@ export interface DiceRequest {
   clientId?: string;
   playerName?: string;
   diceColor?: string;
+  advMode?: "advantage" | "disadvantage";
+  label?: string;
 }
 
 export interface DiceRollResult {
@@ -55,6 +57,7 @@ export interface DiceRollResult {
   clientId?: string;
   playerName?: string;
   diceColor?: string;
+  label?: string;
 }
 
 export interface ViewportSync {
@@ -150,7 +153,7 @@ type OutgoingMsg =
       worldCenterY: number;
       scale: number;
     }
-  | { type: "dice_roll_request"; expression: string; clientId?: string; private?: boolean; playerName?: string; diceColor?: string }
+  | { type: "dice_roll_request"; expression: string; clientId?: string; private?: boolean; playerName?: string; diceColor?: string; advMode?: "advantage" | "disadvantage"; label?: string }
   | {
       type: "dice_roll_result";
       expression: string;
@@ -162,6 +165,7 @@ type OutgoingMsg =
       private?: boolean;
       playerName?: string;
       diceColor?: string;
+      label?: string;
     };
 
 export function useGameSocket() {
@@ -463,6 +467,8 @@ export function useGameSocket() {
               clientId: msg.clientId as string | undefined,
               playerName: msg.playerName as string | undefined,
               diceColor: msg.diceColor as string | undefined,
+              advMode: msg.advMode as "advantage" | "disadvantage" | undefined,
+              label: msg.label as string | undefined,
             },
           ]);
           break;
@@ -478,6 +484,7 @@ export function useGameSocket() {
             private: msg.private as boolean | undefined,
             playerName: msg.playerName as string | undefined,
             diceColor: msg.diceColor as string | undefined,
+            label: msg.label as string | undefined,
           });
           break;
 

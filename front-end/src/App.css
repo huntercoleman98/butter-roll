@@ -233,7 +233,7 @@
 }
 
 .dice-window {
-  width: 210px;
+  width: 252px;
   display: flex;
   flex-direction: column;
 }
@@ -242,7 +242,7 @@
   padding: 0 !important;
   display: flex;
   flex-direction: column;
-  height: 300px;
+  height: 360px;
 }
 
 .dice-controls {
@@ -263,6 +263,53 @@
 
 .dice-resize-handle:hover {
   background: #a0a0a0;
+}
+
+.dice-adv-row {
+  display: flex;
+  gap: 4px;
+  padding: 4px 4px 0;
+}
+
+.dice-adv-btn {
+  flex: 1;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 2px 6px;
+}
+
+.dice-adv-btn.is-active {
+  box-shadow: inset -1px -1px #dfdfdf, inset 1px 1px #808080;
+}
+
+.dice-mid {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-bottom: 1px solid #808080;
+}
+
+.dice-mid .dice-die-buttons {
+  flex: 1;
+  padding: 0;
+  border: none;
+}
+
+.dice-bonus-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.dice-bonus-btn {
+  font-size: 11px;
+  padding: 1px 4px;
+  min-width: 30px;
+}
+
+.dice-bonus-btn.is-active {
+  box-shadow: inset -1px -1px #dfdfdf, inset 1px 1px #808080;
 }
 
 .dice-die-buttons {
@@ -312,7 +359,7 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  min-width: 140px;
+  min-width: 280px;
 }
 
 .dice-result-name {
@@ -473,6 +520,22 @@
   min-width: 0;
   font-size: 14px;
   padding: 6px 4px;
+}
+
+.player-adv-row {
+  display: flex;
+  gap: 6px;
+}
+
+.player-adv-btn {
+  height: 36px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.player-adv-btn.is-active {
+  box-shadow: var(--border-button-active, inset -1px -1px #dfdfdf, inset 1px 1px #808080);
 }
 
 .player-icon-btn {

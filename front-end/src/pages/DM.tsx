@@ -159,14 +159,14 @@ export default function DM() {
     ]);
   }
 
-  function handleRoll(expression: string, isPrivate: boolean) {
+  function handleRoll(expression: string, isPrivate: boolean, advMode?: "advantage" | "disadvantage", label?: string) {
     if (isPrivate) {
       setPrivateRollRequests((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), expression },
+        { id: crypto.randomUUID(), expression, advMode, label },
       ]);
     } else {
-      send({ type: "dice_roll_request", expression, playerName: "DM" });
+      send({ type: "dice_roll_request", expression, playerName: "DM", advMode, label });
     }
   }
 
