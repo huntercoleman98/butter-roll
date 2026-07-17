@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { GiTrashCan } from "react-icons/gi";
 import {
   Stage,
   Layer,
@@ -49,7 +50,7 @@ interface MapCanvasProps {
   onDeleteTokens?: (ids: Set<string>) => void;
   onUpdateToken?: (
     ids: Set<string>,
-    update: { color?: string; borderWidth?: number },
+    update: { color?: string; borderWidth?: number; name?: string; showName?: boolean },
   ) => void;
   onUpdateTokenStatus?: (
     ids: Set<string>,
@@ -141,6 +142,8 @@ export default function MapCanvas({
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [menuColor, setMenuColor] = useState<string | null>(null);
   const [menuBorderWidth, setMenuBorderWidth] = useState<number | null>(null);
+  const [menuName, setMenuName] = useState("");
+  const [menuShowName, setMenuShowName] = useState(false);
   const [menuSharedStatuses, setMenuSharedStatuses] = useState<Set<string>>(
     new Set(),
   );
@@ -156,6 +159,7 @@ export default function MapCanvas({
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const canvasContextMenuRef = useRef<HTMLDivElement>(null);
   const updateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const dragStartPositions = useRef<Map<string, { x: number; y: number }>>(
     new Map(),
@@ -354,8 +358,11 @@ export default function MapCanvas({
         affected.every((t) => t.statusEffects?.includes(e)),
       ),
     );
+    const clickedToken = tokens.find((t) => t.id === id);
     setMenuColor(sharedColor);
     setMenuBorderWidth(sharedBW);
+    setMenuName(clickedToken?.name ?? "");
+    setMenuShowName(clickedToken?.showName ?? false);
     setMenuSharedStatuses(sharedStatuses);
     setStatusDropdownOpen(false);
     setMenuOffset({ x: 0, y: 0 });
@@ -378,6 +385,14 @@ export default function MapCanvas({
     updateDebounceRef.current = setTimeout(
       () => onUpdateToken?.(ids, update),
       300,
+    );
+  }
+
+  function scheduleNameUpdate(id: string, name: string, showName: boolean) {
+    if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
+    nameDebounceRef.current = setTimeout(
+      () => onUpdateToken?.(new Set([id]), { name, showName }),
+      500,
     );
   }
 
@@ -892,10 +907,39 @@ export default function MapCanvas({
             </div>
           </div>
           <div className="window-body">
-            <ul className="tree-view">
-              <li onClick={handleContextMenuDelete}>Delete</li>
-            </ul>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+              <button
+                onClick={handleContextMenuDelete}
+                title="Delete"
+                className="icon-btn"
+              >
+                <GiTrashCan />
+              </button>
+            </div>
             <div className="context-menu-fields">
+              <label>Name</label>
+              <input
+                type="text"
+                value={menuName}
+                placeholder="Token name"
+                onChange={(e) => {
+                  setMenuName(e.target.value);
+                  scheduleNameUpdate(contextMenu.tokenId, e.target.value, menuShowName);
+                }}
+              />
+              <span />
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  type="checkbox"
+                  id="ctx-show-name"
+                  checked={menuShowName}
+                  onChange={(e) => {
+                    setMenuShowName(e.target.checked);
+                    scheduleNameUpdate(contextMenu.tokenId, menuName, e.target.checked);
+                  }}
+                />
+                <label htmlFor="ctx-show-name" style={{ cursor: "pointer" }}>Display name</label>
+              </div>
               <label>Border color</label>
               <input
                 type="color"

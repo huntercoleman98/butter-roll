@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { Group, Image as KonvaImage } from "react-konva";
+import { Group, Image as KonvaImage, Text } from "react-konva";
 import Konva from "konva";
 import StatusBadge from "./StatusBadge";
 
@@ -17,6 +17,8 @@ interface TokenProps {
   isSelected?: boolean;
   draggable?: boolean;
   statusEffects?: string[];
+  name?: string;
+  showName?: boolean;
   onClick?: (id: string, shift: boolean) => void;
   onDragStart?: (id: string, x: number, y: number) => void;
   onDragMove?: (id: string, x: number, y: number) => void;
@@ -37,6 +39,8 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
     isSelected,
     draggable = true,
     statusEffects,
+    name,
+    showName,
     onClick,
     onDragStart,
     onDragMove,
@@ -176,6 +180,24 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
       {statusEffects?.map((effectId, i) => (
         <StatusBadge key={effectId} effectId={effectId} index={i} />
       ))}
+      {showName && name && (
+        <Text
+          text={name}
+          x={-60}
+          y={TOKEN_SIZE / 2 + 3}
+          width={120}
+          align="center"
+          fontSize={12}
+          fontStyle="bold"
+          fill="white"
+          stroke="black"
+          strokeWidth={3}
+          fillAfterStrokeEnabled
+          listening={false}
+          wrap="none"
+          ellipsis
+        />
+      )}
     </Group>
   );
 });

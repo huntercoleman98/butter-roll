@@ -323,7 +323,7 @@ export default function DM() {
 
   function handleUpdateToken(
     ids: Set<string>,
-    update: { color?: string; borderWidth?: number },
+    update: { color?: string; borderWidth?: number; name?: string; showName?: boolean },
   ) {
     if (!activeId) return;
     for (const id of ids)

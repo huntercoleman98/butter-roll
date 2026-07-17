@@ -387,6 +387,10 @@
   min-width: 0;
 }
 
+.dice-roll-row button {
+  min-width: 0;
+}
+
 .dice-history {
   flex: 1;
   overflow-y: auto;
@@ -592,10 +596,11 @@
   box-shadow: var(--border-button-active, inset -1px -1px #dfdfdf, inset 1px 1px #808080);
 }
 
-.player-icon-btn {
+button.icon-btn {
   font-size: 20px;
   width: 36px;
   height: 36px;
+  min-width: 0;
   padding: 0;
   display: flex;
   align-items: center;

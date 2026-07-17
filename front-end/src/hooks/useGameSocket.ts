@@ -8,6 +8,8 @@ export interface TokenData {
   color?: string;
   borderWidth?: number;
   statusEffects?: string[];
+  name?: string;
+  showName?: boolean;
 }
 
 export interface FogRect {
@@ -105,6 +107,8 @@ type OutgoingMsg =
       id: string;
       color?: string;
       borderWidth?: number;
+      name?: string;
+      showName?: boolean;
     }
   | {
       type: "token_status";
@@ -326,6 +330,12 @@ export function useGameSocket() {
                     }),
                     ...(msg.borderWidth !== undefined && {
                       borderWidth: msg.borderWidth as number,
+                    }),
+                    ...(msg.name !== undefined && {
+                      name: msg.name as string,
+                    }),
+                    ...(msg.showName !== undefined && {
+                      showName: msg.showName as boolean,
                     }),
                   },
             ),

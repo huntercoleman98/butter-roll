@@ -282,12 +282,12 @@ export default function Player() {
               disabled={!ready}
               onClick={() => setIsPrivate((p) => !p)}
               title={isPrivate ? "Private (in the tower)" : "Public"}
-              className="player-icon-btn"
+              className="icon-btn"
             >
               {isPrivate ? <GiSightDisabled /> : <GiSheikahEye />}
             </button>
             <button
-              className="player-icon-btn"
+              className="icon-btn"
               title="Change name / color"
               onClick={() => {
                 setSetupName(profile.name);

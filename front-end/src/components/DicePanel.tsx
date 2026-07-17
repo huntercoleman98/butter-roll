@@ -182,12 +182,7 @@ export default function DicePanel({ history, onRoll, onClose }: Props) {
             <button
               onClick={() => setIsPrivate((p) => !p)}
               title={isPrivate ? "Private" : "Public"}
-              style={{
-                fontSize: 16,
-                color: "var(--text-color)",
-                minWidth: 0,
-                padding: "0 6px",
-              }}
+              className="icon-btn"
             >
               {isPrivate ? <GiSightDisabled /> : <GiSheikahEye />}
             </button>
