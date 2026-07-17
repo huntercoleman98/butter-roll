@@ -529,3 +529,23 @@ export async function uploadAsset(file: File): Promise<string> {
   const data = (await res.json()) as { url: string };
   return data.url;
 }
+
+/** Upload a file to the token asset store. Returns the absolute URL. */
+export async function uploadTokenAsset(file: File): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/api/assets/tokens`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Token upload failed: ${res.statusText}`);
+  const data = (await res.json()) as { url: string };
+  return data.url;
+}
+
+/** Fetch the list of all uploaded token asset URLs. */
+export async function fetchTokenAssets(): Promise<string[]> {
+  const res = await fetch(`${API_BASE}/api/assets/tokens`);
+  if (!res.ok) throw new Error(`Failed to fetch tokens: ${res.statusText}`);
+  return res.json() as Promise<string[]>;
+}

@@ -16,7 +16,8 @@ const maxUploadBytes = 32 << 20 // 32 MB
 
 // uploadAsset returns a handler that accepts a multipart image upload,
 // stores it under assetsDir, and returns the public URL as JSON.
-func uploadAsset(assetsDir string) http.HandlerFunc {
+// urlPrefix is prepended to the filename to form the public URL (e.g. "/api/assets/").
+func uploadAsset(assetsDir, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
 		if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
@@ -69,9 +70,28 @@ func uploadAsset(assetsDir string) http.HandlerFunc {
 			return
 		}
 
-		publicURL := "/api/assets/" + filename
+		publicURL := urlPrefix + filename
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"url": publicURL})
+	}
+}
+
+// listAssets returns a handler that lists all files in assetsDir as JSON URLs.
+func listAssets(assetsDir, urlPrefix string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		entries, err := os.ReadDir(assetsDir)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		urls := make([]string, 0, len(entries))
+		for _, e := range entries {
+			if !e.IsDir() {
+				urls = append(urls, urlPrefix+e.Name())
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(urls)
 	}
 }
 

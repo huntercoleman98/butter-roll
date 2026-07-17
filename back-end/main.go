@@ -23,6 +23,11 @@ func main() {
 		log.Fatalf("cannot create assets dir: %v", err)
 	}
 
+	tokensDir := filepath.Join(assetsDir, "tokens")
+	if err := os.MkdirAll(tokensDir, 0755); err != nil {
+		log.Fatalf("cannot create tokens dir: %v", err)
+	}
+
 	sessionPath := filepath.Join(dataDir, "session.json")
 	session, err := LoadSession(sessionPath)
 	if err != nil {
@@ -42,8 +47,11 @@ func main() {
 	mux.HandleFunc("GET /api/ws", cors(allowedOrigin, func(w http.ResponseWriter, r *http.Request) {
 		serveWS(hub, w, r)
 	}))
-	mux.HandleFunc("POST /api/assets", cors(allowedOrigin, uploadAsset(assetsDir)))
+	mux.HandleFunc("POST /api/assets", cors(allowedOrigin, uploadAsset(assetsDir, "/api/assets/")))
 	mux.HandleFunc("GET /api/assets/{file}", cors(allowedOrigin, serveAsset(assetsDir)))
+	mux.HandleFunc("POST /api/assets/tokens", cors(allowedOrigin, uploadAsset(tokensDir, "/api/assets/tokens/")))
+	mux.HandleFunc("GET /api/assets/tokens", cors(allowedOrigin, listAssets(tokensDir, "/api/assets/tokens/")))
+	mux.HandleFunc("GET /api/assets/tokens/{file}", cors(allowedOrigin, serveAsset(tokensDir)))
 	mux.HandleFunc("/", spaHandler(distFS))
 
 	log.Println("butter-roll server listening on :8080")

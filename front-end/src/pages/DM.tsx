@@ -15,6 +15,8 @@ import DiceOverlay from "../components/DiceOverlay";
 import {
   useGameSocket,
   uploadAsset,
+  uploadTokenAsset,
+  fetchTokenAssets,
   type TokenData,
   type ArrowOverlay,
   type RadiusCircle,
@@ -51,10 +53,12 @@ export default function DM() {
   const [dicePanelOpen, setDicePanelOpen] = useState(false);
   const [diceHistory, setDiceHistory] = useState<DiceRollResult[]>([]);
   const [privateRollRequests, setPrivateRollRequests] = useState<DiceRequest[]>([]);
+  const [tokenMenuOpen, setTokenMenuOpen] = useState(false);
+  const [tokenAssets, setTokenAssets] = useState<string[]>([]);
 
   const mapAreaRef = useRef<HTMLDivElement>(null);
   const mapInputRef = useRef<HTMLInputElement>(null);
-  const tokenInputRef = useRef<HTMLInputElement>(null);
+  const tokenUploadRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
   const cursorWorldPos = useRef({ x: 0, y: 0 });
 
@@ -170,6 +174,17 @@ export default function DM() {
     }
   }
 
+  // Close token menu on outside click.
+  useEffect(() => {
+    if (!tokenMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (!(e.target as HTMLElement).closest(".token-menu-group"))
+        setTokenMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [tokenMenuOpen]);
+
   // Close map menu on outside click.
   useEffect(() => {
     if (!mapMenuOpen) return;
@@ -228,11 +243,13 @@ export default function DM() {
     img.src = url;
   }
 
-  async function handleTokenFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !activeId) return;
-    e.target.value = "";
-    const url = await uploadAsset(file);
+  function openTokenMenu() {
+    setTokenMenuOpen(true);
+    fetchTokenAssets().then(setTokenAssets).catch(console.error);
+  }
+
+  function placeToken(url: string) {
+    if (!activeId) return;
     const stage = stageRef.current;
     let x = (mapAreaRef.current?.clientWidth ?? window.innerWidth) / 2;
     let y = (mapAreaRef.current?.clientHeight ?? window.innerHeight) / 2;
@@ -241,14 +258,16 @@ export default function DM() {
       x = (x - stage.x()) / scale;
       y = (y - stage.y()) / scale;
     }
-    send({
-      type: "token_add",
-      pageId: activeId,
-      id: uuid(),
-      url,
-      x,
-      y,
-    });
+    send({ type: "token_add", pageId: activeId, id: uuid(), url, x, y });
+    setTokenMenuOpen(false);
+  }
+
+  async function handleTokenUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    e.target.value = "";
+    const urls = await Promise.all(files.map(uploadTokenAsset));
+    setTokenAssets((prev) => [...prev, ...urls]);
   }
 
   function handleMoveToken(id: string, x: number, y: number) {
@@ -428,71 +447,6 @@ export default function DM() {
       <div className="window-body app-body">
         {/* ── Toolbar row ── */}
         <div className="toolbar-row">
-          <button onClick={() => tokenInputRef.current?.click()}>
-            Add Token
-          </button>
-          <input
-            ref={tokenInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={handleTokenFile}
-          />
-
-          <input
-            ref={mapInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={handleMapFile}
-          />
-          <div className="menu-group map-menu-group">
-            <button onClick={() => setMapMenuOpen((o) => !o)}>Map ▾</button>
-            {mapMenuOpen && (
-              <div className="window map-dropdown">
-                <div className="window-body">
-                  <button
-                    onClick={() => {
-                      mapInputRef.current?.click();
-                      setMapMenuOpen(false);
-                    }}
-                  >
-                    Set Map…
-                  </button>
-                  {activePage?.mapSize && (
-                    <div className="map-dropdown-row">
-                      <MapSizeInput
-                        label="W"
-                        value={activePage.mapSize.width}
-                        onChange={(n) => handleMapSizeInput("width", String(n))}
-                      />
-                      <MapSizeInput
-                        label="H"
-                        value={activePage.mapSize.height}
-                        onChange={(n) =>
-                          handleMapSizeInput("height", String(n))
-                        }
-                      />
-                      <button
-                        style={{ padding: "2px 4px" }}
-                        onClick={() => setAspectLocked((l) => !l)}
-                        title={
-                          aspectLocked
-                            ? "Unlock aspect ratio"
-                            : "Lock aspect ratio"
-                        }
-                      >
-                        {aspectLocked
-                          ? "Aspect ratio locked"
-                          : "Aspect ratio unlocked"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
           <div className="menu-group pages-menu-group">
             <button onClick={() => setPagesMenuOpen((o) => !o)}>Pages ▾</button>
             {pagesMenuOpen && (
@@ -550,6 +504,101 @@ export default function DM() {
                   >
                     + New Page
                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <input
+            ref={mapInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handleMapFile}
+          />
+          <div className="menu-group map-menu-group">
+            <button onClick={() => setMapMenuOpen((o) => !o)}>Map ▾</button>
+            {mapMenuOpen && (
+              <div className="window map-dropdown">
+                <div className="window-body">
+                  <button
+                    onClick={() => {
+                      mapInputRef.current?.click();
+                      setMapMenuOpen(false);
+                    }}
+                  >
+                    Set Map…
+                  </button>
+                  {activePage?.mapSize && (
+                    <div className="map-dropdown-row">
+                      <MapSizeInput
+                        label="W"
+                        value={activePage.mapSize.width}
+                        onChange={(n) => handleMapSizeInput("width", String(n))}
+                      />
+                      <MapSizeInput
+                        label="H"
+                        value={activePage.mapSize.height}
+                        onChange={(n) =>
+                          handleMapSizeInput("height", String(n))
+                        }
+                      />
+                      <button
+                        style={{ padding: "2px 4px" }}
+                        onClick={() => setAspectLocked((l) => !l)}
+                        title={
+                          aspectLocked
+                            ? "Unlock aspect ratio"
+                            : "Lock aspect ratio"
+                        }
+                      >
+                        {aspectLocked
+                          ? "Aspect ratio locked"
+                          : "Aspect ratio unlocked"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="menu-group token-menu-group">
+            <button onClick={() => (tokenMenuOpen ? setTokenMenuOpen(false) : openTokenMenu())}>
+              Tokens ▾
+            </button>
+            {tokenMenuOpen && (
+              <div className="window token-dropdown">
+                <div className="window-body token-dropdown-body">
+                  <div className="token-upload-row">
+                    <button onClick={() => tokenUploadRef.current?.click()}>
+                      Upload new…
+                    </button>
+                    <input
+                      ref={tokenUploadRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      style={{ display: "none" }}
+                      onChange={handleTokenUpload}
+                    />
+                  </div>
+                  {tokenAssets.length === 0 ? (
+                    <div className="token-empty">No tokens uploaded yet.</div>
+                  ) : (
+                    <div className="token-grid">
+                      {tokenAssets.map((url) => (
+                        <button
+                          key={url}
+                          className="token-thumb"
+                          onClick={() => placeToken(url)}
+                          title={url.split("/").pop()}
+                        >
+                          <img src={url} alt="" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
