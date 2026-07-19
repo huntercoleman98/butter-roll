@@ -5,7 +5,7 @@ export interface ParsedDice {
 }
 
 export function parseDiceExpression(expr: string): ParsedDice | null {
-  const m = /^(\d*)d(\d+)(([+-])(\d+))?$/i.exec(expr.trim());
+  const m = /^(\d*)d(\d+)(([+-])(\d+))?$/i.exec(expr.replace(/\s+/g, ""));
   if (!m) return null;
   const count = m[1] ? parseInt(m[1]) : 1;
   const sides = parseInt(m[2]);
