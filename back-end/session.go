@@ -207,6 +207,12 @@ type tokenAddMsg struct {
 	Color         string   `json:"color,omitempty"`
 	BorderWidth   int      `json:"borderWidth,omitempty"`
 	StatusEffects []string `json:"statusEffects,omitempty"`
+	Name          string   `json:"name,omitempty"`
+	ShowName      bool     `json:"showName,omitempty"`
+	Public        bool     `json:"public,omitempty"`
+	Monster       string   `json:"monster,omitempty"`
+	HP            *int     `json:"hp,omitempty"`
+	Wounds        *int     `json:"wounds,omitempty"`
 }
 
 type tokenMoveMsg struct {
@@ -533,7 +539,12 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 			log.Printf("session.Apply token_add: invalid payload (id=%q url=%q)", m.ID, m.URL)
 			return nil, false
 		}
-		page.Tokens[m.ID] = Token{ID: m.ID, URL: m.URL, X: m.X, Y: m.Y, Color: m.Color, BorderWidth: m.BorderWidth, StatusEffects: m.StatusEffects}
+		page.Tokens[m.ID] = Token{
+			ID: m.ID, URL: m.URL, X: m.X, Y: m.Y,
+			Color: m.Color, BorderWidth: m.BorderWidth, StatusEffects: m.StatusEffects,
+			Name: m.Name, ShowName: m.ShowName, Public: m.Public,
+			Monster: m.Monster, HP: m.HP, Wounds: m.Wounds,
+		}
 
 	case "token_move":
 		var m tokenMoveMsg

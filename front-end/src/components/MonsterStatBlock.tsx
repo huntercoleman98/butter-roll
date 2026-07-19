@@ -1,8 +1,4 @@
-import {
-  parseAttackBonus,
-  type Monster,
-  type MonsterStats,
-} from "../types/monster";
+import type { Monster, MonsterStats } from "../types/monster";
 import DiceText from "./DiceText";
 
 interface Props {
@@ -58,22 +54,29 @@ export default function MonsterStatBlock({ monster, labelName, onRoll }: Props) 
           <div className="monster-section-title">Attacks</div>
           <ul className="monster-section-list">
             {monster.attacks.map((a) => {
-              const bonus = parseAttackBonus(a);
-              const toHitExpr =
-                bonus != null ? `1d20${bonusToString(bonus)}` : "1d20";
+              const bonus = a.toHit;
+              const toHitExpr = `1d20${bonus != null ? bonusToString(bonus) : ""}`;
               return (
                 <li key={a.name}>
                   {a.perRound} <strong>{a.name}</strong>
-                  {a.range ? ` (${a.range})` : ""}{" "}
-                  <button
-                    className="dice-text-btn"
-                    title={toHitExpr}
-                    onClick={() =>
-                      onRoll(toHitExpr, `${rollName} — ${a.name} (to hit)`)
-                    }
-                  >
-                    {bonus != null ? bonusToString(bonus) : "roll"}
-                  </button>
+                  {a.range ? ` (${a.range})` : ""}
+                  {bonus != null && (
+                    <>
+                      {" "}
+                      <button
+                        className="dice-text-btn"
+                        title={toHitExpr}
+                        onClick={() =>
+                          onRoll(
+                            toHitExpr,
+                            `${rollName} — ${a.name} (to hit)`,
+                          )
+                        }
+                      >
+                        {bonusToString(bonus)}
+                      </button>
+                    </>
+                  )}
                   {a.damage && (
                     <div className="monster-attack-damage">
                       <DiceText

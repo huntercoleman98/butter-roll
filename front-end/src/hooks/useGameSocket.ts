@@ -103,6 +103,12 @@ type OutgoingMsg =
       color?: string;
       borderWidth?: number;
       statusEffects?: string[];
+      name?: string;
+      showName?: boolean;
+      public?: boolean;
+      monster?: string;
+      hp?: number;
+      wounds?: number;
     }
   | { type: "token_move"; pageId: string; id: string; x: number; y: number }
   | { type: "token_remove"; pageId: string; id: string }
@@ -287,6 +293,23 @@ export function useGameSocket() {
                 ...(msg.color !== undefined && { color: msg.color as string }),
                 ...(msg.borderWidth !== undefined && {
                   borderWidth: msg.borderWidth as number,
+                }),
+                ...(msg.statusEffects !== undefined && {
+                  statusEffects: msg.statusEffects as string[],
+                }),
+                ...(msg.name !== undefined && { name: msg.name as string }),
+                ...(msg.showName !== undefined && {
+                  showName: msg.showName as boolean,
+                }),
+                ...(msg.public !== undefined && {
+                  public: msg.public as boolean,
+                }),
+                ...(msg.monster !== undefined && {
+                  monster: msg.monster as string,
+                }),
+                ...(msg.hp !== undefined && { hp: msg.hp as number }),
+                ...(msg.wounds !== undefined && {
+                  wounds: msg.wounds as number,
                 }),
               },
             ],

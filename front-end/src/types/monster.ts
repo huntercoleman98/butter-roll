@@ -52,14 +52,3 @@ export function parseMaxHp(hp: string): number {
   return isNaN(n) ? 0 : n;
 }
 
-/**
- * To-hit bonus for an attack: the toHit field when set, else a bonus embedded
- * in the name ("tail +5" → 5). Dice notation is stripped first so the +1 in
- * "sword (1d8+1)" is never mistaken for a to-hit bonus.
- */
-export function parseAttackBonus(attack: MonsterAttack): number | null {
-  if (attack.toHit != null) return attack.toHit;
-  const cleaned = attack.name.replace(/\d*d\d+(?:[+-]\d+)?/gi, "");
-  const m = /([+-]\d+)/.exec(cleaned);
-  return m ? parseInt(m[1], 10) : null;
-}

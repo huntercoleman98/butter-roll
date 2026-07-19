@@ -162,6 +162,15 @@ export default function DM() {
             ...(t.statusEffects !== undefined && {
               statusEffects: t.statusEffects,
             }),
+            ...(t.name !== undefined && { name: t.name }),
+            ...(t.showName !== undefined && { showName: t.showName }),
+            ...(t.public !== undefined && { public: t.public }),
+            // Copies keep the monster link and max HP but start unwounded.
+            ...(t.monster !== undefined && {
+              monster: t.monster,
+              ...(t.hp !== undefined && { hp: t.hp }),
+              wounds: 0,
+            }),
           });
         }
         e.preventDefault();
