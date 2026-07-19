@@ -394,10 +394,10 @@ export default function MapCanvas({
     );
   }
 
-  function scheduleNameUpdate(id: string, name: string, showName: boolean) {
+  function scheduleNameUpdate(ids: Set<string>, name: string, showName: boolean) {
     if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
     nameDebounceRef.current = setTimeout(
-      () => onUpdateToken?.(new Set([id]), { name, showName }),
+      () => onUpdateToken?.(ids, { name, showName }),
       500,
     );
   }
@@ -950,11 +950,12 @@ export default function MapCanvas({
               <label>Name</label>
               <input
                 type="text"
-                value={menuName}
+                value={contextMenuAffectedIds().size > 1 ? "--" : menuName}
                 placeholder="Token name"
+                disabled={contextMenuAffectedIds().size > 1}
                 onChange={(e) => {
                   setMenuName(e.target.value);
-                  scheduleNameUpdate(contextMenu.tokenId, e.target.value, menuShowName);
+                  scheduleNameUpdate(new Set([contextMenu.tokenId]), e.target.value, menuShowName);
                 }}
               />
               <span />
@@ -965,7 +966,7 @@ export default function MapCanvas({
                   checked={menuShowName}
                   onChange={(e) => {
                     setMenuShowName(e.target.checked);
-                    scheduleNameUpdate(contextMenu.tokenId, menuName, e.target.checked);
+                    scheduleNameUpdate(contextMenuAffectedIds(), menuName, e.target.checked);
                   }}
                 />
                 <label htmlFor="ctx-show-name" style={{ cursor: "pointer" }}>Display name</label>
