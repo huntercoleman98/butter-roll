@@ -1,0 +1,111 @@
+import {
+  parseAttackBonus,
+  type Monster,
+  type MonsterStats,
+} from "../types/monster";
+import DiceText from "./DiceText";
+
+interface Props {
+  monster: Monster;
+  /** Name used in roll labels (e.g. the token's name); defaults to the monster name. */
+  labelName?: string;
+  onRoll: (expression: string, label?: string) => void;
+}
+
+const STAT_LABELS: [keyof MonsterStats, string][] = [
+  ["strength", "STR"],
+  ["dexterity", "DEX"],
+  ["constitution", "CON"],
+  ["intelligence", "INT"],
+  ["wisdom", "WIS"],
+  ["charisma", "CHA"],
+];
+
+function bonusToString(n: number): string {
+  return n >= 0 ? `+${n}` : `${n}`;
+}
+
+export default function MonsterStatBlock({ monster, labelName, onRoll }: Props) {
+  const rollName = labelName || monster.name;
+  return (
+    <div className="monster-stat-block">
+      <div className="monster-stat-row">
+        <span>
+          <strong>AC</strong> {monster.ac}
+        </span>
+        <span>
+          <strong>HP</strong> {monster.hp}
+        </span>
+        <span>
+          <strong>MV</strong> {monster.movement}
+        </span>
+        <span>
+          <strong>AL</strong> {monster.alignment}
+        </span>
+        <span>
+          <strong>LV</strong> {monster.level}
+        </span>
+      </div>
+      <div className="monster-columns">
+        <div className="monster-stats-col">
+          {STAT_LABELS.map(([key, label]) => (
+            <div key={key}>
+              <strong>{label}</strong> {bonusToString(monster.stats[key])}
+            </div>
+          ))}
+        </div>
+        <div className="monster-main-col">
+          <div className="monster-section-title">Attacks</div>
+          <ul className="monster-section-list">
+            {monster.attacks.map((a) => {
+              const bonus = parseAttackBonus(a);
+              const toHitExpr =
+                bonus != null ? `1d20${bonusToString(bonus)}` : "1d20";
+              return (
+                <li key={a.name}>
+                  {a.perRound} <strong>{a.name}</strong>
+                  {a.range ? ` (${a.range})` : ""}{" "}
+                  <button
+                    className="dice-text-btn"
+                    title={toHitExpr}
+                    onClick={() =>
+                      onRoll(toHitExpr, `${rollName} — ${a.name} (to hit)`)
+                    }
+                  >
+                    {bonus != null ? bonusToString(bonus) : "roll"}
+                  </button>
+                  {a.damage && (
+                    <div className="monster-attack-damage">
+                      <DiceText
+                        text={a.damage}
+                        label={`${rollName} — ${a.name} (damage)`}
+                        onRoll={onRoll}
+                      />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {monster.abilities != null && monster.abilities.length > 0 && (
+            <>
+              <div className="monster-section-title">Abilities</div>
+              <ul className="monster-section-list">
+                {monster.abilities.map((a) => (
+                  <li key={a.name}>
+                    <strong>{a.name}</strong>:{" "}
+                    <DiceText
+                      text={a.description}
+                      label={`${rollName} — ${a.name}`}
+                      onRoll={onRoll}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

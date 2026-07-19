@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { Monster } from "../types/monster";
 
 export interface TokenData {
   id: string;
@@ -11,6 +12,9 @@ export interface TokenData {
   name?: string;
   showName?: boolean;
   public?: boolean;
+  monster?: string;
+  hp?: number;
+  wounds?: number;
 }
 
 export interface FogRect {
@@ -111,6 +115,9 @@ type OutgoingMsg =
       name?: string;
       showName?: boolean;
       public?: boolean;
+      monster?: string;
+      hp?: number;
+      wounds?: number;
     }
   | {
       type: "token_status";
@@ -322,28 +329,41 @@ export function useGameSocket() {
           const id = msg.id as string;
           updatePage(pageId, (p) => ({
             ...p,
-            tokens: p.tokens.map((t) =>
-              t.id !== id
-                ? t
-                : {
-                    ...t,
-                    ...(msg.color !== undefined && {
-                      color: msg.color as string,
-                    }),
-                    ...(msg.borderWidth !== undefined && {
-                      borderWidth: msg.borderWidth as number,
-                    }),
-                    ...(msg.name !== undefined && {
-                      name: msg.name as string,
-                    }),
-                    ...(msg.showName !== undefined && {
-                      showName: msg.showName as boolean,
-                    }),
-                    ...(msg.public !== undefined && {
-                      public: msg.public as boolean,
-                    }),
-                  },
-            ),
+            tokens: p.tokens.map((t) => {
+              if (t.id !== id) return t;
+              const next = {
+                ...t,
+                ...(msg.color !== undefined && {
+                  color: msg.color as string,
+                }),
+                ...(msg.borderWidth !== undefined && {
+                  borderWidth: msg.borderWidth as number,
+                }),
+                ...(msg.name !== undefined && {
+                  name: msg.name as string,
+                }),
+                ...(msg.showName !== undefined && {
+                  showName: msg.showName as boolean,
+                }),
+                ...(msg.public !== undefined && {
+                  public: msg.public as boolean,
+                }),
+                ...(msg.monster !== undefined && {
+                  monster: msg.monster as string,
+                }),
+                ...(msg.hp !== undefined && { hp: msg.hp as number }),
+                ...(msg.wounds !== undefined && {
+                  wounds: msg.wounds as number,
+                }),
+              };
+              // Unlinking clears the HP tracker (mirrors the server).
+              if (msg.monster === "") {
+                delete next.monster;
+                delete next.hp;
+                delete next.wounds;
+              }
+              return next;
+            }),
           }));
           break;
         }
@@ -563,4 +583,11 @@ export async function fetchTokenAssets(): Promise<string[]> {
   const res = await fetch(`${API_BASE}/api/assets/tokens`);
   if (!res.ok) throw new Error(`Failed to fetch tokens: ${res.statusText}`);
   return res.json() as Promise<string[]>;
+}
+
+/** Fetch the aggregated monster list served from back-end/assets/monsters/. */
+export async function fetchMonsters(): Promise<Monster[]> {
+  const res = await fetch(`${API_BASE}/api/monsters`);
+  if (!res.ok) throw new Error(`Failed to fetch monsters: ${res.statusText}`);
+  return res.json() as Promise<Monster[]>;
 }

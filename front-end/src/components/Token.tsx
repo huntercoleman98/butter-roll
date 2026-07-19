@@ -26,6 +26,7 @@ interface TokenProps {
   onDragMove?: (id: string, x: number, y: number) => void;
   onDragEnd?: (id: string, x: number, y: number) => void;
   onContextMenu?: (id: string, x: number, y: number) => void;
+  onDblClick?: (id: string, x: number, y: number) => void;
 }
 
 const TOKEN_SIZE = 60;
@@ -50,6 +51,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
     onDragMove,
     onDragEnd,
     onContextMenu,
+    onDblClick,
   },
   ref,
 ) {
@@ -160,6 +162,15 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
               e.evt.preventDefault();
               e.cancelBubble = true;
               onContextMenu(id, e.evt.clientX, e.evt.clientY);
+            }
+          : undefined
+      }
+      onDblClick={
+        draggable && onDblClick
+          ? (e) => {
+              if (e.evt.button !== 0) return;
+              e.cancelBubble = true;
+              onDblClick(id, e.evt.clientX, e.evt.clientY);
             }
           : undefined
       }

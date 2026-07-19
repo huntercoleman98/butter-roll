@@ -22,6 +22,7 @@ import type {
   ViewportSync,
 } from "../hooks/useGameSocket";
 import { STATUS_EFFECTS, STATUS_EFFECT_MAP } from "../constants/statusEffects";
+import { filterMonsters, parseMaxHp, type Monster } from "../types/monster";
 
 export type ActiveTool =
   "select" | "fog-reveal" | "fog-hide" | "arrow" | "radius";
@@ -50,7 +51,16 @@ interface MapCanvasProps {
   onDeleteTokens?: (ids: Set<string>) => void;
   onUpdateToken?: (
     ids: Set<string>,
-    update: { color?: string; borderWidth?: number; name?: string; showName?: boolean },
+    update: {
+      color?: string;
+      borderWidth?: number;
+      name?: string;
+      showName?: boolean;
+      public?: boolean;
+      monster?: string;
+      hp?: number;
+      wounds?: number;
+    },
   ) => void;
   onUpdateTokenStatus?: (
     ids: Set<string>,
@@ -73,6 +83,8 @@ interface MapCanvasProps {
   syncedViewport?: ViewportSync | null;
   onAddToInitiative?: (tokenIds: Set<string>) => void;
   initiativeTokenId?: string | null;
+  onTokenDoubleClick?: (id: string, x: number, y: number) => void;
+  monsters?: Monster[];
 }
 
 const MIN_SCALE = 0.1;
@@ -133,6 +145,8 @@ export default function MapCanvas({
   syncedViewport = null,
   onAddToInitiative,
   initiativeTokenId = null,
+  onTokenDoubleClick,
+  monsters = [],
 }: MapCanvasProps) {
   const fogMode =
     tool === "fog-reveal" ? "reveal" : tool === "fog-hide" ? "hide" : null;
@@ -153,6 +167,10 @@ export default function MapCanvas({
     new Set(),
   );
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  // Shared monster of the affected tokens: "" = none linked, null = mixed.
+  const [menuMonster, setMenuMonster] = useState<string | null>("");
+  const [monsterDropdownOpen, setMonsterDropdownOpen] = useState(false);
+  const [monsterFilter, setMonsterFilter] = useState("");
   const [menuOffset, setMenuOffset] = useState({ x: 0, y: 0 });
   const [canvasContextMenu, setCanvasContextMenu] = useState<{
     x: number;
@@ -162,6 +180,7 @@ export default function MapCanvas({
   const suppressNextTokenClickRef = useRef(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const monsterDropdownRef = useRef<HTMLDivElement>(null);
   const canvasContextMenuRef = useRef<HTMLDivElement>(null);
   const updateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -211,6 +230,21 @@ export default function MapCanvas({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [statusDropdownOpen]);
+
+  // Close monster dropdown on outside click
+  useEffect(() => {
+    if (!monsterDropdownOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (
+        monsterDropdownRef.current &&
+        !monsterDropdownRef.current.contains(e.target as Node)
+      ) {
+        setMonsterDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [monsterDropdownOpen]);
 
   // Close canvas context menu on outside click
   useEffect(() => {
@@ -363,6 +397,12 @@ export default function MapCanvas({
         affected.every((t) => t.statusEffects?.includes(e)),
       ),
     );
+    const firstMonster = affected[0]?.monster ?? "";
+    const sharedMonster = affected.every(
+      (t) => (t.monster ?? "") === firstMonster,
+    )
+      ? firstMonster
+      : null;
     const clickedToken = tokens.find((t) => t.id === id);
     setMenuColor(sharedColor);
     setMenuBorderWidth(sharedBW);
@@ -371,6 +411,9 @@ export default function MapCanvas({
     setMenuPublic(clickedToken?.public ?? false);
     setMenuSharedStatuses(sharedStatuses);
     setStatusDropdownOpen(false);
+    setMenuMonster(sharedMonster);
+    setMonsterDropdownOpen(false);
+    setMonsterFilter("");
     setMenuOffset({ x: 0, y: 0 });
     setContextMenu({ x, y, tokenId: id });
   }
@@ -406,6 +449,22 @@ export default function MapCanvas({
     if (!contextMenu) return;
     onDeleteTokens?.(contextMenuAffectedIds());
     setContextMenu(null);
+  }
+
+  function handleMenuLinkMonster(m: Monster) {
+    onUpdateToken?.(contextMenuAffectedIds(), {
+      monster: m.name,
+      hp: parseMaxHp(m.hp),
+      wounds: 0,
+    });
+    setMenuMonster(m.name);
+    setMonsterDropdownOpen(false);
+    setMonsterFilter("");
+  }
+
+  function handleMenuUnlinkMonster() {
+    onUpdateToken?.(contextMenuAffectedIds(), { monster: "" });
+    setMenuMonster("");
   }
 
   // ── Stage mouse handler ─────────────────────────────────────────────────────
@@ -669,6 +728,7 @@ export default function MapCanvas({
               onContextMenu={
                 tokensInteractive ? handleTokenContextMenu : undefined
               }
+              onDblClick={tokensInteractive ? onTokenDoubleClick : undefined}
             />
           ))}
         </Layer>
@@ -1073,6 +1133,98 @@ export default function MapCanvas({
                   </div>
                 )}
               </div>
+              <label style={{ marginTop: 6 }}>Monster</label>
+              {menuMonster === "" ? (
+                <div
+                  ref={monsterDropdownRef}
+                  style={{ position: "relative", minWidth: 150 }}
+                >
+                  <button
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    onClick={() => setMonsterDropdownOpen((v) => !v)}
+                  >
+                    Link monster… ▾
+                  </button>
+                  {monsterDropdownOpen && (
+                    <div
+                      className="window"
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        zIndex: 10,
+                        margin: 0,
+                        padding: 4,
+                      }}
+                    >
+                      <input
+                        type="text"
+                        className="monsters-filter"
+                        autoFocus
+                        placeholder="Filter by name or level…"
+                        value={monsterFilter}
+                        onChange={(e) => setMonsterFilter(e.target.value)}
+                      />
+                      <div
+                        className="monsters-scroll"
+                        style={{ maxHeight: 160 }}
+                      >
+                        {monsters.length === 0 ? (
+                          <div className="monsters-empty">
+                            No monsters found.
+                          </div>
+                        ) : (
+                          filterMonsters(monsters, monsterFilter).map((m) => (
+                            <div
+                              key={m.name}
+                              className="monsters-row"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                handleMenuLinkMonster(m);
+                              }}
+                            >
+                              <span className="monsters-row-name">
+                                {m.name}
+                              </span>
+                              <span className="monsters-row-level">
+                                LV {m.level}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    minWidth: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      flex: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {menuMonster ?? "--"}
+                  </span>
+                  <button onClick={handleMenuUnlinkMonster}>Unlink</button>
+                </div>
+              )}
             </div>
           </div>
         </div>

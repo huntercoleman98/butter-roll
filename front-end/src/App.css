@@ -759,3 +759,186 @@ button.icon-btn {
   padding: 4px 0;
   border-bottom: 1px solid #e0e0e0;
 }
+
+/* ── Monsters window ── */
+
+.monsters-window {
+  width: 300px;
+}
+
+.monsters-body {
+  padding: 4px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.monsters-filter {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.monsters-scroll {
+  max-height: 380px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.monsters-empty {
+  padding: 8px 4px;
+  font-size: 11px;
+  color: #666;
+}
+
+.monsters-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3px 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.monsters-row:hover {
+  background: #000080;
+  color: #fff;
+}
+
+.monsters-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.monsters-row-level {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #666;
+}
+
+.monsters-row:hover .monsters-row-level {
+  color: #ccc;
+}
+
+.monsters-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Monster stat block ── */
+
+.monster-stat-block {
+  font-size: 12px;
+  padding: 2px;
+}
+
+.monster-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  padding: 2px 0;
+  border-bottom: 1px solid #d4d0c8;
+}
+
+.monster-columns {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.monster-stats-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+  padding-right: 8px;
+  border-right: 1px solid #d4d0c8;
+  white-space: nowrap;
+}
+
+.monster-main-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.monster-section-title {
+  font-weight: bold;
+  margin-top: 6px;
+}
+
+.monster-main-col .monster-section-title:first-child {
+  margin-top: 0;
+}
+
+.monster-section-list {
+  margin: 2px 0 4px;
+  padding-left: 18px;
+}
+
+.monster-section-list li {
+  margin-bottom: 3px;
+}
+
+.monster-attack-damage {
+  padding-left: 14px;
+}
+
+.dice-text-btn {
+  font-size: 11px;
+  padding: 0 4px;
+  min-width: 0;
+  min-height: 0;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+/* ── Token monster window ── */
+
+.token-monster-window {
+  width: 300px;
+}
+
+.token-monster-body {
+  padding: 4px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.token-monster-hp {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 2px;
+}
+
+.token-monster-hp label {
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.token-monster-num {
+  width: 48px;
+  text-align: center;
+}
+
+.token-monster-hp.is-down .token-monster-num {
+  color: #c00;
+}
+
+.token-monster-down {
+  font-size: 11px;
+  font-weight: bold;
+  color: #c00;
+}
+
+.token-monster-unlink {
+  margin-left: auto;
+  font-size: 11px;
+}

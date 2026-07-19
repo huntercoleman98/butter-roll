@@ -21,6 +21,9 @@ type Token struct {
 	Name          string   `json:"name,omitempty"`
 	ShowName      bool     `json:"showName,omitempty"`
 	Public        bool     `json:"public,omitempty"`
+	Monster       string   `json:"monster,omitempty"`
+	HP            *int     `json:"hp,omitempty"`
+	Wounds        *int     `json:"wounds,omitempty"`
 }
 
 // FogRect is one revealed rectangle cut out of the fog overlay.
@@ -223,6 +226,9 @@ type tokenUpdateMsg struct {
 	Name        *string `json:"name"`
 	ShowName    *bool   `json:"showName"`
 	Public      *bool   `json:"public"`
+	Monster     *string `json:"monster"`
+	HP          *int    `json:"hp"`
+	Wounds      *int    `json:"wounds"`
 }
 
 type tokenStatusMsg struct {
@@ -589,6 +595,20 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 		}
 		if m.Public != nil {
 			t.Public = *m.Public
+		}
+		if m.HP != nil {
+			t.HP = m.HP
+		}
+		if m.Wounds != nil {
+			t.Wounds = m.Wounds
+		}
+		if m.Monster != nil {
+			t.Monster = *m.Monster
+			// Unlinking clears the HP tracker.
+			if t.Monster == "" {
+				t.HP = nil
+				t.Wounds = nil
+			}
 		}
 		page.Tokens[m.ID] = t
 

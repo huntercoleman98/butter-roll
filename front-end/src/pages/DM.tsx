@@ -13,11 +13,15 @@ import MapSizeInput from "../components/MapSizeInput";
 import DicePanel from "../components/DicePanel";
 import DiceOverlay from "../components/DiceOverlay";
 import InitiativePanel, { type InitiativeEntry } from "../components/InitiativePanel";
+import MonstersPanel from "../components/MonstersPanel";
+import TokenMonsterWindow from "../components/TokenMonsterWindow";
+import type { Monster } from "../types/monster";
 import {
   useGameSocket,
   uploadAsset,
   uploadTokenAsset,
   fetchTokenAssets,
+  fetchMonsters,
   type TokenData,
   type ArrowOverlay,
   type RadiusCircle,
@@ -57,11 +61,21 @@ export default function DM() {
   const [initiativePanelOpen, setInitiativePanelOpen] = useState(false);
   const [initiativeEntries, setInitiativeEntries] = useState<InitiativeEntry[]>([]);
   const [initiativeCurrentId, setInitiativeCurrentId] = useState<string | null>(null);
-  const [topPanel, setTopPanel] = useState<"initiative" | "dice">("dice");
+  const [topPanel, setTopPanel] = useState<"initiative" | "dice" | "monsters">("dice");
+  const [monsters, setMonsters] = useState<Monster[]>([]);
+  const [monstersPanelOpen, setMonstersPanelOpen] = useState(false);
+  const [monsterWindow, setMonsterWindow] = useState<{
+    tokenId: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const [tokenMenuOpen, setTokenMenuOpen] = useState(false);
   const [tokenAssets, setTokenAssets] = useState<string[]>([]);
 
   const mapAreaRef = useRef<HTMLDivElement>(null);
+  const pendingInitiativeRolls = useRef<{ entryId: string; label: string }[]>(
+    [],
+  );
   const mapInputRef = useRef<HTMLInputElement>(null);
   const tokenUploadRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
@@ -158,14 +172,39 @@ export default function DM() {
   }, [activePage, selectedTokenIds, clipboard, activeId, send]);
 
   useEffect(() => {
-    if (diceResult) setDiceHistory((prev) => [...prev, diceResult]);
+    if (!diceResult) return;
+    setDiceHistory((prev) => [...prev, diceResult]);
+    // Resolve a pending initiative roll matching this result's label.
+    if (diceResult.private || !diceResult.label) return;
+    const idx = pendingInitiativeRolls.current.findIndex(
+      (p) => p.label === diceResult.label,
+    );
+    if (idx === -1) return;
+    const [pending] = pendingInitiativeRolls.current.splice(idx, 1);
+    setInitiativeEntries((prev) =>
+      prev.map((e) =>
+        e.entryId === pending.entryId ? { ...e, value: diceResult.total } : e,
+      ),
+    );
   }, [diceResult]);
+
+  useEffect(() => {
+    fetchMonsters().then(setMonsters).catch(console.error);
+  }, []);
 
   function handleDiceResult(result: DiceRollResult) {
     setDiceHistory((prev) => [
       ...prev,
       { ...result, private: true, playerName: "DM" },
     ]);
+  }
+
+  function handleMonsterRoll(expression: string, label?: string) {
+    send({ type: "dice_roll_request", expression, playerName: "DM", label });
+  }
+
+  function handleTokenDoubleClick(id: string, x: number, y: number) {
+    setMonsterWindow({ tokenId: id, x, y });
   }
 
   function handleRoll(expression: string, isPrivate: boolean, advMode?: "advantage" | "disadvantage", label?: string) {
@@ -336,7 +375,16 @@ export default function DM() {
 
   function handleUpdateToken(
     ids: Set<string>,
-    update: { color?: string; borderWidth?: number; name?: string; showName?: boolean },
+    update: {
+      color?: string;
+      borderWidth?: number;
+      name?: string;
+      showName?: boolean;
+      public?: boolean;
+      monster?: string;
+      hp?: number;
+      wounds?: number;
+    },
   ) {
     if (!activeId) return;
     for (const id of ids)
@@ -391,9 +439,25 @@ export default function DM() {
 
   function handleAddToInitiative(tokenIds: Set<string>) {
     if (!activePage) return;
-    const toAdd = activePage.tokens
-      .filter((t) => tokenIds.has(t.id))
-      .map((t) => ({ entryId: uuid(), tokenId: t.id, name: t.name ?? "", url: t.url, value: 0 }));
+    const affected = activePage.tokens.filter((t) => tokenIds.has(t.id));
+    const toAdd = affected.map((t) => ({
+      entryId: uuid(),
+      tokenId: t.id,
+      name: t.name || t.monster || "",
+      url: t.url,
+      value: 0,
+    }));
+    // Monster-linked tokens roll initiative (1d20 + DEX) on /view; the
+    // result sets their initiative value when it comes back.
+    toAdd.forEach((entry, i) => {
+      const monster = monsters.find((m) => m.name === affected[i].monster);
+      if (!monster) return;
+      const dex = monster.stats.dexterity;
+      const expression = `1d20${dex > 0 ? `+${dex}` : dex < 0 ? `${dex}` : ""}`;
+      const label = `${entry.name || monster.name} initiative`;
+      pendingInitiativeRolls.current.push({ entryId: entry.entryId, label });
+      send({ type: "dice_roll_request", expression, playerName: "DM", label });
+    });
     if (toAdd.length > 0) setInitiativeEntries((prev) => [...prev, ...toAdd]);
   }
 
@@ -627,6 +691,15 @@ export default function DM() {
 
           <div className="toolbar-right">
             <button
+              className={monstersPanelOpen ? "toolbar-btn-active" : ""}
+              onClick={() => {
+                setMonstersPanelOpen((o) => !o);
+                setTopPanel("monsters");
+              }}
+            >
+              Monsters
+            </button>
+            <button
               className={initiativePanelOpen ? "toolbar-btn-active" : ""}
               onClick={() => {
                 setInitiativePanelOpen((o) => !o);
@@ -787,6 +860,8 @@ export default function DM() {
             onPing={handlePing}
             onBringPlayersHere={handleBringPlayersHere}
             onAddToInitiative={handleAddToInitiative}
+            onTokenDoubleClick={handleTokenDoubleClick}
+            monsters={monsters}
             initiativeTokenId={
               initiativePanelOpen
                 ? initiativeEntries.find((e) => e.entryId === initiativeCurrentId)
@@ -800,7 +875,7 @@ export default function DM() {
         <InitiativePanel
           entries={initiativeEntries.map((e) => {
             const t = activePage?.tokens.find((t) => t.id === e.tokenId);
-            return t ? { ...e, name: t.name ?? "", url: t.url } : e;
+            return t ? { ...e, name: t.name || t.monster || "", url: t.url } : e;
           })}
           currentId={initiativeCurrentId}
           onCurrentChange={setInitiativeCurrentId}
@@ -828,6 +903,40 @@ export default function DM() {
           onFocus={() => setTopPanel("dice")}
         />
       )}
+      {monstersPanelOpen && (
+        <MonstersPanel
+          monsters={monsters}
+          onRoll={handleMonsterRoll}
+          onClose={() => setMonstersPanelOpen(false)}
+          zIndex={topPanel === "monsters" ? 151 : 150}
+          onFocus={() => setTopPanel("monsters")}
+        />
+      )}
+      {monsterWindow &&
+        (() => {
+          const token = activePage?.tokens.find(
+            (t) => t.id === monsterWindow.tokenId,
+          );
+          if (!token) return null;
+          return (
+            <TokenMonsterWindow
+              token={token}
+              monsters={monsters}
+              x={monsterWindow.x}
+              y={monsterWindow.y}
+              onUpdate={(update) =>
+                send({
+                  type: "token_update",
+                  pageId: activeId,
+                  id: token.id,
+                  ...update,
+                })
+              }
+              onRoll={handleMonsterRoll}
+              onClose={() => setMonsterWindow(null)}
+            />
+          );
+        })()}
       <DiceOverlay requests={privateRollRequests} onResult={handleDiceResult} />
     </div>
   );
