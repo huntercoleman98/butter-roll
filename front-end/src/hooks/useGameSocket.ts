@@ -10,6 +10,7 @@ export interface TokenData {
   statusEffects?: string[];
   name?: string;
   showName?: boolean;
+  public?: boolean;
 }
 
 export interface FogRect {
@@ -109,6 +110,7 @@ type OutgoingMsg =
       borderWidth?: number;
       name?: string;
       showName?: boolean;
+      public?: boolean;
     }
   | {
       type: "token_status";
@@ -336,6 +338,9 @@ export function useGameSocket() {
                     }),
                     ...(msg.showName !== undefined && {
                       showName: msg.showName as boolean,
+                    }),
+                    ...(msg.public !== undefined && {
+                      public: msg.public as boolean,
                     }),
                   },
             ),

@@ -8,7 +8,7 @@ interface Props {
 
 function evaluate(raw: string): number | null {
   const expr = raw.trim();
-  const opMatch = expr.match(/^(\d+)\s*([+\-*\/])?\s*(\d+)$/);
+  const opMatch = expr.match(/^([\d.]+)\s*([+\-*\/])?\s*([\d.]+)$/);
   if (opMatch) {
     const current = parseFloat(opMatch[1]);
     const operand = parseFloat(opMatch[3]);

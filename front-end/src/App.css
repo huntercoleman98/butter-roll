@@ -286,6 +286,101 @@
   z-index: 1000 !important;
 }
 
+.initiative-window {
+  width: 220px;
+  min-width: 180px;
+}
+
+.initiative-body {
+  padding: 4px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.initiative-table {
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.initiative-empty {
+  padding: 8px 4px;
+  font-size: 11px;
+  color: #666;
+}
+
+.initiative-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  cursor: default;
+  user-select: none;
+}
+
+.initiative-row:hover {
+  background: #d4d0c8;
+}
+
+.initiative-row-active {
+  background: #000080;
+  color: white;
+}
+
+.initiative-row-active:hover {
+  background: #000080;
+}
+
+.initiative-value {
+  width: 38px;
+  flex-shrink: 0;
+  text-align: center;
+  padding: 0 2px !important;
+}
+
+.initiative-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.initiative-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.initiative-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.initiative-remove {
+  flex-shrink: 0;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  padding: 0 3px !important;
+  opacity: 0.6;
+}
+
+.initiative-row:hover .initiative-remove,
+.initiative-row-active .initiative-remove {
+  opacity: 1;
+}
+
+.initiative-footer {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  padding: 2px 0;
+}
+
 .dice-window {
   width: 252px;
   display: flex;

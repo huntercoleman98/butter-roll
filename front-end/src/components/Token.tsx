@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { Group, Image as KonvaImage, Text } from "react-konva";
+import { Group, Image as KonvaImage, Text, Circle } from "react-konva";
 import Konva from "konva";
 import StatusBadge from "./StatusBadge";
 
@@ -15,10 +15,12 @@ interface TokenProps {
   color?: string;
   borderWidth?: number;
   isSelected?: boolean;
+  isOnInitiative?: boolean;
   draggable?: boolean;
   statusEffects?: string[];
   name?: string;
   showName?: boolean;
+  public?: boolean;
   onClick?: (id: string, shift: boolean) => void;
   onDragStart?: (id: string, x: number, y: number) => void;
   onDragMove?: (id: string, x: number, y: number) => void;
@@ -37,10 +39,12 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
     color = "#c084fc",
     borderWidth = 2,
     isSelected,
+    isOnInitiative,
     draggable = true,
     statusEffects,
     name,
     showName,
+    public: isPublic,
     onClick,
     onDragStart,
     onDragMove,
@@ -93,7 +97,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
   // Recache whenever anything that affects appearance changes.
   useEffect(() => {
     recache();
-  }, [isSelected, color, borderWidth]);
+  }, [isSelected, isOnInitiative, color, borderWidth]);
 
   useEffect(() => {
     const node = groupRef.current;
@@ -117,6 +121,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
       name="token"
       x={xRef.current}
       y={yRef.current}
+      opacity={isPublic ? 1 : 0.35}
       draggable={draggable}
       onClick={
         draggable
@@ -160,6 +165,17 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
       }
       listening={draggable}
     >
+      {isOnInitiative && (
+        <Circle
+          radius={TOKEN_SIZE / 2 + 4}
+          stroke="#ef4444"
+          strokeWidth={3}
+          shadowColor="rgba(239,68,68,0.85)"
+          shadowBlur={18}
+          shadowForStrokeEnabled
+          listening={false}
+        />
+      )}
       <KonvaImage
         ref={imageRef}
         name="token"

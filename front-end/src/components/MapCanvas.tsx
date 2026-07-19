@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GiTrashCan } from "react-icons/gi";
+import { GiTrashCan, GiSheikahEye, GiSightDisabled, GiSwordClash } from "react-icons/gi";
 import {
   Stage,
   Layer,
@@ -71,6 +71,8 @@ interface MapCanvasProps {
     scale: number,
   ) => void;
   syncedViewport?: ViewportSync | null;
+  onAddToInitiative?: (tokenIds: Set<string>) => void;
+  initiativeTokenId?: string | null;
 }
 
 const MIN_SCALE = 0.1;
@@ -129,6 +131,8 @@ export default function MapCanvas({
   onPing,
   onBringPlayersHere,
   syncedViewport = null,
+  onAddToInitiative,
+  initiativeTokenId = null,
 }: MapCanvasProps) {
   const fogMode =
     tool === "fog-reveal" ? "reveal" : tool === "fog-hide" ? "hide" : null;
@@ -144,6 +148,7 @@ export default function MapCanvas({
   const [menuBorderWidth, setMenuBorderWidth] = useState<number | null>(null);
   const [menuName, setMenuName] = useState("");
   const [menuShowName, setMenuShowName] = useState(false);
+  const [menuPublic, setMenuPublic] = useState(false);
   const [menuSharedStatuses, setMenuSharedStatuses] = useState<Set<string>>(
     new Set(),
   );
@@ -363,6 +368,7 @@ export default function MapCanvas({
     setMenuBorderWidth(sharedBW);
     setMenuName(clickedToken?.name ?? "");
     setMenuShowName(clickedToken?.showName ?? false);
+    setMenuPublic(clickedToken?.public ?? false);
     setMenuSharedStatuses(sharedStatuses);
     setStatusDropdownOpen(false);
     setMenuOffset({ x: 0, y: 0 });
@@ -654,6 +660,7 @@ export default function MapCanvas({
               }}
               {...t}
               isSelected={selectedTokenIds?.has(t.id)}
+              isOnInitiative={initiativeTokenId === t.id}
               draggable={tokensInteractive}
               onClick={tokensInteractive ? handleTokenClick : undefined}
               onDragStart={tokensInteractive ? handleTokenDragStart : undefined}
@@ -907,7 +914,30 @@ export default function MapCanvas({
             </div>
           </div>
           <div className="window-body">
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 4, marginBottom: 4 }}>
+              <button
+                className="icon-btn"
+                title={menuPublic ? "Public — visible to players" : "Private — hidden from players"}
+                onClick={() => {
+                  const next = !menuPublic;
+                  setMenuPublic(next);
+                  onUpdateToken?.(contextMenuAffectedIds(), { public: next });
+                }}
+              >
+                {menuPublic ? <GiSheikahEye /> : <GiSightDisabled />}
+              </button>
+              {onAddToInitiative && (
+                <button
+                  className="icon-btn"
+                  title="Add to initiative"
+                  onClick={() => {
+                    onAddToInitiative(contextMenuAffectedIds());
+                    setContextMenu(null);
+                  }}
+                >
+                  <GiSwordClash />
+                </button>
+              )}
               <button
                 onClick={handleContextMenuDelete}
                 title="Delete"

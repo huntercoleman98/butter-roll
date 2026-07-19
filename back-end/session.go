@@ -20,6 +20,7 @@ type Token struct {
 	StatusEffects []string `json:"statusEffects,omitempty"`
 	Name          string   `json:"name,omitempty"`
 	ShowName      bool     `json:"showName,omitempty"`
+	Public        bool     `json:"public,omitempty"`
 }
 
 // FogRect is one revealed rectangle cut out of the fog overlay.
@@ -221,6 +222,7 @@ type tokenUpdateMsg struct {
 	BorderWidth *int    `json:"borderWidth"`
 	Name        *string `json:"name"`
 	ShowName    *bool   `json:"showName"`
+	Public      *bool   `json:"public"`
 }
 
 type tokenStatusMsg struct {
@@ -584,6 +586,9 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 		}
 		if m.ShowName != nil {
 			t.ShowName = *m.ShowName
+		}
+		if m.Public != nil {
+			t.Public = *m.Public
 		}
 		page.Tokens[m.ID] = t
 

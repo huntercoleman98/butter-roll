@@ -12,6 +12,7 @@ import MapCanvas, { type ActiveTool } from "../components/MapCanvas";
 import MapSizeInput from "../components/MapSizeInput";
 import DicePanel from "../components/DicePanel";
 import DiceOverlay from "../components/DiceOverlay";
+import InitiativePanel, { type InitiativeEntry } from "../components/InitiativePanel";
 import {
   useGameSocket,
   uploadAsset,
@@ -53,6 +54,10 @@ export default function DM() {
   const [dicePanelOpen, setDicePanelOpen] = useState(false);
   const [diceHistory, setDiceHistory] = useState<DiceRollResult[]>([]);
   const [privateRollRequests, setPrivateRollRequests] = useState<DiceRequest[]>([]);
+  const [initiativePanelOpen, setInitiativePanelOpen] = useState(false);
+  const [initiativeEntries, setInitiativeEntries] = useState<InitiativeEntry[]>([]);
+  const [initiativeCurrentId, setInitiativeCurrentId] = useState<string | null>(null);
+  const [topPanel, setTopPanel] = useState<"initiative" | "dice">("dice");
   const [tokenMenuOpen, setTokenMenuOpen] = useState(false);
   const [tokenAssets, setTokenAssets] = useState<string[]>([]);
 
@@ -318,6 +323,14 @@ export default function DM() {
   function handleDeleteTokens(ids: Set<string>) {
     if (!activeId) return;
     for (const id of ids) send({ type: "token_remove", pageId: activeId, id });
+    setInitiativeEntries((prev) => {
+      const next = prev.filter((e) => !ids.has(e.tokenId));
+      if (initiativeCurrentId !== null) {
+        const removed = prev.find((e) => ids.has(e.tokenId) && e.entryId === initiativeCurrentId);
+        if (removed) setInitiativeCurrentId(null);
+      }
+      return next;
+    });
     setSelectedTokenIds(new Set());
   }
 
@@ -374,6 +387,14 @@ export default function DM() {
 
   function handlePing(pos: { x: number; y: number }) {
     send({ type: "ping", pageId: activeId, ...pos });
+  }
+
+  function handleAddToInitiative(tokenIds: Set<string>) {
+    if (!activePage) return;
+    const toAdd = activePage.tokens
+      .filter((t) => tokenIds.has(t.id))
+      .map((t) => ({ entryId: uuid(), tokenId: t.id, name: t.name ?? "", url: t.url, value: 0 }));
+    if (toAdd.length > 0) setInitiativeEntries((prev) => [...prev, ...toAdd]);
   }
 
   function handleBringPlayersHere(
@@ -606,8 +627,20 @@ export default function DM() {
 
           <div className="toolbar-right">
             <button
+              className={initiativePanelOpen ? "toolbar-btn-active" : ""}
+              onClick={() => {
+                setInitiativePanelOpen((o) => !o);
+                setTopPanel("initiative");
+              }}
+            >
+              Initiative
+            </button>
+            <button
               className={dicePanelOpen ? "toolbar-btn-active" : ""}
-              onClick={() => setDicePanelOpen((o) => !o)}
+              onClick={() => {
+                setDicePanelOpen((o) => !o);
+                setTopPanel("dice");
+              }}
             >
               Dice
             </button>
@@ -753,14 +786,46 @@ export default function DM() {
             ping={ping}
             onPing={handlePing}
             onBringPlayersHere={handleBringPlayersHere}
+            onAddToInitiative={handleAddToInitiative}
+            initiativeTokenId={
+              initiativePanelOpen
+                ? initiativeEntries.find((e) => e.entryId === initiativeCurrentId)
+                    ?.tokenId ?? null
+                : null
+            }
           />
         </div>
       </div>
+      {initiativePanelOpen && (
+        <InitiativePanel
+          entries={initiativeEntries.map((e) => {
+            const t = activePage?.tokens.find((t) => t.id === e.tokenId);
+            return t ? { ...e, name: t.name ?? "", url: t.url } : e;
+          })}
+          currentId={initiativeCurrentId}
+          onCurrentChange={setInitiativeCurrentId}
+          onValueChange={(entryId, value) =>
+            setInitiativeEntries((prev) =>
+              prev.map((e) => (e.entryId === entryId ? { ...e, value } : e)),
+            )
+          }
+          onRemove={(entryId) =>
+            setInitiativeEntries((prev) =>
+              prev.filter((e) => e.entryId !== entryId),
+            )
+          }
+          onClose={() => setInitiativePanelOpen(false)}
+          zIndex={topPanel === "initiative" ? 151 : 150}
+          onFocus={() => setTopPanel("initiative")}
+        />
+      )}
       {dicePanelOpen && (
         <DicePanel
           history={diceHistory}
           onRoll={handleRoll}
           onClose={() => setDicePanelOpen(false)}
+          zIndex={topPanel === "dice" ? 151 : 150}
+          onFocus={() => setTopPanel("dice")}
         />
       )}
       <DiceOverlay requests={privateRollRequests} onResult={handleDiceResult} />

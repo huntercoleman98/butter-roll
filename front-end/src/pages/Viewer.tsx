@@ -42,7 +42,7 @@ export default function Viewer() {
       <MapCanvas
         mapUrl={presentedPage?.mapUrl ?? null}
         mapSize={presentedPage?.mapSize ?? null}
-        tokens={presentedPage?.tokens ?? []}
+        tokens={presentedPage?.tokens.filter((t) => t.public) ?? []}
         fogRects={presentedPage?.fogRects ?? []}
         mapAreaRef={mapAreaRef}
         arrowOverlay={arrowOverlay}

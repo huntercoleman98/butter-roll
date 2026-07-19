@@ -7,6 +7,8 @@ interface Props {
   history: DiceRollResult[];
   onRoll: (expression: string, isPrivate: boolean, advMode?: "advantage" | "disadvantage", label?: string) => void;
   onClose: () => void;
+  zIndex?: number;
+  onFocus?: () => void;
 }
 
 const DIE_SIDES = [4, 6, 8, 10, 12, 20, 100];
@@ -29,7 +31,7 @@ function applyBonus(expr: string, b: number | null): string {
   return `${p.count}d${p.sides}${m > 0 ? `+${m}` : m < 0 ? `${m}` : ""}`;
 }
 
-export default function DicePanel({ history, onRoll, onClose }: Props) {
+export default function DicePanel({ history, onRoll, onClose, zIndex = 150, onFocus }: Props) {
   const [expr, setExpr] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [advMode, setAdvMode] = useState<"normal" | "advantage" | "disadvantage">("normal");
@@ -103,8 +105,9 @@ export default function DicePanel({ history, onRoll, onClose }: Props) {
   return (
     <div
       className="window dice-window"
-      style={{ position: "fixed", left: pos.x, top: pos.y, zIndex: 150 }}
+      style={{ position: "fixed", left: pos.x, top: pos.y, zIndex }}
       ref={panelRef}
+      onMouseDown={onFocus}
     >
       <div
         className="title-bar"
