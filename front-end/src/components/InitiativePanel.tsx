@@ -49,6 +49,8 @@ interface Props {
   onClose: () => void;
   zIndex?: number;
   onFocus?: () => void;
+  focusView: boolean;
+  onFocusViewChange: (on: boolean) => void;
 }
 
 export default function InitiativePanel({
@@ -60,6 +62,8 @@ export default function InitiativePanel({
   onClose,
   zIndex = 150,
   onFocus,
+  focusView,
+  onFocusViewChange,
 }: Props) {
   const [pos, setPos] = useState(() => ({ x: window.innerWidth - 260, y: 120 }));
   const activeRowRef = useRef<HTMLDivElement>(null);
@@ -114,6 +118,24 @@ export default function InitiativePanel({
         </div>
       </div>
       <div className="window-body initiative-body">
+        <div className="initiative-focus-row">
+          <input
+            type="checkbox"
+            id="init-focus-view"
+            checked={focusView}
+            onChange={(e) => onFocusViewChange(e.target.checked)}
+          />
+          <label htmlFor="init-focus-view" style={{ cursor: "pointer" }}>
+            Focus view
+          </label>
+          <button
+            className="initiative-clear"
+            onClick={() => onCurrentChange(null)}
+            disabled={currentId === null}
+          >
+            Clear initiative
+          </button>
+        </div>
         <div className="initiative-table">
           {sorted.length === 0 ? (
             <div className="initiative-empty">

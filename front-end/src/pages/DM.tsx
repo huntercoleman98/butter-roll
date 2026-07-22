@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-
-function uuid(): string {
-  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => {
-    const n = parseInt(c);
-    return (n ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (n / 4)))).toString(16);
-  });
-}
+import { uuid } from "../utils/uuid";
 import type Konva from "konva";
 import MapCanvas, { type ActiveTool } from "../components/MapCanvas";
 import MapSizeInput from "../components/MapSizeInput";
@@ -31,6 +24,9 @@ import {
 import "../App.css";
 
 type PageContextMenu = { pageId: string; x: number; y: number };
+
+// Zoom applied on /view when "Focus view" centers on the current token.
+const INITIATIVE_FOCUS_SCALE = 2;
 
 type Clipboard = {
   tokens: TokenData[];
@@ -61,6 +57,7 @@ export default function DM() {
   const [initiativePanelOpen, setInitiativePanelOpen] = useState(false);
   const [initiativeEntries, setInitiativeEntries] = useState<InitiativeEntry[]>([]);
   const [initiativeCurrentId, setInitiativeCurrentId] = useState<string | null>(null);
+  const [initiativeFocusView, setInitiativeFocusView] = useState(false);
   const [topPanel, setTopPanel] = useState<"initiative" | "dice" | "monsters">("dice");
   const [monsters, setMonsters] = useState<Monster[]>([]);
   const [monstersPanelOpen, setMonstersPanelOpen] = useState(false);
@@ -201,6 +198,23 @@ export default function DM() {
     fetchMonsters().then(setMonsters).catch(console.error);
   }, []);
 
+  // With "Focus view" on, center /view on the token whose turn it is.
+  useEffect(() => {
+    if (!initiativeFocusView || !initiativeCurrentId) return;
+    const entry = initiativeEntries.find(
+      (e) => e.entryId === initiativeCurrentId,
+    );
+    const token = activePage?.tokens.find((t) => t.id === entry?.tokenId);
+    if (!token || !activeId) return;
+    send({
+      type: "viewport_sync",
+      pageId: activeId,
+      worldCenterX: token.x,
+      worldCenterY: token.y,
+      scale: INITIATIVE_FOCUS_SCALE,
+    });
+  }, [initiativeFocusView, initiativeCurrentId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleDiceResult(result: DiceRollResult) {
     setDiceHistory((prev) => [
       ...prev,
@@ -220,7 +234,7 @@ export default function DM() {
     if (isPrivate) {
       setPrivateRollRequests((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), expression, advMode, label },
+        { id: uuid(), expression, advMode, label },
       ]);
     } else {
       send({ type: "dice_roll_request", expression, playerName: "DM", advMode, label });
@@ -901,6 +915,8 @@ export default function DM() {
           onClose={() => setInitiativePanelOpen(false)}
           zIndex={topPanel === "initiative" ? 151 : 150}
           onFocus={() => setTopPanel("initiative")}
+          focusView={initiativeFocusView}
+          onFocusViewChange={setInitiativeFocusView}
         />
       )}
       {dicePanelOpen && (
@@ -933,14 +949,33 @@ export default function DM() {
               monsters={monsters}
               x={monsterWindow.x}
               y={monsterWindow.y}
-              onUpdate={(update) =>
+              onUpdate={(update) => {
                 send({
                   type: "token_update",
                   pageId: activeId,
                   id: token.id,
                   ...update,
-                })
-              }
+                });
+                // Wounds reaching max HP marks the token dead. Never undone
+                // automatically — the DM removes the status by hand.
+                const hp = update.hp ?? token.hp;
+                const wounds = update.wounds ?? token.wounds;
+                if (
+                  (update.wounds !== undefined || update.hp !== undefined) &&
+                  hp != null &&
+                  hp > 0 &&
+                  wounds != null &&
+                  wounds >= hp &&
+                  !(token.statusEffects ?? []).includes("dead")
+                ) {
+                  send({
+                    type: "token_status",
+                    pageId: activeId,
+                    id: token.id,
+                    statusEffects: [...(token.statusEffects ?? []), "dead"],
+                  });
+                }
+              }}
               onRoll={handleMonsterRoll}
               onClose={() => setMonsterWindow(null)}
             />

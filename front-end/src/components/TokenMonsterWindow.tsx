@@ -156,7 +156,6 @@ export default function TokenMonsterWindow({
                 value={token.wounds ?? 0}
                 onChange={(v) => onUpdate({ wounds: v })}
               />
-              {down && <span className="token-monster-down">Down</span>}
               <button
                 className="token-monster-unlink"
                 title="Unlink monster"

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { uuid } from "../utils/uuid";
 import type { Monster } from "../types/monster";
 
 export interface TokenData {
@@ -520,7 +521,7 @@ export function useGameSocket() {
           setDiceRequests((prev) => [
             ...prev,
             {
-              id: crypto.randomUUID(),
+              id: uuid(),
               expression: msg.expression as string,
               clientId: msg.clientId as string | undefined,
               playerName: msg.playerName as string | undefined,
