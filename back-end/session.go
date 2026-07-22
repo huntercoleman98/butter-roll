@@ -26,13 +26,11 @@ type Token struct {
 	Wounds        *int     `json:"wounds,omitempty"`
 }
 
-// FogRect is one revealed rectangle cut out of the fog overlay.
-type FogRect struct {
-	ID     string  `json:"id"`
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
-	Width  float64 `json:"width"`
-	Height float64 `json:"height"`
+// FogPoly is one revealed polygon cut out of the fog overlay. Points is a flat
+// list of world-space coordinates [x0,y0, x1,y1, ...] with at least 3 vertices.
+type FogPoly struct {
+	ID     string    `json:"id"`
+	Points []float64 `json:"points"`
 }
 
 // Page holds the state for a single map scene.
@@ -43,7 +41,7 @@ type Page struct {
 	MapWidth  int                `json:"mapWidth"`
 	MapHeight int                `json:"mapHeight"`
 	Tokens    map[string]Token   `json:"tokens"`
-	FogRects  map[string]FogRect `json:"fogRects"`
+	FogPolys  map[string]FogPoly `json:"fogPolys"`
 }
 
 // Session holds the authoritative room state.
@@ -60,7 +58,7 @@ func NewSession() *Session {
 		ID:       defaultID,
 		Name:     "Page 1",
 		Tokens:   make(map[string]Token),
-		FogRects: make(map[string]FogRect),
+		FogPolys: make(map[string]FogPoly),
 	}
 	return &Session{
 		Pages:           map[string]*Page{defaultID: p},
@@ -77,7 +75,7 @@ type snapshotPageData struct {
 	MapWidth  int       `json:"mapWidth"`
 	MapHeight int       `json:"mapHeight"`
 	Tokens    []Token   `json:"tokens"`
-	FogRects  []FogRect `json:"fogRects"`
+	FogPolys  []FogPoly `json:"fogPolys"`
 }
 
 type snapshotMsg struct {
@@ -98,9 +96,9 @@ func (s *Session) Snapshot() []byte {
 		for _, t := range p.Tokens {
 			tokens = append(tokens, t)
 		}
-		fogRects := make([]FogRect, 0, len(p.FogRects))
-		for _, r := range p.FogRects {
-			fogRects = append(fogRects, r)
+		fogPolys := make([]FogPoly, 0, len(p.FogPolys))
+		for _, r := range p.FogPolys {
+			fogPolys = append(fogPolys, r)
 		}
 		pages = append(pages, snapshotPageData{
 			ID:        p.ID,
@@ -109,7 +107,7 @@ func (s *Session) Snapshot() []byte {
 			MapWidth:  p.MapWidth,
 			MapHeight: p.MapHeight,
 			Tokens:    tokens,
-			FogRects:  fogRects,
+			FogPolys:  fogPolys,
 		})
 	}
 	msg := snapshotMsg{
@@ -165,13 +163,13 @@ func LoadSession(path string) (*Session, error) {
 			MapWidth:  pd.MapWidth,
 			MapHeight: pd.MapHeight,
 			Tokens:    make(map[string]Token, len(pd.Tokens)),
-			FogRects:  make(map[string]FogRect, len(pd.FogRects)),
+			FogPolys:  make(map[string]FogPoly, len(pd.FogPolys)),
 		}
 		for _, t := range pd.Tokens {
 			p.Tokens[t.ID] = t
 		}
-		for _, r := range pd.FogRects {
-			p.FogRects[r.ID] = r
+		for _, r := range pd.FogPolys {
+			p.FogPolys[r.ID] = r
 		}
 		s.Pages[p.ID] = p
 		s.PageOrder = append(s.PageOrder, p.ID)
@@ -243,11 +241,8 @@ type tokenStatusMsg struct {
 }
 
 type fogAddMsg struct {
-	ID     string  `json:"id"`
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
-	Width  float64 `json:"width"`
-	Height float64 `json:"height"`
+	ID     string    `json:"id"`
+	Points []float64 `json:"points"`
 }
 
 type fogRemoveMsg struct {
@@ -346,7 +341,7 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 			ID:       m.ID,
 			Name:     m.Name,
 			Tokens:   make(map[string]Token),
-			FogRects: make(map[string]FogRect),
+			FogPolys: make(map[string]FogPoly),
 		}
 		s.PageOrder = append(s.PageOrder, m.ID)
 		return nil, true
@@ -647,11 +642,17 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 			log.Printf("session.Apply fog_add: %v", err)
 			return nil, false
 		}
-		if m.ID == "" || m.Width <= 0 || m.Height <= 0 || !finiteFloat(m.X) || !finiteFloat(m.Y) {
-			log.Printf("session.Apply fog_add: invalid payload (id=%q w=%f h=%f)", m.ID, m.Width, m.Height)
+		if m.ID == "" || len(m.Points) < 6 || len(m.Points)%2 != 0 {
+			log.Printf("session.Apply fog_add: invalid payload (id=%q npts=%d)", m.ID, len(m.Points))
 			return nil, false
 		}
-		page.FogRects[m.ID] = FogRect{ID: m.ID, X: m.X, Y: m.Y, Width: m.Width, Height: m.Height}
+		for _, v := range m.Points {
+			if !finiteFloat(v) {
+				log.Printf("session.Apply fog_add: non-finite vertex (id=%q)", m.ID)
+				return nil, false
+			}
+		}
+		page.FogPolys[m.ID] = FogPoly{ID: m.ID, Points: m.Points}
 
 	case "fog_remove":
 		var m fogRemoveMsg
@@ -663,10 +664,10 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 			log.Printf("session.Apply fog_remove: empty id")
 			return nil, false
 		}
-		delete(page.FogRects, m.ID)
+		delete(page.FogPolys, m.ID)
 
 	case "fog_clear":
-		page.FogRects = make(map[string]FogRect)
+		page.FogPolys = make(map[string]FogPoly)
 
 	default:
 		log.Printf("session.Apply: unknown type %q", raw.Type)

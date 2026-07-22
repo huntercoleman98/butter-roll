@@ -18,12 +18,9 @@ export interface TokenData {
   wounds?: number;
 }
 
-export interface FogRect {
+export interface FogPoly {
   id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  points: number[]; // flat [x0,y0, x1,y1, ...] in world space, >= 3 vertices
 }
 
 export interface ArrowOverlay {
@@ -80,7 +77,7 @@ export interface Page {
   mapUrl: string | null;
   mapSize: { width: number; height: number } | null;
   tokens: TokenData[];
-  fogRects: FogRect[];
+  fogPolys: FogPoly[];
 }
 
 const API_BASE = "";
@@ -136,10 +133,7 @@ type OutgoingMsg =
       type: "fog_add";
       pageId: string;
       id: string;
-      x: number;
-      y: number;
-      width: number;
-      height: number;
+      points: number[];
     }
   | { type: "fog_remove"; pageId: string; id: string }
   | { type: "fog_clear"; pageId: string }
@@ -235,7 +229,7 @@ export function useGameSocket() {
             mapWidth: number;
             mapHeight: number;
             tokens: TokenData[];
-            fogRects: FogRect[];
+            fogPolys: FogPoly[];
           }>;
           setPages(
             raw.map((p) => ({
@@ -247,7 +241,7 @@ export function useGameSocket() {
                   ? { width: p.mapWidth, height: p.mapHeight }
                   : null,
               tokens: p.tokens ?? [],
-              fogRects: p.fogRects ?? [],
+              fogPolys: p.fogPolys ?? [],
             })),
           );
           presentedPageIdRef.current = msg.presentedPageId as string;
@@ -410,14 +404,11 @@ export function useGameSocket() {
           const pageId = msg.pageId as string;
           updatePage(pageId, (p) => ({
             ...p,
-            fogRects: [
-              ...p.fogRects,
+            fogPolys: [
+              ...p.fogPolys,
               {
                 id: msg.id as string,
-                x: msg.x as number,
-                y: msg.y as number,
-                width: msg.width as number,
-                height: msg.height as number,
+                points: msg.points as number[],
               },
             ],
           }));
@@ -428,14 +419,14 @@ export function useGameSocket() {
           const pageId = msg.pageId as string;
           updatePage(pageId, (p) => ({
             ...p,
-            fogRects: p.fogRects.filter((r) => r.id !== msg.id),
+            fogPolys: p.fogPolys.filter((r) => r.id !== msg.id),
           }));
           break;
         }
 
         case "fog_clear": {
           const pageId = msg.pageId as string;
-          updatePage(pageId, (p) => ({ ...p, fogRects: [] }));
+          updatePage(pageId, (p) => ({ ...p, fogPolys: [] }));
           break;
         }
 
@@ -446,7 +437,7 @@ export function useGameSocket() {
             mapUrl: null,
             mapSize: null,
             tokens: [],
-            fogRects: [],
+            fogPolys: [],
           };
           setPages((prev) => [...prev, newPage]);
           break;

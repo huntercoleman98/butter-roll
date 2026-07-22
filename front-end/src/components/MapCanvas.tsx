@@ -15,7 +15,7 @@ import Token, { type TokenHandle } from "./Token";
 import FogLayer from "./FogLayer";
 import type {
   TokenData,
-  FogRect,
+  FogPoly,
   ArrowOverlay,
   RadiusCircle,
   Ping,
@@ -25,7 +25,12 @@ import { STATUS_EFFECTS, STATUS_EFFECT_MAP } from "../constants/statusEffects";
 import { filterMonsters, parseMaxHp, type Monster } from "../types/monster";
 
 export type ActiveTool =
-  "select" | "fog-reveal" | "fog-hide" | "arrow" | "radius";
+  | "select"
+  | "fog-reveal-box"
+  | "fog-reveal-poly"
+  | "fog-hide"
+  | "arrow"
+  | "radius";
 
 interface DraftRect {
   x: number;
@@ -44,9 +49,9 @@ interface MapCanvasProps {
   mapAreaRef: React.RefObject<HTMLDivElement | null>;
   onStageReady?: (stage: Konva.Stage) => void;
   readOnly?: boolean;
-  fogRects?: FogRect[];
+  fogPolys?: FogPoly[];
   tool?: ActiveTool;
-  onFogDraw?: (rect: DraftRect) => void;
+  onFogDraw?: (poly: { points: number[] }) => void;
   onFogRemove?: (id: string) => void;
   onDeleteTokens?: (ids: Set<string>) => void;
   onUpdateToken?: (
@@ -98,6 +103,23 @@ function clientToWorld(stage: Konva.Stage, clientX: number, clientY: number) {
   };
 }
 
+// Ray-casting point-in-polygon test. pts is a flat [x0,y0, x1,y1, ...] list.
+function pointInPoly(px: number, py: number, pts: number[]): boolean {
+  let inside = false;
+  for (let i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
+    const xi = pts[i],
+      yi = pts[i + 1],
+      xj = pts[j],
+      yj = pts[j + 1];
+    if (
+      yi > py !== yj > py &&
+      px < ((xj - xi) * (py - yi)) / (yj - yi) + xi
+    )
+      inside = !inside;
+  }
+  return inside;
+}
+
 function startDrag(
   onMove: (ev: MouseEvent) => void,
   onUp: (ev: MouseEvent) => void,
@@ -126,7 +148,7 @@ export default function MapCanvas({
   mapAreaRef,
   onStageReady,
   readOnly = false,
-  fogRects = [],
+  fogPolys = [],
   tool = "select",
   onFogDraw,
   onFogRemove,
@@ -149,12 +171,24 @@ export default function MapCanvas({
   monsters = [],
 }: MapCanvasProps) {
   const fogMode =
-    tool === "fog-reveal" ? "reveal" : tool === "fog-hide" ? "hide" : null;
+    tool === "fog-reveal-box"
+      ? "reveal"
+      : tool === "fog-reveal-poly"
+        ? "poly"
+        : tool === "fog-hide"
+          ? "hide"
+          : null;
   const arrowMode = tool === "arrow";
   const radiusMode = tool === "radius";
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
   const [draft, setDraft] = useState<DraftRect | null>(null);
+  // In-progress polygon vertices [x0,y0, x1,y1, ...] for the poly reveal tool.
+  const [draftPoly, setDraftPoly] = useState<number[] | null>(null);
+  // Current cursor world position, for the rubber-band segment while drawing.
+  const [polyCursor, setPolyCursor] = useState<{ x: number; y: number } | null>(
+    null,
+  );
   const [selectionRect, setSelectionRect] = useState<DraftRect | null>(null);
   const [selectedFogId, setSelectedFogId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
@@ -199,6 +233,23 @@ export default function MapCanvas({
   // Clear fog selection whenever hide mode is left
   useEffect(() => {
     if (fogMode !== "hide") setFogSelection(null);
+  }, [fogMode]);
+
+  // Reset the in-progress polygon when leaving poly mode; Esc cancels it too.
+  useEffect(() => {
+    if (fogMode !== "poly") {
+      setDraftPoly(null);
+      setPolyCursor(null);
+      return;
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setDraftPoly(null);
+        setPolyCursor(null);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [fogMode]);
 
   // Close token context menu on outside click
@@ -522,13 +573,7 @@ export default function MapCanvas({
     const start = clientToWorld(stage, e.evt.clientX, e.evt.clientY);
 
     if (fogMode === "hide") {
-      const hit = fogRects.find(
-        (r) =>
-          start.x >= r.x &&
-          start.x <= r.x + r.width &&
-          start.y >= r.y &&
-          start.y <= r.y + r.height,
-      );
+      const hit = fogPolys.find((r) => pointInPoly(start.x, start.y, r.points));
       if (!hit) {
         setFogSelection(null);
       } else if (hit.id === selectedFogIdRef.current) {
@@ -537,6 +582,23 @@ export default function MapCanvas({
       } else {
         setFogSelection(hit.id);
       }
+      return;
+    }
+
+    if (fogMode === "poly") {
+      const cur = draftPoly ?? [];
+      // Click near the first vertex (>= 3 placed) closes the polygon.
+      if (cur.length >= 6) {
+        const tol = 10 / stage.scaleX();
+        if (Math.hypot(start.x - cur[0], start.y - cur[1]) <= tol) {
+          onFogDraw?.({ points: cur });
+          setDraftPoly(null);
+          setPolyCursor(null);
+          return;
+        }
+      }
+      setDraftPoly([...cur, start.x, start.y]);
+      setPolyCursor(start);
       return;
     }
 
@@ -560,8 +622,21 @@ export default function MapCanvas({
           setDraft(localDraft);
         },
         () => {
-          if (localDraft.width > 2 && localDraft.height > 2)
-            onFogDraw?.(localDraft);
+          if (localDraft.width > 2 && localDraft.height > 2) {
+            const { x, y, width, height } = localDraft;
+            onFogDraw?.({
+              points: [
+                x,
+                y,
+                x + width,
+                y,
+                x + width,
+                y + height,
+                x,
+                y + height,
+              ],
+            });
+          }
           setDraft(null);
         },
       );
@@ -672,8 +747,8 @@ export default function MapCanvas({
 
   const tokensInteractive = !readOnly && !fogMode && !arrowMode && !radiusMode;
   const fogOpacity = readOnly ? 1 : 0.65;
-  const selFogRect = selectedFogId
-    ? fogRects.find((r) => r.id === selectedFogId)
+  const selFogPoly = selectedFogId
+    ? fogPolys.find((r) => r.id === selectedFogId)
     : null;
 
   return (
@@ -684,7 +759,7 @@ export default function MapCanvas({
         arrowMode || radiusMode
           ? { cursor: "crosshair" }
           : fogMode
-            ? { cursor: fogMode === "reveal" ? "crosshair" : "cell" }
+            ? { cursor: fogMode === "hide" ? "cell" : "crosshair" }
             : undefined
       }
     >
@@ -697,6 +772,12 @@ export default function MapCanvas({
         height={size.height}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
+        onMouseMove={(e) => {
+          if (fogMode === "poly" && draftPoly) {
+            const stage = stageRef.current!;
+            setPolyCursor(clientToWorld(stage, e.evt.clientX, e.evt.clientY));
+          }
+        }}
         onContextMenu={(e) => e.evt.preventDefault()}
       >
         <Layer listening={false}>
@@ -732,14 +813,12 @@ export default function MapCanvas({
             />
           ))}
         </Layer>
-        <FogLayer fogRects={fogRects} opacity={fogOpacity} />
-        {selFogRect && (
+        <FogLayer fogPolys={fogPolys} opacity={fogOpacity} />
+        {selFogPoly && (
           <Layer listening={false}>
-            <Rect
-              x={selFogRect.x}
-              y={selFogRect.y}
-              width={selFogRect.width}
-              height={selFogRect.height}
+            <Line
+              points={selFogPoly.points}
+              closed
               stroke="rgba(255,80,80,0.9)"
               strokeWidth={2}
               dash={[6, 4]}
@@ -759,6 +838,29 @@ export default function MapCanvas({
               stroke="rgba(255,255,255,0.9)"
               strokeWidth={2}
               dash={[6, 4]}
+              listening={false}
+            />
+          </Layer>
+        )}
+        {draftPoly && (
+          <Layer listening={false}>
+            <Line
+              points={
+                polyCursor ? [...draftPoly, polyCursor.x, polyCursor.y] : draftPoly
+              }
+              stroke="rgba(255,255,255,0.9)"
+              strokeWidth={2}
+              dash={[6, 4]}
+              listening={false}
+            />
+            {/* First vertex: shown from the first click; closes the polygon once >= 3 vertices */}
+            <Circle
+              x={draftPoly[0]}
+              y={draftPoly[1]}
+              radius={6 / (stageRef.current?.scaleX() ?? 1)}
+              stroke="rgba(255,255,255,0.9)"
+              strokeWidth={2}
+              fill="rgba(255,255,255,0.3)"
               listening={false}
             />
           </Layer>

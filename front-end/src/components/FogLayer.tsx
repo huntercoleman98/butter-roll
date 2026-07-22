@@ -1,12 +1,12 @@
-import { Layer, Rect } from "react-konva";
-import type { FogRect } from "../hooks/useGameSocket";
+import { Layer, Rect, Line } from "react-konva";
+import type { FogPoly } from "../hooks/useGameSocket";
 
 interface FogLayerProps {
-  fogRects: FogRect[];
+  fogPolys: FogPoly[];
   opacity: number;
 }
 
-export default function FogLayer({ fogRects, opacity }: FogLayerProps) {
+export default function FogLayer({ fogPolys, opacity }: FogLayerProps) {
   return (
     <Layer listening={false}>
       {/* Opacity lives on the fill, not the layer, so destination-out punches at full alpha */}
@@ -18,14 +18,12 @@ export default function FogLayer({ fogRects, opacity }: FogLayerProps) {
         fill={`rgba(0,0,0,${opacity})`}
         listening={false}
       />
-      {/* Each fog rect is a hole punched through the overlay via destination-out */}
-      {fogRects.map((r) => (
-        <Rect
-          key={r.id}
-          x={r.x}
-          y={r.y}
-          width={r.width}
-          height={r.height}
+      {/* Each polygon is a hole punched through the overlay via destination-out */}
+      {fogPolys.map((p) => (
+        <Line
+          key={p.id}
+          points={p.points}
+          closed
           fill="black"
           globalCompositeOperation="destination-out"
           listening={false}

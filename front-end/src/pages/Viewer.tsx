@@ -43,7 +43,7 @@ export default function Viewer() {
         mapUrl={presentedPage?.mapUrl ?? null}
         mapSize={presentedPage?.mapSize ?? null}
         tokens={presentedPage?.tokens.filter((t) => t.public) ?? []}
-        fogRects={presentedPage?.fogRects ?? []}
+        fogPolys={presentedPage?.fogPolys ?? []}
         mapAreaRef={mapAreaRef}
         arrowOverlay={arrowOverlay}
         ping={ping}

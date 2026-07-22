@@ -102,7 +102,15 @@ export default function DM() {
 
   const measureToolActive = activeTool === "arrow" || activeTool === "radius";
   const fogToolActive =
-    activeTool === "fog-reveal" || activeTool === "fog-hide";
+    activeTool === "fog-reveal-box" ||
+    activeTool === "fog-reveal-poly" ||
+    activeTool === "fog-hide";
+  const fogToolLabel =
+    activeTool === "fog-reveal-box"
+      ? "Reveal Box"
+      : activeTool === "fog-reveal-poly"
+        ? "Reveal Poly"
+        : "Hide";
 
   // Track cursor position in world space for paste targeting.
   useEffect(() => {
@@ -362,18 +370,13 @@ export default function DM() {
     send({ type: "map_resize", pageId: activeId, width, height });
   }
 
-  function handleFogDraw(rect: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }) {
+  function handleFogDraw(poly: { points: number[] }) {
     if (!activeId) return;
     send({
       type: "fog_add",
       pageId: activeId,
       id: uuid(),
-      ...rect,
+      points: poly.points,
     });
   }
 
@@ -824,16 +827,26 @@ export default function DM() {
                     {fogToolActive && (
                       <em>
                         {" "}
-                        ({activeTool === "fog-reveal" ? "Reveal" : "Hide"})
+                        ({fogToolLabel})
                       </em>
                     )}
                   </summary>
                   <ul>
                     <li
-                      className={activeTool === "fog-reveal" ? "active" : ""}
-                      onClick={() => setActiveTool("fog-reveal")}
+                      className={
+                        activeTool === "fog-reveal-box" ? "active" : ""
+                      }
+                      onClick={() => setActiveTool("fog-reveal-box")}
                     >
-                      Reveal
+                      Reveal Box
+                    </li>
+                    <li
+                      className={
+                        activeTool === "fog-reveal-poly" ? "active" : ""
+                      }
+                      onClick={() => setActiveTool("fog-reveal-poly")}
+                    >
+                      Reveal Poly
                     </li>
                     <li
                       className={activeTool === "fog-hide" ? "active" : ""}
@@ -866,7 +879,7 @@ export default function DM() {
             onStageReady={(stage) => {
               stageRef.current = stage;
             }}
-            fogRects={activePage?.fogRects ?? []}
+            fogPolys={activePage?.fogPolys ?? []}
             tool={activeTool}
             onFogDraw={handleFogDraw}
             onFogRemove={handleFogRemove}
