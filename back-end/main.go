@@ -60,8 +60,12 @@ func main() {
 	mux.HandleFunc("GET /api/monsters", cors(allowedOrigin, listMonsters(monstersDir)))
 	mux.HandleFunc("/", spaHandler(distFS))
 
-	log.Println("butter-roll server listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	addr := os.Getenv("LISTEN_ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
+	log.Printf("butter-roll server listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, mux))
 }
 
 func spaHandler(fsys fs.FS) http.HandlerFunc {

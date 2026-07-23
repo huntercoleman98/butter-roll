@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 )
 
@@ -34,7 +33,7 @@ func (h *Hub) Run() {
 
 		case c := <-h.register:
 			h.clients[c] = true
-			hello, _ := json.Marshal(map[string]string{"type": "hello", "clientId": c.id})
+			hello := HelloMessage(c.id)
 			select {
 			case c.send <- hello:
 			default:

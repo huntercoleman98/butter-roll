@@ -64,24 +64,24 @@ func TestTokenUpdateMonsterFields(t *testing.T) {
 			t.Fatalf("apply failed: %s", msg)
 		}
 	}
-	apply(`{"type":"token_add","pageId":"page-1","id":"t1","url":"/x.png","x":1,"y":2}`)
-	apply(`{"type":"token_update","pageId":"page-1","id":"t1","monster":"Goblin","hp":39,"wounds":0}`)
+	apply(`{"tokenAdd":{"pageId":"page-1","token":{"id":"t1","url":"/x.png","x":1,"y":2}}}`)
+	apply(`{"tokenUpdate":{"pageId":"page-1","id":"t1","monster":"Goblin","hp":39,"wounds":0}}`)
 
 	tok := s.Pages["page-1"].Tokens["t1"]
-	if tok.Monster != "Goblin" || tok.HP == nil || *tok.HP != 39 || tok.Wounds == nil || *tok.Wounds != 0 {
+	if tok.Monster != "Goblin" || tok.Hp == nil || *tok.Hp != 39 || tok.Wounds == nil || *tok.Wounds != 0 {
 		t.Fatalf("after link: %+v", tok)
 	}
 
-	apply(`{"type":"token_update","pageId":"page-1","id":"t1","wounds":12}`)
+	apply(`{"tokenUpdate":{"pageId":"page-1","id":"t1","wounds":12}}`)
 	tok = s.Pages["page-1"].Tokens["t1"]
-	if *tok.Wounds != 12 || *tok.HP != 39 {
+	if *tok.Wounds != 12 || *tok.Hp != 39 {
 		t.Fatalf("after wound: %+v", tok)
 	}
 
 	// Unlink clears the HP tracker.
-	apply(`{"type":"token_update","pageId":"page-1","id":"t1","monster":""}`)
+	apply(`{"tokenUpdate":{"pageId":"page-1","id":"t1","monster":""}}`)
 	tok = s.Pages["page-1"].Tokens["t1"]
-	if tok.Monster != "" || tok.HP != nil || tok.Wounds != nil {
+	if tok.Monster != "" || tok.Hp != nil || tok.Wounds != nil {
 		t.Fatalf("after unlink: %+v", tok)
 	}
 }

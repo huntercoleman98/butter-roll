@@ -134,17 +134,19 @@ export default function Player() {
         ? (advMode === "advantage" ? Math.max(...rawRolls) : Math.min(...rawRolls)) + modifier
         : rawRolls.reduce((a, b) => a + b, 0) + modifier;
       send({
-        type: "dice_roll_result",
-        expression: trimmed,
-        sides,
-        rolls: rawRolls,
-        modifier,
-        total,
-        clientId: myClientId ?? undefined,
-        private: true,
-        playerName: profile.name,
-        diceColor: profile.color,
-        label,
+        case: "diceRollResult",
+        value: {
+          expression: trimmed,
+          sides,
+          rolls: rawRolls,
+          modifier,
+          total,
+          clientId: myClientId ?? undefined,
+          private: true,
+          playerName: profile.name,
+          diceColor: profile.color,
+          label,
+        },
       });
       setHistory((prev) => [
         ...prev,
@@ -152,13 +154,15 @@ export default function Player() {
       ]);
     } else {
       send({
-        type: "dice_roll_request",
-        expression: trimmed,
-        clientId: myClientId ?? undefined,
-        playerName: profile.name,
-        diceColor: profile.color,
-        advMode: advMode !== "normal" ? advMode : undefined,
-        label,
+        case: "diceRollRequest",
+        value: {
+          expression: trimmed,
+          clientId: myClientId ?? undefined,
+          playerName: profile.name,
+          diceColor: profile.color,
+          advMode: advMode !== "normal" ? advMode : undefined,
+          label,
+        },
       });
     }
   }

@@ -1,26 +1,23 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  create,
+  fromJsonString,
+  toJsonString,
+  type MessageInitShape,
+} from "@bufbuild/protobuf";
+import { EnvelopeSchema, type Envelope, type Token } from "../gen/butterroll/v1/game_pb";
 import { uuid } from "../utils/uuid";
-import type { Monster } from "../types/monster";
 
-export interface TokenData {
-  id: string;
-  url: string;
-  x: number;
-  y: number;
-  color?: string;
-  borderWidth?: number;
-  statusEffects?: string[];
-  name?: string;
-  showName?: boolean;
-  public?: boolean;
-  monster?: string;
-  hp?: number;
-  wounds?: number;
-}
+// The token/message wire schema lives in proto/butterroll/v1/game.proto and is
+// code-generated into ../gen. TokenData is re-exported from there so components
+// keep a stable import site.
+export type TokenData = Token;
 
+// Client-side view model for a revealed fog polygon. Structurally compatible
+// with the generated FogPoly (which also carries a $typeName tag).
 export interface FogPoly {
   id: string;
-  points: number[]; // flat [x0,y0, x1,y1, ...] in world space, >= 3 vertices
+  points: number[];
 }
 
 export interface ArrowOverlay {
@@ -82,105 +79,13 @@ export interface Page {
 
 const API_BASE = "";
 
-type OutgoingMsg =
-  | {
-      type: "map_set";
-      pageId: string;
-      url: string;
-      width: number;
-      height: number;
-    }
-  | { type: "map_resize"; pageId: string; width: number; height: number }
-  | {
-      type: "token_add";
-      pageId: string;
-      id: string;
-      url: string;
-      x: number;
-      y: number;
-      color?: string;
-      borderWidth?: number;
-      statusEffects?: string[];
-      name?: string;
-      showName?: boolean;
-      public?: boolean;
-      monster?: string;
-      hp?: number;
-      wounds?: number;
-    }
-  | { type: "token_move"; pageId: string; id: string; x: number; y: number }
-  | { type: "token_remove"; pageId: string; id: string }
-  | {
-      type: "token_update";
-      pageId: string;
-      id: string;
-      color?: string;
-      borderWidth?: number;
-      name?: string;
-      showName?: boolean;
-      public?: boolean;
-      monster?: string;
-      hp?: number;
-      wounds?: number;
-    }
-  | {
-      type: "token_status";
-      pageId: string;
-      id: string;
-      statusEffects: string[];
-    }
-  | {
-      type: "fog_add";
-      pageId: string;
-      id: string;
-      points: number[];
-    }
-  | { type: "fog_remove"; pageId: string; id: string }
-  | { type: "fog_clear"; pageId: string }
-  | { type: "page_add"; id: string; name: string }
-  | { type: "page_remove"; id: string }
-  | { type: "page_rename"; id: string; name: string }
-  | { type: "page_present"; id: string }
-  | {
-      type: "arrow_update";
-      pageId: string;
-      x1: number;
-      y1: number;
-      x2: number;
-      y2: number;
-    }
-  | { type: "arrow_clear"; pageId: string }
-  | {
-      type: "radius_update";
-      pageId: string;
-      x: number;
-      y: number;
-      x2: number;
-      y2: number;
-    }
-  | { type: "radius_clear"; pageId: string }
-  | { type: "ping"; pageId: string; x: number; y: number }
-  | {
-      type: "viewport_sync";
-      pageId: string;
-      worldCenterX: number;
-      worldCenterY: number;
-      scale: number;
-    }
-  | { type: "dice_roll_request"; expression: string; clientId?: string; private?: boolean; playerName?: string; diceColor?: string; advMode?: "advantage" | "disadvantage"; label?: string }
-  | {
-      type: "dice_roll_result";
-      expression: string;
-      sides: number;
-      rolls: number[];
-      modifier: number;
-      total: number;
-      clientId?: string;
-      private?: boolean;
-      playerName?: string;
-      diceColor?: string;
-      label?: string;
-    };
+// The `payload` init of an Envelope — a discriminated union of every message
+// type ({ case: "tokenMove", value: { pageId, id, x, y } }, etc.), generated
+// from the proto oneof. This is the single source of truth for what send()
+// accepts.
+export type OutgoingPayload = NonNullable<
+  MessageInitShape<typeof EnvelopeSchema>["payload"]
+>;
 
 export function useGameSocket() {
   const [pages, setPages] = useState<Page[]>([]);
@@ -212,27 +117,20 @@ export function useGameSocket() {
     }
 
     ws.onmessage = (e: MessageEvent) => {
-      let msg: Record<string, unknown>;
+      let env: Envelope;
       try {
-        msg = JSON.parse(e.data as string) as Record<string, unknown>;
+        env = fromJsonString(EnvelopeSchema, e.data as string);
       } catch {
         console.warn("bad WS message", e.data);
         return;
       }
 
-      switch (msg.type) {
+      const payload = env.payload;
+      switch (payload.case) {
         case "snapshot": {
-          const raw = msg.pages as Array<{
-            id: string;
-            name: string;
-            mapUrl: string;
-            mapWidth: number;
-            mapHeight: number;
-            tokens: TokenData[];
-            fogPolys: FogPoly[];
-          }>;
+          const s = payload.value;
           setPages(
-            raw.map((p) => ({
+            s.pages.map((p) => ({
               id: p.id,
               name: p.name,
               mapUrl: p.mapUrl || null,
@@ -240,87 +138,52 @@ export function useGameSocket() {
                 p.mapWidth && p.mapHeight
                   ? { width: p.mapWidth, height: p.mapHeight }
                   : null,
-              tokens: p.tokens ?? [],
-              fogPolys: p.fogPolys ?? [],
+              tokens: p.tokens,
+              fogPolys: p.fogPolys,
             })),
           );
-          presentedPageIdRef.current = msg.presentedPageId as string;
-          setPresentedPageId(msg.presentedPageId as string);
+          presentedPageIdRef.current = s.presentedPageId;
+          setPresentedPageId(s.presentedPageId);
           break;
         }
 
-        case "map_set": {
-          const pageId = msg.pageId as string;
-          updatePage(pageId, (p) => ({
+        case "mapSet": {
+          const m = payload.value;
+          updatePage(m.pageId, (p) => ({
             ...p,
-            mapUrl: msg.url as string,
-            mapSize: {
-              width: msg.width as number,
-              height: msg.height as number,
-            },
+            mapUrl: m.url,
+            mapSize: { width: m.width, height: m.height },
           }));
           break;
         }
 
-        case "map_resize": {
-          const pageId = msg.pageId as string;
-          updatePage(pageId, (p) => ({
+        case "mapResize": {
+          const m = payload.value;
+          updatePage(m.pageId, (p) => ({
             ...p,
-            mapSize: {
-              width: msg.width as number,
-              height: msg.height as number,
-            },
+            mapSize: { width: m.width, height: m.height },
           }));
           break;
         }
 
-        case "token_add": {
-          const pageId = msg.pageId as string;
-          updatePage(pageId, (p) => ({
+        case "tokenAdd": {
+          const m = payload.value;
+          if (!m.token) break;
+          const token = m.token;
+          updatePage(m.pageId, (p) => ({
             ...p,
-            tokens: [
-              ...p.tokens,
-              {
-                id: msg.id as string,
-                url: msg.url as string,
-                x: msg.x as number,
-                y: msg.y as number,
-                ...(msg.color !== undefined && { color: msg.color as string }),
-                ...(msg.borderWidth !== undefined && {
-                  borderWidth: msg.borderWidth as number,
-                }),
-                ...(msg.statusEffects !== undefined && {
-                  statusEffects: msg.statusEffects as string[],
-                }),
-                ...(msg.name !== undefined && { name: msg.name as string }),
-                ...(msg.showName !== undefined && {
-                  showName: msg.showName as boolean,
-                }),
-                ...(msg.public !== undefined && {
-                  public: msg.public as boolean,
-                }),
-                ...(msg.monster !== undefined && {
-                  monster: msg.monster as string,
-                }),
-                ...(msg.hp !== undefined && { hp: msg.hp as number }),
-                ...(msg.wounds !== undefined && {
-                  wounds: msg.wounds as number,
-                }),
-              },
-            ],
+            tokens: [...p.tokens, token],
           }));
           break;
         }
 
-        case "token_move": {
-          const pageId = msg.pageId as string;
-          const id = msg.id as string;
-          const x = msg.x as number;
-          const y = msg.y as number;
-          updatePage(pageId, (p) => {
-            const idx = p.tokens.findIndex((t) => t.id === id);
+        case "tokenMove": {
+          const m = payload.value;
+          updatePage(m.pageId, (p) => {
+            const idx = p.tokens.findIndex((t) => t.id === m.id);
             if (idx === -1) return p;
-            const updated = { ...p.tokens[idx], x, y };
+            // Move the token to the end so it renders on top.
+            const updated = { ...p.tokens[idx], x: m.x, y: m.y };
             return {
               ...p,
               tokens: [
@@ -333,52 +196,35 @@ export function useGameSocket() {
           break;
         }
 
-        case "token_remove": {
-          const pageId = msg.pageId as string;
-          updatePage(pageId, (p) => ({
+        case "tokenRemove": {
+          const m = payload.value;
+          updatePage(m.pageId, (p) => ({
             ...p,
-            tokens: p.tokens.filter((t) => t.id !== msg.id),
+            tokens: p.tokens.filter((t) => t.id !== m.id),
           }));
           break;
         }
 
-        case "token_update": {
-          const pageId = msg.pageId as string;
-          const id = msg.id as string;
-          updatePage(pageId, (p) => ({
+        case "tokenUpdate": {
+          const m = payload.value;
+          updatePage(m.pageId, (p) => ({
             ...p,
             tokens: p.tokens.map((t) => {
-              if (t.id !== id) return t;
-              const next = {
-                ...t,
-                ...(msg.color !== undefined && {
-                  color: msg.color as string,
-                }),
-                ...(msg.borderWidth !== undefined && {
-                  borderWidth: msg.borderWidth as number,
-                }),
-                ...(msg.name !== undefined && {
-                  name: msg.name as string,
-                }),
-                ...(msg.showName !== undefined && {
-                  showName: msg.showName as boolean,
-                }),
-                ...(msg.public !== undefined && {
-                  public: msg.public as boolean,
-                }),
-                ...(msg.monster !== undefined && {
-                  monster: msg.monster as string,
-                }),
-                ...(msg.hp !== undefined && { hp: msg.hp as number }),
-                ...(msg.wounds !== undefined && {
-                  wounds: msg.wounds as number,
-                }),
-              };
+              if (t.id !== m.id) return t;
+              const next: TokenData = { ...t };
+              if (m.color !== undefined) next.color = m.color;
+              if (m.borderWidth !== undefined) next.borderWidth = m.borderWidth;
+              if (m.name !== undefined) next.name = m.name;
+              if (m.showName !== undefined) next.showName = m.showName;
+              if (m.public !== undefined) next.public = m.public;
+              if (m.monster !== undefined) next.monster = m.monster;
+              if (m.hp !== undefined) next.hp = m.hp;
+              if (m.wounds !== undefined) next.wounds = m.wounds;
               // Unlinking clears the HP tracker (mirrors the server).
-              if (msg.monster === "") {
-                delete next.monster;
-                delete next.hp;
-                delete next.wounds;
+              if (m.monster === "") {
+                next.monster = "";
+                next.hp = undefined;
+                next.wounds = undefined;
               }
               return next;
             }),
@@ -386,169 +232,167 @@ export function useGameSocket() {
           break;
         }
 
-        case "token_status": {
-          const pageId = msg.pageId as string;
-          const id = msg.id as string;
-          updatePage(pageId, (p) => ({
+        case "tokenStatus": {
+          const m = payload.value;
+          updatePage(m.pageId, (p) => ({
             ...p,
             tokens: p.tokens.map((t) =>
-              t.id !== id
-                ? t
-                : { ...t, statusEffects: msg.statusEffects as string[] },
+              t.id !== m.id ? t : { ...t, statusEffects: m.statusEffects },
             ),
           }));
           break;
         }
 
-        case "fog_add": {
-          const pageId = msg.pageId as string;
-          updatePage(pageId, (p) => ({
+        case "fogAdd": {
+          const m = payload.value;
+          updatePage(m.pageId, (p) => ({
             ...p,
-            fogPolys: [
-              ...p.fogPolys,
-              {
-                id: msg.id as string,
-                points: msg.points as number[],
-              },
-            ],
+            fogPolys: [...p.fogPolys, { id: m.id, points: m.points }],
           }));
           break;
         }
 
-        case "fog_remove": {
-          const pageId = msg.pageId as string;
-          updatePage(pageId, (p) => ({
+        case "fogRemove": {
+          const m = payload.value;
+          updatePage(m.pageId, (p) => ({
             ...p,
-            fogPolys: p.fogPolys.filter((r) => r.id !== msg.id),
+            fogPolys: p.fogPolys.filter((r) => r.id !== m.id),
           }));
           break;
         }
 
-        case "fog_clear": {
-          const pageId = msg.pageId as string;
-          updatePage(pageId, (p) => ({ ...p, fogPolys: [] }));
+        case "fogClear": {
+          const m = payload.value;
+          updatePage(m.pageId, (p) => ({ ...p, fogPolys: [] }));
           break;
         }
 
-        case "page_add": {
-          const newPage: Page = {
-            id: msg.id as string,
-            name: msg.name as string,
-            mapUrl: null,
-            mapSize: null,
-            tokens: [],
-            fogPolys: [],
-          };
-          setPages((prev) => [...prev, newPage]);
+        case "pageAdd": {
+          const m = payload.value;
+          setPages((prev) => [
+            ...prev,
+            {
+              id: m.id,
+              name: m.name,
+              mapUrl: null,
+              mapSize: null,
+              tokens: [],
+              fogPolys: [],
+            },
+          ]);
           break;
         }
 
-        case "page_remove":
-          setPages((prev) => prev.filter((p) => p.id !== msg.id));
+        case "pageRemove":
+          setPages((prev) => prev.filter((p) => p.id !== payload.value.id));
           break;
 
-        case "page_rename":
-          updatePage(msg.id as string, (p) => ({
-            ...p,
-            name: msg.name as string,
-          }));
+        case "pageRename": {
+          const m = payload.value;
+          updatePage(m.id, (p) => ({ ...p, name: m.name }));
+          break;
+        }
+
+        case "pagePresent":
+          presentedPageIdRef.current = payload.value.id;
+          setPresentedPageId(payload.value.id);
           break;
 
-        case "page_present":
-          presentedPageIdRef.current = msg.id as string;
-          setPresentedPageId(msg.id as string);
+        case "arrowUpdate": {
+          const m = payload.value;
+          if (m.pageId === presentedPageIdRef.current)
+            setArrowOverlay({ x1: m.x1, y1: m.y1, x2: m.x2, y2: m.y2 });
+          break;
+        }
+
+        case "arrowClear":
+          if (payload.value.pageId === presentedPageIdRef.current)
+            setArrowOverlay(null);
           break;
 
-        case "arrow_update":
-          if (msg.pageId === presentedPageIdRef.current)
-            setArrowOverlay({
-              x1: msg.x1 as number,
-              y1: msg.y1 as number,
-              x2: msg.x2 as number,
-              y2: msg.y2 as number,
-            });
+        case "radiusUpdate": {
+          const m = payload.value;
+          if (m.pageId === presentedPageIdRef.current)
+            setRadiusCircle({ x: m.x, y: m.y, x2: m.x2, y2: m.y2 });
+          break;
+        }
+
+        case "radiusClear":
+          if (payload.value.pageId === presentedPageIdRef.current)
+            setRadiusCircle(null);
           break;
 
-        case "arrow_clear":
-          if (msg.pageId === presentedPageIdRef.current) setArrowOverlay(null);
-          break;
-
-        case "radius_update":
-          if (msg.pageId === presentedPageIdRef.current)
-            setRadiusCircle({
-              x: msg.x as number,
-              y: msg.y as number,
-              x2: msg.x2 as number,
-              y2: msg.y2 as number,
-            });
-          break;
-
-        case "radius_clear":
-          if (msg.pageId === presentedPageIdRef.current) setRadiusCircle(null);
-          break;
-
-        case "ping":
-          if (msg.pageId === presentedPageIdRef.current) {
+        case "ping": {
+          const m = payload.value;
+          if (m.pageId === presentedPageIdRef.current) {
             if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
-            setPing({ x: msg.x as number, y: msg.y as number });
+            setPing({ x: m.x, y: m.y });
             pingTimeoutRef.current = setTimeout(() => setPing(null), 2000);
           }
           break;
+        }
 
-        case "viewport_sync":
-          if (msg.pageId === presentedPageIdRef.current)
+        case "viewportSync": {
+          const m = payload.value;
+          if (m.pageId === presentedPageIdRef.current)
             setViewportSync({
-              worldCenterX: msg.worldCenterX as number,
-              worldCenterY: msg.worldCenterY as number,
-              scale: msg.scale as number,
+              worldCenterX: m.worldCenterX,
+              worldCenterY: m.worldCenterY,
+              scale: m.scale,
             });
           break;
+        }
 
         case "hello":
-          setMyClientId(msg.clientId as string);
+          setMyClientId(payload.value.clientId);
           break;
 
-        case "dice_roll_request":
+        case "diceRollRequest": {
+          const m = payload.value;
           setDiceRequests((prev) => [
             ...prev,
             {
               id: uuid(),
-              expression: msg.expression as string,
-              clientId: msg.clientId as string | undefined,
-              playerName: msg.playerName as string | undefined,
-              diceColor: msg.diceColor as string | undefined,
-              advMode: msg.advMode as "advantage" | "disadvantage" | undefined,
-              label: msg.label as string | undefined,
+              expression: m.expression,
+              clientId: m.clientId || undefined,
+              playerName: m.playerName || undefined,
+              diceColor: m.diceColor || undefined,
+              advMode: m.advMode as "advantage" | "disadvantage" | undefined,
+              label: m.label || undefined,
             },
           ]);
           break;
+        }
 
-        case "dice_roll_result":
+        case "diceRollResult": {
+          const m = payload.value;
           setDiceResult({
-            expression: msg.expression as string,
-            sides: msg.sides as number,
-            rolls: msg.rolls as number[],
-            modifier: msg.modifier as number,
-            total: msg.total as number,
-            clientId: msg.clientId as string | undefined,
-            private: msg.private as boolean | undefined,
-            playerName: msg.playerName as string | undefined,
-            diceColor: msg.diceColor as string | undefined,
-            label: msg.label as string | undefined,
+            expression: m.expression,
+            sides: m.sides,
+            rolls: m.rolls,
+            modifier: m.modifier,
+            total: m.total,
+            clientId: m.clientId || undefined,
+            private: m.private,
+            playerName: m.playerName || undefined,
+            diceColor: m.diceColor || undefined,
+            label: m.label || undefined,
           });
           break;
+        }
 
         default:
-          console.warn("unknown message type", msg.type);
+          console.warn("unknown message case", payload.case);
       }
     };
 
     return () => ws.close();
   }, []);
 
-  function send(msg: OutgoingMsg) {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(msg));
+  function send(payload: OutgoingPayload) {
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(toJsonString(EnvelopeSchema, create(EnvelopeSchema, { payload })));
     }
   }
 
@@ -601,8 +445,8 @@ export async function fetchTokenAssets(): Promise<string[]> {
 }
 
 /** Fetch the aggregated monster list served from back-end/assets/monsters/. */
-export async function fetchMonsters(): Promise<Monster[]> {
+export async function fetchMonsters(): Promise<import("../types/monster").Monster[]> {
   const res = await fetch(`${API_BASE}/api/monsters`);
   if (!res.ok) throw new Error(`Failed to fetch monsters: ${res.statusText}`);
-  return res.json() as Promise<Monster[]>;
+  return res.json() as Promise<import("../types/monster").Monster[]>;
 }

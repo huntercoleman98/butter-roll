@@ -1,17 +1,33 @@
 IMAGE_NAME ?= butter-roll
 IMAGE_TAG  ?= latest
 
-.PHONY: build docker-build docker-run docker-save dev-frontend dev-backend
+.PHONY: proto build docker-build docker-run docker-save dev-frontend dev-backend
+
+# Regenerate Go + TypeScript types from proto/butterroll/v1/*.proto.
+# Runs on every build/dev/docker target so generated code is never stale.
+# Requires: buf and protoc-gen-go on PATH
+# (go install google.golang.org/protobuf/cmd/protoc-gen-go@latest).
+# protoc-gen-es comes from front-end/node_modules, so the front-end deps
+# (installed via the node_modules target below) are a prerequisite.
+proto: front-end/node_modules
+	buf generate proto
+
+# Install front-end deps only when package.json changes. Other targets depend
+# on this (via proto) so a clean checkout bootstraps itself.
+front-end/node_modules: front-end/package.json front-end/package-lock.json
+	cd front-end && npm install
+	touch front-end/node_modules
 
 # Build frontend and Go binary locally (binary at back-end/butter-roll)
-build:
-	cd front-end && npm install && npm run build
+build: proto
+	cd front-end && npm run build
 	rm -rf back-end/dist
 	cp -r front-end/dist back-end/dist
 	cd back-end && go build -o butter-roll .
 
-# Build the Docker image
-docker-build:
+# Build the Docker image. Codegen runs on the host first; the generated code is
+# then copied into the image (the Dockerfile does not run buf itself).
+docker-build: proto
 	docker buildx build --platform linux/amd64 --load -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 # Run the Docker image locally (mounts ./data for persistence)
@@ -26,9 +42,9 @@ docker-save:
 	docker save $(IMAGE_NAME):$(IMAGE_TAG) | gzip > $(IMAGE_NAME).tar.gz
 
 # Run the Vite dev server (frontend only, port 5173)
-dev-frontend:
+dev-frontend: proto
 	cd front-end && npm run dev
 
 # Run the Go server in dev mode (opens CORS to the Vite dev server)
-dev-backend:
+dev-backend: proto
 	cd back-end && ALLOWED_ORIGIN=http://localhost:5173 go run -tags dev .

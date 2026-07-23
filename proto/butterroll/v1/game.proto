@@ -1,0 +1,232 @@
+syntax = "proto3";
+
+package butterroll.v1;
+
+option go_package = "butter-roll/server/gen/butterroll/v1;butterrollv1";
+
+// ── Domain types ─────────────────────────────────────────────────────────────
+
+// Token is one piece on the map. X/Y are world-space coordinates.
+// color and border_width are `optional` so "unset" (fall back to the client
+// default) is distinguishable from an explicit 0 / empty value.
+message Token {
+  string id = 1;
+  string url = 2;
+  double x = 3;
+  double y = 4;
+  optional string color = 5;
+  optional int32 border_width = 6;
+  repeated string status_effects = 7;
+  string name = 8;
+  bool show_name = 9;
+  bool public = 10;
+  string monster = 11;
+  optional int32 hp = 12;
+  optional int32 wounds = 13;
+}
+
+// FogPoly is one revealed polygon cut out of the fog overlay. points is a flat
+// list of world-space coordinates [x0,y0, x1,y1, ...] with at least 3 vertices.
+message FogPoly {
+  string id = 1;
+  repeated double points = 2;
+}
+
+// Page is a single map scene.
+message Page {
+  string id = 1;
+  string name = 2;
+  string map_url = 3;
+  int32 map_width = 4;
+  int32 map_height = 5;
+  repeated Token tokens = 6;
+  repeated FogPoly fog_polys = 7;
+}
+
+// ── Server → client messages ─────────────────────────────────────────────────
+
+message Hello {
+  string client_id = 1;
+}
+
+message Snapshot {
+  string presented_page_id = 1;
+  repeated Page pages = 2;
+}
+
+// ── Client → server messages (re-broadcast to all clients) ───────────────────
+
+message MapSet {
+  string page_id = 1;
+  string url = 2;
+  int32 width = 3;
+  int32 height = 4;
+}
+
+message MapResize {
+  string page_id = 1;
+  int32 width = 2;
+  int32 height = 3;
+}
+
+message TokenAdd {
+  string page_id = 1;
+  Token token = 2;
+}
+
+message TokenMove {
+  string page_id = 1;
+  string id = 2;
+  double x = 3;
+  double y = 4;
+}
+
+message TokenRemove {
+  string page_id = 1;
+  string id = 2;
+}
+
+// Partial update: every field is optional; only the set ones are applied.
+message TokenUpdate {
+  string page_id = 1;
+  string id = 2;
+  optional string color = 3;
+  optional int32 border_width = 4;
+  optional string name = 5;
+  optional bool show_name = 6;
+  optional bool public = 7;
+  optional string monster = 8;
+  optional int32 hp = 9;
+  optional int32 wounds = 10;
+}
+
+message TokenStatus {
+  string page_id = 1;
+  string id = 2;
+  repeated string status_effects = 3;
+}
+
+message FogAdd {
+  string page_id = 1;
+  string id = 2;
+  repeated double points = 3;
+}
+
+message FogRemove {
+  string page_id = 1;
+  string id = 2;
+}
+
+message FogClear {
+  string page_id = 1;
+}
+
+message PageAdd {
+  string id = 1;
+  string name = 2;
+}
+
+message PageRemove {
+  string id = 1;
+}
+
+message PageRename {
+  string id = 1;
+  string name = 2;
+}
+
+message PagePresent {
+  string id = 1;
+}
+
+message ArrowUpdate {
+  string page_id = 1;
+  double x1 = 2;
+  double y1 = 3;
+  double x2 = 4;
+  double y2 = 5;
+}
+
+message ArrowClear {
+  string page_id = 1;
+}
+
+message RadiusUpdate {
+  string page_id = 1;
+  double x = 2;
+  double y = 3;
+  double x2 = 4;
+  double y2 = 5;
+}
+
+message RadiusClear {
+  string page_id = 1;
+}
+
+message Ping {
+  string page_id = 1;
+  double x = 2;
+  double y = 3;
+}
+
+message ViewportSync {
+  string page_id = 1;
+  double world_center_x = 2;
+  double world_center_y = 3;
+  double scale = 4;
+}
+
+message DiceRollRequest {
+  string expression = 1;
+  string client_id = 2;
+  bool private = 3;
+  string player_name = 4;
+  string dice_color = 5;
+  optional string adv_mode = 6; // "advantage" | "disadvantage"
+  string label = 7;
+}
+
+message DiceRollResult {
+  string expression = 1;
+  int32 sides = 2;
+  repeated int32 rolls = 3;
+  int32 modifier = 4;
+  int32 total = 5;
+  string client_id = 6;
+  bool private = 7;
+  string player_name = 8;
+  string dice_color = 9;
+  string label = 10;
+}
+
+// ── Envelope ─────────────────────────────────────────────────────────────────
+// Every message on the wire is an Envelope with exactly one payload set.
+// The oneof field name (e.g. "tokenMove") is the discriminator in protojson.
+message Envelope {
+  oneof payload {
+    Hello hello = 1;
+    Snapshot snapshot = 2;
+    MapSet map_set = 3;
+    MapResize map_resize = 4;
+    TokenAdd token_add = 5;
+    TokenMove token_move = 6;
+    TokenRemove token_remove = 7;
+    TokenUpdate token_update = 8;
+    TokenStatus token_status = 9;
+    FogAdd fog_add = 10;
+    FogRemove fog_remove = 11;
+    FogClear fog_clear = 12;
+    PageAdd page_add = 13;
+    PageRemove page_remove = 14;
+    PageRename page_rename = 15;
+    PagePresent page_present = 16;
+    ArrowUpdate arrow_update = 17;
+    ArrowClear arrow_clear = 18;
+    RadiusUpdate radius_update = 19;
+    RadiusClear radius_clear = 20;
+    Ping ping = 21;
+    ViewportSync viewport_sync = 22;
+    DiceRollRequest dice_roll_request = 23;
+    DiceRollResult dice_roll_result = 24;
+  }
+}

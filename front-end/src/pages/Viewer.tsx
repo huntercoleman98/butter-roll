@@ -23,7 +23,7 @@ export default function Viewer() {
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function handleDiceResult(result: DiceRollResult) {
-    send({ type: "dice_roll_result", ...result });
+    send({ case: "diceRollResult", value: { ...result } });
     if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
     setDiceResult(result);
     resultTimerRef.current = setTimeout(

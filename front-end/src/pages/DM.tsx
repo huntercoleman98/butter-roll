@@ -156,26 +156,26 @@ export default function DM() {
         const { x: px, y: py } = cursorWorldPos.current;
         for (const t of clipboard.tokens) {
           send({
-            type: "token_add",
-            pageId: activeId,
-            id: uuid(),
-            url: t.url,
-            x: px + (t.x - cx),
-            y: py + (t.y - cy),
-            ...(t.color !== undefined && { color: t.color }),
-            ...(t.borderWidth !== undefined && { borderWidth: t.borderWidth }),
-            ...(t.statusEffects !== undefined && {
-              statusEffects: t.statusEffects,
-            }),
-            ...(t.name !== undefined && { name: t.name }),
-            ...(t.showName !== undefined && { showName: t.showName }),
-            ...(t.public !== undefined && { public: t.public }),
-            // Copies keep the monster link and max HP but start unwounded.
-            ...(t.monster !== undefined && {
-              monster: t.monster,
-              ...(t.hp !== undefined && { hp: t.hp }),
-              wounds: 0,
-            }),
+            case: "tokenAdd",
+            value: {
+              pageId: activeId,
+              token: {
+                id: uuid(),
+                url: t.url,
+                x: px + (t.x - cx),
+                y: py + (t.y - cy),
+                color: t.color,
+                borderWidth: t.borderWidth,
+                statusEffects: t.statusEffects,
+                name: t.name,
+                showName: t.showName,
+                public: t.public,
+                // Copies keep the monster link and max HP but start unwounded.
+                ...(t.monster
+                  ? { monster: t.monster, hp: t.hp, wounds: 0 }
+                  : {}),
+              },
+            },
           });
         }
         e.preventDefault();
@@ -215,11 +215,13 @@ export default function DM() {
     const token = activePage?.tokens.find((t) => t.id === entry?.tokenId);
     if (!token || !activeId) return;
     send({
-      type: "viewport_sync",
-      pageId: activeId,
-      worldCenterX: token.x,
-      worldCenterY: token.y,
-      scale: INITIATIVE_FOCUS_SCALE,
+      case: "viewportSync",
+      value: {
+        pageId: activeId,
+        worldCenterX: token.x,
+        worldCenterY: token.y,
+        scale: INITIATIVE_FOCUS_SCALE,
+      },
     });
   }, [initiativeFocusView, initiativeCurrentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -231,7 +233,10 @@ export default function DM() {
   }
 
   function handleMonsterRoll(expression: string, label?: string) {
-    send({ type: "dice_roll_request", expression, playerName: "DM", label });
+    send({
+      case: "diceRollRequest",
+      value: { expression, playerName: "DM", label },
+    });
   }
 
   function handleTokenDoubleClick(id: string, x: number, y: number) {
@@ -245,7 +250,10 @@ export default function DM() {
         { id: uuid(), expression, advMode, label },
       ]);
     } else {
-      send({ type: "dice_roll_request", expression, playerName: "DM", advMode, label });
+      send({
+        case: "diceRollRequest",
+        value: { expression, playerName: "DM", advMode, label },
+      });
     }
   }
 
@@ -309,11 +317,13 @@ export default function DM() {
     const img = new Image();
     img.onload = () =>
       send({
-        type: "map_set",
-        pageId: activeId,
-        url,
-        width: img.naturalWidth,
-        height: img.naturalHeight,
+        case: "mapSet",
+        value: {
+          pageId: activeId,
+          url,
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+        },
       });
     img.src = url;
   }
@@ -333,7 +343,10 @@ export default function DM() {
       x = (x - stage.x()) / scale;
       y = (y - stage.y()) / scale;
     }
-    send({ type: "token_add", pageId: activeId, id: uuid(), url, x, y });
+    send({
+      case: "tokenAdd",
+      value: { pageId: activeId, token: { id: uuid(), url, x, y } },
+    });
     setTokenMenuOpen(false);
   }
 
@@ -347,7 +360,7 @@ export default function DM() {
 
   function handleMoveToken(id: string, x: number, y: number) {
     if (!activeId) return;
-    send({ type: "token_move", pageId: activeId, id, x, y });
+    send({ case: "tokenMove", value: { pageId: activeId, id, x, y } });
   }
 
   function handleMapSizeInput(axis: "width" | "height", value: string) {
@@ -367,27 +380,26 @@ export default function DM() {
       if (axis === "width") width = n;
       else height = n;
     }
-    send({ type: "map_resize", pageId: activeId, width, height });
+    send({ case: "mapResize", value: { pageId: activeId, width, height } });
   }
 
   function handleFogDraw(poly: { points: number[] }) {
     if (!activeId) return;
     send({
-      type: "fog_add",
-      pageId: activeId,
-      id: uuid(),
-      points: poly.points,
+      case: "fogAdd",
+      value: { pageId: activeId, id: uuid(), points: poly.points },
     });
   }
 
   function handleFogRemove(id: string) {
     if (!activeId) return;
-    send({ type: "fog_remove", pageId: activeId, id });
+    send({ case: "fogRemove", value: { pageId: activeId, id } });
   }
 
   function handleDeleteTokens(ids: Set<string>) {
     if (!activeId) return;
-    for (const id of ids) send({ type: "token_remove", pageId: activeId, id });
+    for (const id of ids)
+      send({ case: "tokenRemove", value: { pageId: activeId, id } });
     setInitiativeEntries((prev) => {
       const next = prev.filter((e) => !ids.has(e.tokenId));
       if (initiativeCurrentId !== null) {
@@ -414,7 +426,7 @@ export default function DM() {
   ) {
     if (!activeId) return;
     for (const id of ids)
-      send({ type: "token_update", pageId: activeId, id, ...update });
+      send({ case: "tokenUpdate", value: { pageId: activeId, id, ...update } });
   }
 
   function handleUpdateTokenStatus(
@@ -435,32 +447,35 @@ export default function DM() {
             ? current
             : [...current, effectId]
           : current.filter((e) => e !== effectId);
-      send({ type: "token_status", pageId: activeId, id, statusEffects: next });
+      send({
+        case: "tokenStatus",
+        value: { pageId: activeId, id, statusEffects: next },
+      });
     }
   }
 
   function handleArrowUpdate(arrow: ArrowOverlay) {
     setLocalArrow(arrow);
-    send({ type: "arrow_update", pageId: activeId, ...arrow });
+    send({ case: "arrowUpdate", value: { pageId: activeId, ...arrow } });
   }
 
   function handleArrowClear() {
     setLocalArrow(null);
-    send({ type: "arrow_clear", pageId: activeId });
+    send({ case: "arrowClear", value: { pageId: activeId } });
   }
 
   function handleRadiusUpdate(circle: RadiusCircle) {
     setLocalRadius(circle);
-    send({ type: "radius_update", pageId: activeId, ...circle });
+    send({ case: "radiusUpdate", value: { pageId: activeId, ...circle } });
   }
 
   function handleRadiusClear() {
     setLocalRadius(null);
-    send({ type: "radius_clear", pageId: activeId });
+    send({ case: "radiusClear", value: { pageId: activeId } });
   }
 
   function handlePing(pos: { x: number; y: number }) {
-    send({ type: "ping", pageId: activeId, ...pos });
+    send({ case: "ping", value: { pageId: activeId, ...pos } });
   }
 
   function handleAddToInitiative(tokenIds: Set<string>) {
@@ -482,7 +497,10 @@ export default function DM() {
       const expression = `1d20${dex > 0 ? `+${dex}` : dex < 0 ? `${dex}` : ""}`;
       const label = `${entry.name || monster.name} initiative`;
       pendingInitiativeRolls.current.push({ entryId: entry.entryId, label });
-      send({ type: "dice_roll_request", expression, playerName: "DM", label });
+      send({
+        case: "diceRollRequest",
+        value: { expression, playerName: "DM", label },
+      });
     });
     if (toAdd.length > 0) setInitiativeEntries((prev) => [...prev, ...toAdd]);
   }
@@ -493,11 +511,8 @@ export default function DM() {
     scale: number,
   ) {
     send({
-      type: "viewport_sync",
-      pageId: activeId,
-      worldCenterX,
-      worldCenterY,
-      scale,
+      case: "viewportSync",
+      value: { pageId: activeId, worldCenterX, worldCenterY, scale },
     });
   }
 
@@ -511,13 +526,13 @@ export default function DM() {
   function handleAddPage() {
     const id = uuid();
     const name = `Page ${pages.length + 1}`;
-    send({ type: "page_add", id, name });
+    send({ case: "pageAdd", value: { id, name } });
     setActivePageId(id);
     setPagesMenuOpen(false);
   }
 
   function handlePresentPage(id: string) {
-    send({ type: "page_present", id });
+    send({ case: "pagePresent", value: { id } });
     setPagesMenuOpen(false);
   }
 
@@ -527,7 +542,7 @@ export default function DM() {
       const other = pages.find((p) => p.id !== id);
       if (other) setActivePageId(other.id);
     }
-    send({ type: "page_remove", id });
+    send({ case: "pageRemove", value: { id } });
   }
 
   function startRename(page: { id: string; name: string }) {
@@ -539,7 +554,7 @@ export default function DM() {
 
   function commitRename(pageId: string, currentName: string) {
     const name = renameValue.trim() || currentName;
-    send({ type: "page_rename", id: pageId, name });
+    send({ case: "pageRename", value: { id: pageId, name } });
     setRenamingPageId(null);
   }
 
@@ -857,7 +872,7 @@ export default function DM() {
                     <li
                       onClick={() =>
                         activeId &&
-                        send({ type: "fog_clear", pageId: activeId })
+                        send({ case: "fogClear", value: { pageId: activeId } })
                       }
                     >
                       Clear Fog
@@ -964,10 +979,8 @@ export default function DM() {
               y={monsterWindow.y}
               onUpdate={(update) => {
                 send({
-                  type: "token_update",
-                  pageId: activeId,
-                  id: token.id,
-                  ...update,
+                  case: "tokenUpdate",
+                  value: { pageId: activeId, id: token.id, ...update },
                 });
                 // Wounds reaching max HP marks the token dead. Never undone
                 // automatically — the DM removes the status by hand.
@@ -982,10 +995,12 @@ export default function DM() {
                   !(token.statusEffects ?? []).includes("dead")
                 ) {
                   send({
-                    type: "token_status",
-                    pageId: activeId,
-                    id: token.id,
-                    statusEffects: [...(token.statusEffects ?? []), "dead"],
+                    case: "tokenStatus",
+                    value: {
+                      pageId: activeId,
+                      id: token.id,
+                      statusEffects: [...(token.statusEffects ?? []), "dead"],
+                    },
                   });
                 }
               }}

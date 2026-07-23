@@ -1,0 +1,14 @@
+version: v1
+plugins:
+  # Go structs (protoc-gen-go must be on PATH:
+  # go install google.golang.org/protobuf/cmd/protoc-gen-go@latest)
+  - name: go
+    out: back-end/gen
+    opt:
+      - paths=source_relative
+  # TypeScript types (protoc-gen-es from front-end/node_modules)
+  - name: es
+    path: ["front-end/node_modules/.bin/protoc-gen-es"]
+    out: front-end/src/gen
+    opt:
+      - target=ts
