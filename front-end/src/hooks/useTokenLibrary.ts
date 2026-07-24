@@ -143,13 +143,13 @@ export function useTokenLibrary() {
     });
   }
 
-  // Upload files and add them to the library at the root.
-  async function uploadFiles(files: File[]) {
+  // Upload files and add them to the library under `folderId` (root by default).
+  async function uploadFiles(files: File[], folderId: string = ROOT) {
     const added = [];
     for (const file of files) {
       try {
         const url = await uploadTokenAsset(file);
-        added.push({ url, name: file.name.replace(/\.[^.]+$/, ""), folderId: ROOT });
+        added.push({ url, name: file.name.replace(/\.[^.]+$/, ""), folderId });
       } catch (err) {
         console.error(err);
       }

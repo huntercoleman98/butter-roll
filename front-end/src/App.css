@@ -184,10 +184,16 @@
 
 .token-lib-header {
   display: flex;
+  flex-direction: column;
   gap: 4px;
   padding: 4px;
   border-bottom: 1px solid #808080;
   flex-shrink: 0;
+}
+
+.token-lib-header-row {
+  display: flex;
+  gap: 4px;
 }
 
 .token-lib-body {

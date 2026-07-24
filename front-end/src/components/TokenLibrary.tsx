@@ -44,7 +44,15 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
   // Key of the item currently being dragged ("folder:<id>" | "token:<url>"),
   // used to dim the source so it reads as "lifted" rather than duplicated.
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
   const uploadRef = useRef<HTMLInputElement>(null);
+  // Folder the pending file-picker upload should land in (root by default).
+  const uploadTargetRef = useRef<string>(ROOT);
+
+  function pickFiles(targetFolderId: string) {
+    uploadTargetRef.current = targetFolderId;
+    uploadRef.current?.click();
+  }
 
   const isRenaming = (kind: ItemKind, id: string) =>
     renaming?.kind === kind && renaming.id === id;
@@ -71,6 +79,11 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
     e.preventDefault();
     e.stopPropagation();
     setMenu({ x: e.clientX, y: e.clientY, kind, id });
+  }
+
+  function menuUpload() {
+    if (menu) pickFiles(menu.id);
+    setMenu(null);
   }
 
   function menuRename() {
@@ -126,9 +139,13 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
     e.target.value = "";
-    await uploadFiles(files);
+    const target = uploadTargetRef.current;
+    uploadTargetRef.current = ROOT;
+    if (files.length === 0) return;
+    // Expand the destination folder so the new tokens are visible.
+    if (target !== ROOT) setExpanded((prev) => new Set(prev).add(target));
+    await uploadFiles(files, target);
   }
 
   // ── Rendering ───────────────────────────────────────────────────────────────
@@ -251,19 +268,33 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
   }
 
   const rootDragOver = dragOverId === ROOT;
+  const query = filter.trim().toLowerCase();
+  // While filtering, show a flat list of matching tokens instead of the tree.
+  const matches = query
+    ? lib.tokens.filter((t) => t.name.toLowerCase().includes(query))
+    : [];
 
   return (
     <div className="token-lib">
       <div className="token-lib-header">
-        <button onClick={() => uploadRef.current?.click()}>Upload…</button>
-        <button onClick={() => newFolder(ROOT)}>New folder</button>
+        <div className="token-lib-header-row">
+          <button onClick={() => pickFiles(ROOT)}>Upload…</button>
+          <button onClick={() => newFolder(ROOT)}>New folder</button>
+          <input
+            ref={uploadRef}
+            type="file"
+            accept="image/*"
+            multiple
+            style={{ display: "none" }}
+            onChange={handleUpload}
+          />
+        </div>
         <input
-          ref={uploadRef}
-          type="file"
-          accept="image/*"
-          multiple
-          style={{ display: "none" }}
-          onChange={handleUpload}
+          type="text"
+          className="monsters-filter"
+          placeholder="Filter tokens…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
         />
       </div>
       <div
@@ -274,6 +305,12 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
       >
         {loading ? (
           <div className="token-lib-empty">Loading…</div>
+        ) : query ? (
+          matches.length === 0 ? (
+            <div className="token-lib-empty">No matches.</div>
+          ) : (
+            matches.map((t) => renderToken(t, 0))
+          )
         ) : lib.folders.length === 0 && lib.tokens.length === 0 ? (
           <div className="token-lib-empty">No tokens yet. Upload some above.</div>
         ) : (
@@ -290,6 +327,9 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
           title={menu.kind === "folder" ? "Folder" : "Token"}
           onClose={() => setMenu(null)}
         >
+          {menu.kind === "folder" && (
+            <li onClick={menuUpload}>Upload here…</li>
+          )}
           <li onClick={menuRename}>Rename</li>
           <li onClick={menuDelete}>Delete</li>
         </ContextMenu>
