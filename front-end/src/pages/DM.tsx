@@ -22,6 +22,7 @@ import {
 import { useDiceHistory } from "../hooks/useDiceHistory";
 import { useInitiative } from "../hooks/useInitiative";
 import { useTokenClipboard } from "../hooks/useTokenClipboard";
+import { useTokenKeyboardMove } from "../hooks/useTokenKeyboardMove";
 import { usePages } from "../hooks/usePages";
 import { usePanels } from "../hooks/usePanels";
 import "../App.css";
@@ -114,6 +115,8 @@ export default function DM() {
     mapAreaRef,
     send,
   });
+
+  useTokenKeyboardMove({ activePage, activeId, selectedTokenIds, send });
 
   useEffect(() => {
     fetchMonsters().then(setMonsters).catch(console.error);

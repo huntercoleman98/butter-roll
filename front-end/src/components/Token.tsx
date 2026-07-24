@@ -33,7 +33,7 @@ interface TokenProps {
   onDblClick?: (id: string, x: number, y: number) => void;
 }
 
-const TOKEN_SIZE = 60;
+export const TOKEN_SIZE = 60;
 const BAR_W = 44;
 const BAR_H = 6;
 
@@ -114,16 +114,25 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
   useEffect(() => {
     const node = groupRef.current;
     if (!node || (xRef.current === x && yRef.current === y)) return;
-    node.to({
+    // Commit the logical position immediately; the tween is only visual. If a
+    // rapid follow-up move interrupts this tween, xRef/yRef still reflect the
+    // true target rather than the stranded mid-flight position — otherwise the
+    // guard above would mistake an interrupted token for "already there" and
+    // leave it stuck off from its authoritative x/y.
+    xRef.current = x;
+    yRef.current = y;
+    // Own the tween so a follow-up move can interrupt this one from the node's
+    // current position. node.to() would stack overlapping tweens that fight
+    // over the position each frame, which shows up as jitter.
+    const tween = new Konva.Tween({
+      node,
       x,
       y,
       duration: 0.15,
       easing: Konva.Easings.EaseOut,
-      onFinish: () => {
-        xRef.current = x;
-        yRef.current = y;
-      },
     });
+    tween.play();
+    return () => tween.destroy();
   }, [x, y]);
 
   return (
