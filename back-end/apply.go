@@ -77,6 +77,8 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 		return nil, page.applyTokenAdd(p.TokenAdd)
 	case *pb.Envelope_TokenMove:
 		return nil, page.applyTokenMove(p.TokenMove)
+	case *pb.Envelope_TokenMoveBatch:
+		return nil, page.applyTokenMoveBatch(p.TokenMoveBatch)
 	case *pb.Envelope_TokenRemove:
 		return nil, page.applyTokenRemove(p.TokenRemove)
 	case *pb.Envelope_TokenUpdate:
@@ -259,6 +261,25 @@ func (p *Page) applyTokenMove(m *pb.TokenMove) bool {
 	return true
 }
 
+func (p *Page) applyTokenMoveBatch(m *pb.TokenMoveBatch) bool {
+	changed := false
+	for _, mv := range m.Moves {
+		if mv.Id == "" || !finiteFloat(mv.X) || !finiteFloat(mv.Y) {
+			log.Printf("session.Apply token_move_batch: invalid move (id=%q)", mv.Id)
+			continue
+		}
+		t, ok := p.Tokens[mv.Id]
+		if !ok {
+			log.Printf("session.Apply token_move_batch: unknown token %q", mv.Id)
+			continue
+		}
+		t.X = mv.X
+		t.Y = mv.Y
+		changed = true
+	}
+	return changed
+}
+
 func (p *Page) applyTokenRemove(m *pb.TokenRemove) bool {
 	if m.Id == "" {
 		log.Printf("session.Apply token_remove: empty id")
@@ -365,6 +386,8 @@ func pageIDOf(env *pb.Envelope) (string, bool) {
 		return p.TokenAdd.PageId, true
 	case *pb.Envelope_TokenMove:
 		return p.TokenMove.PageId, true
+	case *pb.Envelope_TokenMoveBatch:
+		return p.TokenMoveBatch.PageId, true
 	case *pb.Envelope_TokenRemove:
 		return p.TokenRemove.PageId, true
 	case *pb.Envelope_TokenUpdate:

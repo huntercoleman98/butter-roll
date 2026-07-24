@@ -1,4 +1,10 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { Group, Image as KonvaImage, Text, Circle, Rect } from "react-konva";
 import Konva from "konva";
 import StatusBadge from "./StatusBadge";
@@ -111,6 +117,17 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
     recache();
   }, [isSelected, isOnInitiative, color, borderWidth]);
 
+  // Position is driven imperatively (mount → tween/drag → setPosition), never as
+  // a controlled prop. react-konva re-applies any x/y prop on every render, so a
+  // re-render mid-tween (e.g. the reorder when a group of tokens moves) would
+  // snap the node to the tween's target and fight the animation — the source of
+  // the multi-token jitter. Set the initial position once here instead.
+  useLayoutEffect(() => {
+    groupRef.current?.position({ x: xRef.current, y: yRef.current });
+    // Run once on mount; subsequent moves are handled by the tween effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const node = groupRef.current;
     if (!node || (xRef.current === x && yRef.current === y)) return;
@@ -140,8 +157,6 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
       ref={groupRef}
       id={id}
       name="token"
-      x={xRef.current}
-      y={yRef.current}
       opacity={isPublic ? 1 : 0.35}
       draggable={draggable}
       onClick={

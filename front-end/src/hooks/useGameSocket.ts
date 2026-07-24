@@ -196,6 +196,26 @@ export function useGameSocket() {
           break;
         }
 
+        case "tokenMoveBatch": {
+          const m = payload.value;
+          const pos = new Map(m.moves.map((mv) => [mv.id, mv]));
+          // Apply all moves in one state update so every token's new position
+          // lands in the same render — moved tokens are appended together (in
+          // their existing relative order) so they still render on top.
+          updatePage(m.pageId, (p) => {
+            const moved: TokenData[] = [];
+            const rest: TokenData[] = [];
+            for (const t of p.tokens) {
+              const mv = pos.get(t.id);
+              if (mv) moved.push({ ...t, x: mv.x, y: mv.y });
+              else rest.push(t);
+            }
+            if (moved.length === 0) return p;
+            return { ...p, tokens: [...rest, ...moved] };
+          });
+          break;
+        }
+
         case "tokenRemove": {
           const m = payload.value;
           updatePage(m.pageId, (p) => ({

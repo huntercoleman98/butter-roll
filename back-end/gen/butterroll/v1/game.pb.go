@@ -655,6 +655,121 @@ func (x *TokenMove) GetY() float64 {
 	return 0
 }
 
+// TokenMoveBatch moves several tokens atomically in one message so a
+// multi-select nudge lands in a single state update / render, rather than N
+// staggered TokenMoves that tear the group apart as their echoes arrive.
+type TokenMoveBatch struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PageId        string                 `protobuf:"bytes,1,opt,name=page_id,json=pageId,proto3" json:"page_id,omitempty"`
+	Moves         []*TokenMovePos        `protobuf:"bytes,2,rep,name=moves,proto3" json:"moves,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TokenMoveBatch) Reset() {
+	*x = TokenMoveBatch{}
+	mi := &file_butterroll_v1_game_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TokenMoveBatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TokenMoveBatch) ProtoMessage() {}
+
+func (x *TokenMoveBatch) ProtoReflect() protoreflect.Message {
+	mi := &file_butterroll_v1_game_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TokenMoveBatch.ProtoReflect.Descriptor instead.
+func (*TokenMoveBatch) Descriptor() ([]byte, []int) {
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *TokenMoveBatch) GetPageId() string {
+	if x != nil {
+		return x.PageId
+	}
+	return ""
+}
+
+func (x *TokenMoveBatch) GetMoves() []*TokenMovePos {
+	if x != nil {
+		return x.Moves
+	}
+	return nil
+}
+
+type TokenMovePos struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	X             float64                `protobuf:"fixed64,2,opt,name=x,proto3" json:"x,omitempty"`
+	Y             float64                `protobuf:"fixed64,3,opt,name=y,proto3" json:"y,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TokenMovePos) Reset() {
+	*x = TokenMovePos{}
+	mi := &file_butterroll_v1_game_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TokenMovePos) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TokenMovePos) ProtoMessage() {}
+
+func (x *TokenMovePos) ProtoReflect() protoreflect.Message {
+	mi := &file_butterroll_v1_game_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TokenMovePos.ProtoReflect.Descriptor instead.
+func (*TokenMovePos) Descriptor() ([]byte, []int) {
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *TokenMovePos) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *TokenMovePos) GetX() float64 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *TokenMovePos) GetY() float64 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
 type TokenRemove struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PageId        string                 `protobuf:"bytes,1,opt,name=page_id,json=pageId,proto3" json:"page_id,omitempty"`
@@ -665,7 +780,7 @@ type TokenRemove struct {
 
 func (x *TokenRemove) Reset() {
 	*x = TokenRemove{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[9]
+	mi := &file_butterroll_v1_game_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -677,7 +792,7 @@ func (x *TokenRemove) String() string {
 func (*TokenRemove) ProtoMessage() {}
 
 func (x *TokenRemove) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[9]
+	mi := &file_butterroll_v1_game_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -690,7 +805,7 @@ func (x *TokenRemove) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenRemove.ProtoReflect.Descriptor instead.
 func (*TokenRemove) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{9}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *TokenRemove) GetPageId() string {
@@ -726,7 +841,7 @@ type TokenUpdate struct {
 
 func (x *TokenUpdate) Reset() {
 	*x = TokenUpdate{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[10]
+	mi := &file_butterroll_v1_game_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -738,7 +853,7 @@ func (x *TokenUpdate) String() string {
 func (*TokenUpdate) ProtoMessage() {}
 
 func (x *TokenUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[10]
+	mi := &file_butterroll_v1_game_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -751,7 +866,7 @@ func (x *TokenUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenUpdate.ProtoReflect.Descriptor instead.
 func (*TokenUpdate) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{10}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *TokenUpdate) GetPageId() string {
@@ -835,7 +950,7 @@ type TokenStatus struct {
 
 func (x *TokenStatus) Reset() {
 	*x = TokenStatus{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[11]
+	mi := &file_butterroll_v1_game_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -847,7 +962,7 @@ func (x *TokenStatus) String() string {
 func (*TokenStatus) ProtoMessage() {}
 
 func (x *TokenStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[11]
+	mi := &file_butterroll_v1_game_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -860,7 +975,7 @@ func (x *TokenStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenStatus.ProtoReflect.Descriptor instead.
 func (*TokenStatus) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{11}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *TokenStatus) GetPageId() string {
@@ -895,7 +1010,7 @@ type FogAdd struct {
 
 func (x *FogAdd) Reset() {
 	*x = FogAdd{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[12]
+	mi := &file_butterroll_v1_game_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -907,7 +1022,7 @@ func (x *FogAdd) String() string {
 func (*FogAdd) ProtoMessage() {}
 
 func (x *FogAdd) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[12]
+	mi := &file_butterroll_v1_game_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -920,7 +1035,7 @@ func (x *FogAdd) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FogAdd.ProtoReflect.Descriptor instead.
 func (*FogAdd) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{12}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *FogAdd) GetPageId() string {
@@ -954,7 +1069,7 @@ type FogRemove struct {
 
 func (x *FogRemove) Reset() {
 	*x = FogRemove{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[13]
+	mi := &file_butterroll_v1_game_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -966,7 +1081,7 @@ func (x *FogRemove) String() string {
 func (*FogRemove) ProtoMessage() {}
 
 func (x *FogRemove) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[13]
+	mi := &file_butterroll_v1_game_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -979,7 +1094,7 @@ func (x *FogRemove) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FogRemove.ProtoReflect.Descriptor instead.
 func (*FogRemove) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{13}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *FogRemove) GetPageId() string {
@@ -1005,7 +1120,7 @@ type FogClear struct {
 
 func (x *FogClear) Reset() {
 	*x = FogClear{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[14]
+	mi := &file_butterroll_v1_game_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1017,7 +1132,7 @@ func (x *FogClear) String() string {
 func (*FogClear) ProtoMessage() {}
 
 func (x *FogClear) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[14]
+	mi := &file_butterroll_v1_game_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1030,7 +1145,7 @@ func (x *FogClear) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FogClear.ProtoReflect.Descriptor instead.
 func (*FogClear) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{14}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *FogClear) GetPageId() string {
@@ -1050,7 +1165,7 @@ type PageAdd struct {
 
 func (x *PageAdd) Reset() {
 	*x = PageAdd{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[15]
+	mi := &file_butterroll_v1_game_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1062,7 +1177,7 @@ func (x *PageAdd) String() string {
 func (*PageAdd) ProtoMessage() {}
 
 func (x *PageAdd) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[15]
+	mi := &file_butterroll_v1_game_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1075,7 +1190,7 @@ func (x *PageAdd) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PageAdd.ProtoReflect.Descriptor instead.
 func (*PageAdd) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{15}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *PageAdd) GetId() string {
@@ -1101,7 +1216,7 @@ type PageRemove struct {
 
 func (x *PageRemove) Reset() {
 	*x = PageRemove{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[16]
+	mi := &file_butterroll_v1_game_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1113,7 +1228,7 @@ func (x *PageRemove) String() string {
 func (*PageRemove) ProtoMessage() {}
 
 func (x *PageRemove) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[16]
+	mi := &file_butterroll_v1_game_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1126,7 +1241,7 @@ func (x *PageRemove) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PageRemove.ProtoReflect.Descriptor instead.
 func (*PageRemove) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{16}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *PageRemove) GetId() string {
@@ -1146,7 +1261,7 @@ type PageRename struct {
 
 func (x *PageRename) Reset() {
 	*x = PageRename{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[17]
+	mi := &file_butterroll_v1_game_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1158,7 +1273,7 @@ func (x *PageRename) String() string {
 func (*PageRename) ProtoMessage() {}
 
 func (x *PageRename) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[17]
+	mi := &file_butterroll_v1_game_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1171,7 +1286,7 @@ func (x *PageRename) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PageRename.ProtoReflect.Descriptor instead.
 func (*PageRename) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{17}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *PageRename) GetId() string {
@@ -1197,7 +1312,7 @@ type PagePresent struct {
 
 func (x *PagePresent) Reset() {
 	*x = PagePresent{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[18]
+	mi := &file_butterroll_v1_game_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1209,7 +1324,7 @@ func (x *PagePresent) String() string {
 func (*PagePresent) ProtoMessage() {}
 
 func (x *PagePresent) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[18]
+	mi := &file_butterroll_v1_game_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1222,7 +1337,7 @@ func (x *PagePresent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PagePresent.ProtoReflect.Descriptor instead.
 func (*PagePresent) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{18}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *PagePresent) GetId() string {
@@ -1245,7 +1360,7 @@ type ArrowUpdate struct {
 
 func (x *ArrowUpdate) Reset() {
 	*x = ArrowUpdate{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[19]
+	mi := &file_butterroll_v1_game_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1257,7 +1372,7 @@ func (x *ArrowUpdate) String() string {
 func (*ArrowUpdate) ProtoMessage() {}
 
 func (x *ArrowUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[19]
+	mi := &file_butterroll_v1_game_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1270,7 +1385,7 @@ func (x *ArrowUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArrowUpdate.ProtoReflect.Descriptor instead.
 func (*ArrowUpdate) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{19}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ArrowUpdate) GetPageId() string {
@@ -1317,7 +1432,7 @@ type ArrowClear struct {
 
 func (x *ArrowClear) Reset() {
 	*x = ArrowClear{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[20]
+	mi := &file_butterroll_v1_game_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1329,7 +1444,7 @@ func (x *ArrowClear) String() string {
 func (*ArrowClear) ProtoMessage() {}
 
 func (x *ArrowClear) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[20]
+	mi := &file_butterroll_v1_game_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1342,7 +1457,7 @@ func (x *ArrowClear) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArrowClear.ProtoReflect.Descriptor instead.
 func (*ArrowClear) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{20}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ArrowClear) GetPageId() string {
@@ -1365,7 +1480,7 @@ type RadiusUpdate struct {
 
 func (x *RadiusUpdate) Reset() {
 	*x = RadiusUpdate{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[21]
+	mi := &file_butterroll_v1_game_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1377,7 +1492,7 @@ func (x *RadiusUpdate) String() string {
 func (*RadiusUpdate) ProtoMessage() {}
 
 func (x *RadiusUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[21]
+	mi := &file_butterroll_v1_game_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1390,7 +1505,7 @@ func (x *RadiusUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RadiusUpdate.ProtoReflect.Descriptor instead.
 func (*RadiusUpdate) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{21}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *RadiusUpdate) GetPageId() string {
@@ -1437,7 +1552,7 @@ type RadiusClear struct {
 
 func (x *RadiusClear) Reset() {
 	*x = RadiusClear{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[22]
+	mi := &file_butterroll_v1_game_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1449,7 +1564,7 @@ func (x *RadiusClear) String() string {
 func (*RadiusClear) ProtoMessage() {}
 
 func (x *RadiusClear) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[22]
+	mi := &file_butterroll_v1_game_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1462,7 +1577,7 @@ func (x *RadiusClear) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RadiusClear.ProtoReflect.Descriptor instead.
 func (*RadiusClear) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{22}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *RadiusClear) GetPageId() string {
@@ -1483,7 +1598,7 @@ type Ping struct {
 
 func (x *Ping) Reset() {
 	*x = Ping{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[23]
+	mi := &file_butterroll_v1_game_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1495,7 +1610,7 @@ func (x *Ping) String() string {
 func (*Ping) ProtoMessage() {}
 
 func (x *Ping) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[23]
+	mi := &file_butterroll_v1_game_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1508,7 +1623,7 @@ func (x *Ping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ping.ProtoReflect.Descriptor instead.
 func (*Ping) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{23}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *Ping) GetPageId() string {
@@ -1544,7 +1659,7 @@ type ViewportSync struct {
 
 func (x *ViewportSync) Reset() {
 	*x = ViewportSync{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[24]
+	mi := &file_butterroll_v1_game_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1556,7 +1671,7 @@ func (x *ViewportSync) String() string {
 func (*ViewportSync) ProtoMessage() {}
 
 func (x *ViewportSync) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[24]
+	mi := &file_butterroll_v1_game_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1569,7 +1684,7 @@ func (x *ViewportSync) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ViewportSync.ProtoReflect.Descriptor instead.
 func (*ViewportSync) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{24}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ViewportSync) GetPageId() string {
@@ -1615,7 +1730,7 @@ type DiceRollRequest struct {
 
 func (x *DiceRollRequest) Reset() {
 	*x = DiceRollRequest{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[25]
+	mi := &file_butterroll_v1_game_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1627,7 +1742,7 @@ func (x *DiceRollRequest) String() string {
 func (*DiceRollRequest) ProtoMessage() {}
 
 func (x *DiceRollRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[25]
+	mi := &file_butterroll_v1_game_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1640,7 +1755,7 @@ func (x *DiceRollRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiceRollRequest.ProtoReflect.Descriptor instead.
 func (*DiceRollRequest) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{25}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *DiceRollRequest) GetExpression() string {
@@ -1710,7 +1825,7 @@ type DiceRollResult struct {
 
 func (x *DiceRollResult) Reset() {
 	*x = DiceRollResult{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[26]
+	mi := &file_butterroll_v1_game_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1722,7 +1837,7 @@ func (x *DiceRollResult) String() string {
 func (*DiceRollResult) ProtoMessage() {}
 
 func (x *DiceRollResult) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[26]
+	mi := &file_butterroll_v1_game_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1735,7 +1850,7 @@ func (x *DiceRollResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiceRollResult.ProtoReflect.Descriptor instead.
 func (*DiceRollResult) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{26}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *DiceRollResult) GetExpression() string {
@@ -1839,6 +1954,7 @@ type Envelope struct {
 	//	*Envelope_ViewportSync
 	//	*Envelope_DiceRollRequest
 	//	*Envelope_DiceRollResult
+	//	*Envelope_TokenMoveBatch
 	Payload       isEnvelope_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1846,7 +1962,7 @@ type Envelope struct {
 
 func (x *Envelope) Reset() {
 	*x = Envelope{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[27]
+	mi := &file_butterroll_v1_game_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1858,7 +1974,7 @@ func (x *Envelope) String() string {
 func (*Envelope) ProtoMessage() {}
 
 func (x *Envelope) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[27]
+	mi := &file_butterroll_v1_game_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1871,7 +1987,7 @@ func (x *Envelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Envelope.ProtoReflect.Descriptor instead.
 func (*Envelope) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{27}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *Envelope) GetPayload() isEnvelope_Payload {
@@ -2097,6 +2213,15 @@ func (x *Envelope) GetDiceRollResult() *DiceRollResult {
 	return nil
 }
 
+func (x *Envelope) GetTokenMoveBatch() *TokenMoveBatch {
+	if x != nil {
+		if x, ok := x.Payload.(*Envelope_TokenMoveBatch); ok {
+			return x.TokenMoveBatch
+		}
+	}
+	return nil
+}
+
 type isEnvelope_Payload interface {
 	isEnvelope_Payload()
 }
@@ -2197,6 +2322,10 @@ type Envelope_DiceRollResult struct {
 	DiceRollResult *DiceRollResult `protobuf:"bytes,24,opt,name=dice_roll_result,json=diceRollResult,proto3,oneof"`
 }
 
+type Envelope_TokenMoveBatch struct {
+	TokenMoveBatch *TokenMoveBatch `protobuf:"bytes,25,opt,name=token_move_batch,json=tokenMoveBatch,proto3,oneof"`
+}
+
 func (*Envelope_Hello) isEnvelope_Payload() {}
 
 func (*Envelope_Snapshot) isEnvelope_Payload() {}
@@ -2244,6 +2373,8 @@ func (*Envelope_ViewportSync) isEnvelope_Payload() {}
 func (*Envelope_DiceRollRequest) isEnvelope_Payload() {}
 
 func (*Envelope_DiceRollResult) isEnvelope_Payload() {}
+
+func (*Envelope_TokenMoveBatch) isEnvelope_Payload() {}
 
 var File_butterroll_v1_game_proto protoreflect.FileDescriptor
 
@@ -2302,7 +2433,14 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\apage_id\x18\x01 \x01(\tR\x06pageId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\f\n" +
 	"\x01x\x18\x03 \x01(\x01R\x01x\x12\f\n" +
-	"\x01y\x18\x04 \x01(\x01R\x01y\"6\n" +
+	"\x01y\x18\x04 \x01(\x01R\x01y\"\\\n" +
+	"\x0eTokenMoveBatch\x12\x17\n" +
+	"\apage_id\x18\x01 \x01(\tR\x06pageId\x121\n" +
+	"\x05moves\x18\x02 \x03(\v2\x1b.butterroll.v1.TokenMovePosR\x05moves\":\n" +
+	"\fTokenMovePos\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\f\n" +
+	"\x01x\x18\x02 \x01(\x01R\x01x\x12\f\n" +
+	"\x01y\x18\x03 \x01(\x01R\x01y\"6\n" +
 	"\vTokenRemove\x12\x17\n" +
 	"\apage_id\x18\x01 \x01(\tR\x06pageId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\"\xfd\x02\n" +
@@ -2407,7 +2545,7 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\n" +
 	"dice_color\x18\t \x01(\tR\tdiceColor\x12\x14\n" +
 	"\x05label\x18\n" +
-	" \x01(\tR\x05label\"\xc0\v\n" +
+	" \x01(\tR\x05label\"\x8b\f\n" +
 	"\bEnvelope\x12,\n" +
 	"\x05hello\x18\x01 \x01(\v2\x14.butterroll.v1.HelloH\x00R\x05hello\x125\n" +
 	"\bsnapshot\x18\x02 \x01(\v2\x17.butterroll.v1.SnapshotH\x00R\bsnapshot\x120\n" +
@@ -2439,7 +2577,8 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\x04ping\x18\x15 \x01(\v2\x13.butterroll.v1.PingH\x00R\x04ping\x12B\n" +
 	"\rviewport_sync\x18\x16 \x01(\v2\x1b.butterroll.v1.ViewportSyncH\x00R\fviewportSync\x12L\n" +
 	"\x11dice_roll_request\x18\x17 \x01(\v2\x1e.butterroll.v1.DiceRollRequestH\x00R\x0fdiceRollRequest\x12I\n" +
-	"\x10dice_roll_result\x18\x18 \x01(\v2\x1d.butterroll.v1.DiceRollResultH\x00R\x0ediceRollResultB\t\n" +
+	"\x10dice_roll_result\x18\x18 \x01(\v2\x1d.butterroll.v1.DiceRollResultH\x00R\x0ediceRollResult\x12I\n" +
+	"\x10token_move_batch\x18\x19 \x01(\v2\x1d.butterroll.v1.TokenMoveBatchH\x00R\x0etokenMoveBatchB\t\n" +
 	"\apayloadB3Z1butter-roll/server/gen/butterroll/v1;butterrollv1b\x06proto3"
 
 var (
@@ -2454,7 +2593,7 @@ func file_butterroll_v1_game_proto_rawDescGZIP() []byte {
 	return file_butterroll_v1_game_proto_rawDescData
 }
 
-var file_butterroll_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_butterroll_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_butterroll_v1_game_proto_goTypes = []any{
 	(*Token)(nil),           // 0: butterroll.v1.Token
 	(*FogPoly)(nil),         // 1: butterroll.v1.FogPoly
@@ -2465,60 +2604,64 @@ var file_butterroll_v1_game_proto_goTypes = []any{
 	(*MapResize)(nil),       // 6: butterroll.v1.MapResize
 	(*TokenAdd)(nil),        // 7: butterroll.v1.TokenAdd
 	(*TokenMove)(nil),       // 8: butterroll.v1.TokenMove
-	(*TokenRemove)(nil),     // 9: butterroll.v1.TokenRemove
-	(*TokenUpdate)(nil),     // 10: butterroll.v1.TokenUpdate
-	(*TokenStatus)(nil),     // 11: butterroll.v1.TokenStatus
-	(*FogAdd)(nil),          // 12: butterroll.v1.FogAdd
-	(*FogRemove)(nil),       // 13: butterroll.v1.FogRemove
-	(*FogClear)(nil),        // 14: butterroll.v1.FogClear
-	(*PageAdd)(nil),         // 15: butterroll.v1.PageAdd
-	(*PageRemove)(nil),      // 16: butterroll.v1.PageRemove
-	(*PageRename)(nil),      // 17: butterroll.v1.PageRename
-	(*PagePresent)(nil),     // 18: butterroll.v1.PagePresent
-	(*ArrowUpdate)(nil),     // 19: butterroll.v1.ArrowUpdate
-	(*ArrowClear)(nil),      // 20: butterroll.v1.ArrowClear
-	(*RadiusUpdate)(nil),    // 21: butterroll.v1.RadiusUpdate
-	(*RadiusClear)(nil),     // 22: butterroll.v1.RadiusClear
-	(*Ping)(nil),            // 23: butterroll.v1.Ping
-	(*ViewportSync)(nil),    // 24: butterroll.v1.ViewportSync
-	(*DiceRollRequest)(nil), // 25: butterroll.v1.DiceRollRequest
-	(*DiceRollResult)(nil),  // 26: butterroll.v1.DiceRollResult
-	(*Envelope)(nil),        // 27: butterroll.v1.Envelope
+	(*TokenMoveBatch)(nil),  // 9: butterroll.v1.TokenMoveBatch
+	(*TokenMovePos)(nil),    // 10: butterroll.v1.TokenMovePos
+	(*TokenRemove)(nil),     // 11: butterroll.v1.TokenRemove
+	(*TokenUpdate)(nil),     // 12: butterroll.v1.TokenUpdate
+	(*TokenStatus)(nil),     // 13: butterroll.v1.TokenStatus
+	(*FogAdd)(nil),          // 14: butterroll.v1.FogAdd
+	(*FogRemove)(nil),       // 15: butterroll.v1.FogRemove
+	(*FogClear)(nil),        // 16: butterroll.v1.FogClear
+	(*PageAdd)(nil),         // 17: butterroll.v1.PageAdd
+	(*PageRemove)(nil),      // 18: butterroll.v1.PageRemove
+	(*PageRename)(nil),      // 19: butterroll.v1.PageRename
+	(*PagePresent)(nil),     // 20: butterroll.v1.PagePresent
+	(*ArrowUpdate)(nil),     // 21: butterroll.v1.ArrowUpdate
+	(*ArrowClear)(nil),      // 22: butterroll.v1.ArrowClear
+	(*RadiusUpdate)(nil),    // 23: butterroll.v1.RadiusUpdate
+	(*RadiusClear)(nil),     // 24: butterroll.v1.RadiusClear
+	(*Ping)(nil),            // 25: butterroll.v1.Ping
+	(*ViewportSync)(nil),    // 26: butterroll.v1.ViewportSync
+	(*DiceRollRequest)(nil), // 27: butterroll.v1.DiceRollRequest
+	(*DiceRollResult)(nil),  // 28: butterroll.v1.DiceRollResult
+	(*Envelope)(nil),        // 29: butterroll.v1.Envelope
 }
 var file_butterroll_v1_game_proto_depIdxs = []int32{
 	0,  // 0: butterroll.v1.Page.tokens:type_name -> butterroll.v1.Token
 	1,  // 1: butterroll.v1.Page.fog_polys:type_name -> butterroll.v1.FogPoly
 	2,  // 2: butterroll.v1.Snapshot.pages:type_name -> butterroll.v1.Page
 	0,  // 3: butterroll.v1.TokenAdd.token:type_name -> butterroll.v1.Token
-	3,  // 4: butterroll.v1.Envelope.hello:type_name -> butterroll.v1.Hello
-	4,  // 5: butterroll.v1.Envelope.snapshot:type_name -> butterroll.v1.Snapshot
-	5,  // 6: butterroll.v1.Envelope.map_set:type_name -> butterroll.v1.MapSet
-	6,  // 7: butterroll.v1.Envelope.map_resize:type_name -> butterroll.v1.MapResize
-	7,  // 8: butterroll.v1.Envelope.token_add:type_name -> butterroll.v1.TokenAdd
-	8,  // 9: butterroll.v1.Envelope.token_move:type_name -> butterroll.v1.TokenMove
-	9,  // 10: butterroll.v1.Envelope.token_remove:type_name -> butterroll.v1.TokenRemove
-	10, // 11: butterroll.v1.Envelope.token_update:type_name -> butterroll.v1.TokenUpdate
-	11, // 12: butterroll.v1.Envelope.token_status:type_name -> butterroll.v1.TokenStatus
-	12, // 13: butterroll.v1.Envelope.fog_add:type_name -> butterroll.v1.FogAdd
-	13, // 14: butterroll.v1.Envelope.fog_remove:type_name -> butterroll.v1.FogRemove
-	14, // 15: butterroll.v1.Envelope.fog_clear:type_name -> butterroll.v1.FogClear
-	15, // 16: butterroll.v1.Envelope.page_add:type_name -> butterroll.v1.PageAdd
-	16, // 17: butterroll.v1.Envelope.page_remove:type_name -> butterroll.v1.PageRemove
-	17, // 18: butterroll.v1.Envelope.page_rename:type_name -> butterroll.v1.PageRename
-	18, // 19: butterroll.v1.Envelope.page_present:type_name -> butterroll.v1.PagePresent
-	19, // 20: butterroll.v1.Envelope.arrow_update:type_name -> butterroll.v1.ArrowUpdate
-	20, // 21: butterroll.v1.Envelope.arrow_clear:type_name -> butterroll.v1.ArrowClear
-	21, // 22: butterroll.v1.Envelope.radius_update:type_name -> butterroll.v1.RadiusUpdate
-	22, // 23: butterroll.v1.Envelope.radius_clear:type_name -> butterroll.v1.RadiusClear
-	23, // 24: butterroll.v1.Envelope.ping:type_name -> butterroll.v1.Ping
-	24, // 25: butterroll.v1.Envelope.viewport_sync:type_name -> butterroll.v1.ViewportSync
-	25, // 26: butterroll.v1.Envelope.dice_roll_request:type_name -> butterroll.v1.DiceRollRequest
-	26, // 27: butterroll.v1.Envelope.dice_roll_result:type_name -> butterroll.v1.DiceRollResult
-	28, // [28:28] is the sub-list for method output_type
-	28, // [28:28] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	10, // 4: butterroll.v1.TokenMoveBatch.moves:type_name -> butterroll.v1.TokenMovePos
+	3,  // 5: butterroll.v1.Envelope.hello:type_name -> butterroll.v1.Hello
+	4,  // 6: butterroll.v1.Envelope.snapshot:type_name -> butterroll.v1.Snapshot
+	5,  // 7: butterroll.v1.Envelope.map_set:type_name -> butterroll.v1.MapSet
+	6,  // 8: butterroll.v1.Envelope.map_resize:type_name -> butterroll.v1.MapResize
+	7,  // 9: butterroll.v1.Envelope.token_add:type_name -> butterroll.v1.TokenAdd
+	8,  // 10: butterroll.v1.Envelope.token_move:type_name -> butterroll.v1.TokenMove
+	11, // 11: butterroll.v1.Envelope.token_remove:type_name -> butterroll.v1.TokenRemove
+	12, // 12: butterroll.v1.Envelope.token_update:type_name -> butterroll.v1.TokenUpdate
+	13, // 13: butterroll.v1.Envelope.token_status:type_name -> butterroll.v1.TokenStatus
+	14, // 14: butterroll.v1.Envelope.fog_add:type_name -> butterroll.v1.FogAdd
+	15, // 15: butterroll.v1.Envelope.fog_remove:type_name -> butterroll.v1.FogRemove
+	16, // 16: butterroll.v1.Envelope.fog_clear:type_name -> butterroll.v1.FogClear
+	17, // 17: butterroll.v1.Envelope.page_add:type_name -> butterroll.v1.PageAdd
+	18, // 18: butterroll.v1.Envelope.page_remove:type_name -> butterroll.v1.PageRemove
+	19, // 19: butterroll.v1.Envelope.page_rename:type_name -> butterroll.v1.PageRename
+	20, // 20: butterroll.v1.Envelope.page_present:type_name -> butterroll.v1.PagePresent
+	21, // 21: butterroll.v1.Envelope.arrow_update:type_name -> butterroll.v1.ArrowUpdate
+	22, // 22: butterroll.v1.Envelope.arrow_clear:type_name -> butterroll.v1.ArrowClear
+	23, // 23: butterroll.v1.Envelope.radius_update:type_name -> butterroll.v1.RadiusUpdate
+	24, // 24: butterroll.v1.Envelope.radius_clear:type_name -> butterroll.v1.RadiusClear
+	25, // 25: butterroll.v1.Envelope.ping:type_name -> butterroll.v1.Ping
+	26, // 26: butterroll.v1.Envelope.viewport_sync:type_name -> butterroll.v1.ViewportSync
+	27, // 27: butterroll.v1.Envelope.dice_roll_request:type_name -> butterroll.v1.DiceRollRequest
+	28, // 28: butterroll.v1.Envelope.dice_roll_result:type_name -> butterroll.v1.DiceRollResult
+	9,  // 29: butterroll.v1.Envelope.token_move_batch:type_name -> butterroll.v1.TokenMoveBatch
+	30, // [30:30] is the sub-list for method output_type
+	30, // [30:30] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_butterroll_v1_game_proto_init() }
@@ -2527,9 +2670,9 @@ func file_butterroll_v1_game_proto_init() {
 		return
 	}
 	file_butterroll_v1_game_proto_msgTypes[0].OneofWrappers = []any{}
-	file_butterroll_v1_game_proto_msgTypes[10].OneofWrappers = []any{}
-	file_butterroll_v1_game_proto_msgTypes[25].OneofWrappers = []any{}
-	file_butterroll_v1_game_proto_msgTypes[27].OneofWrappers = []any{
+	file_butterroll_v1_game_proto_msgTypes[12].OneofWrappers = []any{}
+	file_butterroll_v1_game_proto_msgTypes[27].OneofWrappers = []any{}
+	file_butterroll_v1_game_proto_msgTypes[29].OneofWrappers = []any{
 		(*Envelope_Hello)(nil),
 		(*Envelope_Snapshot)(nil),
 		(*Envelope_MapSet)(nil),
@@ -2554,6 +2697,7 @@ func file_butterroll_v1_game_proto_init() {
 		(*Envelope_ViewportSync)(nil),
 		(*Envelope_DiceRollRequest)(nil),
 		(*Envelope_DiceRollResult)(nil),
+		(*Envelope_TokenMoveBatch)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -2561,7 +2705,7 @@ func file_butterroll_v1_game_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_butterroll_v1_game_proto_rawDesc), len(file_butterroll_v1_game_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   28,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

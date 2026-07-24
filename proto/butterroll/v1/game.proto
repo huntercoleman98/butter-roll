@@ -81,6 +81,17 @@ message TokenMove {
   double y = 4;
 }
 
+message TokenMoveBatch {
+  string page_id = 1;
+  repeated TokenMovePos moves = 2;
+}
+
+message TokenMovePos {
+  string id = 1;
+  double x = 2;
+  double y = 3;
+}
+
 message TokenRemove {
   string page_id = 1;
   string id = 2;
@@ -228,5 +239,6 @@ message Envelope {
     ViewportSync viewport_sync = 22;
     DiceRollRequest dice_roll_request = 23;
     DiceRollResult dice_roll_result = 24;
+    TokenMoveBatch token_move_batch = 25;
   }
 }

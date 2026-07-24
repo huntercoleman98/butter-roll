@@ -34,18 +34,14 @@ export function useTokenKeyboardMove({
       if (!activePage || !activeId || selectedTokenIds.size === 0) return;
 
       e.preventDefault();
-      for (const t of activePage.tokens) {
-        if (!selectedTokenIds.has(t.id)) continue;
-        send({
-          case: "tokenMove",
-          value: {
-            pageId: activeId,
-            id: t.id,
-            x: t.x + delta.dx,
-            y: t.y + delta.dy,
-          },
-        });
-      }
+      const moves = activePage.tokens
+        .filter((t) => selectedTokenIds.has(t.id))
+        .map((t) => ({ id: t.id, x: t.x + delta.dx, y: t.y + delta.dy }));
+      if (moves.length === 0) return;
+      // One atomic batch so every selected token moves in a single state
+      // update / render — N separate TokenMoves arrive staggered and tear the
+      // group apart as their echoes land.
+      send({ case: "tokenMoveBatch", value: { pageId: activeId, moves } });
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
