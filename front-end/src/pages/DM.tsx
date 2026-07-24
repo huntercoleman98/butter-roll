@@ -555,7 +555,7 @@ export default function DM() {
                         send({ case: "fogClear", value: { pageId: activeId } })
                       }
                     >
-                      Clear Fog
+                      Hide All
                     </li>
                   </ul>
                 </details>
