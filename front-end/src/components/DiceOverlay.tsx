@@ -89,6 +89,13 @@ export default function DiceOverlay({ requests, onResult }: Props) {
 
   // Initialize once — no color dependency, color is supplied per-roll.
   useEffect(() => {
+    // Per-effect cancellation flag. StrictMode (and any remount) runs this
+    // effect twice with the same refs; a shared mountedRef guard is defeated
+    // because the second mount resets it to true before the first init()
+    // resolves. Without this local flag, a stale box whose canvas has already
+    // been removed from the DOM could win the shared boxRef — the physics
+    // worker still resolves rolls (result reported) but nothing renders.
+    let cancelled = false;
     mountedRef.current = true;
     readyRef.current = false;
 
@@ -106,7 +113,7 @@ export default function DiceOverlay({ requests, onResult }: Props) {
     box
       .init()
       .then(() => {
-        if (!mountedRef.current) return;
+        if (cancelled) return;
         boxRef.current = box;
         readyRef.current = true;
         const queued = pendingQueueRef.current.splice(0);
@@ -117,6 +124,7 @@ export default function DiceOverlay({ requests, onResult }: Props) {
       .catch(console.error);
 
     return () => {
+      cancelled = true;
       mountedRef.current = false;
       readyRef.current = false;
       boxRef.current = null;

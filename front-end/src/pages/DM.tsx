@@ -5,62 +5,39 @@ import MapCanvas, { type ActiveTool } from "../components/MapCanvas";
 import MapSizeInput from "../components/MapSizeInput";
 import DicePanel from "../components/DicePanel";
 import DiceOverlay from "../components/DiceOverlay";
-import InitiativePanel, { type InitiativeEntry } from "../components/InitiativePanel";
+import InitiativePanel from "../components/InitiativePanel";
 import MonstersPanel from "../components/MonstersPanel";
 import TokenMonsterWindow from "../components/TokenMonsterWindow";
 import TokenLibrary from "../components/TokenLibrary";
 import { ContextMenu } from "../components/ContextMenu";
+import { useOutsideClick } from "../hooks/useOutsideClick";
 import type { Monster } from "../types/monster";
 import {
   useGameSocket,
   uploadAsset,
   fetchMonsters,
-  type TokenData,
   type ArrowOverlay,
   type RadiusCircle,
-  type DiceRollResult,
-  type DiceRequest,
 } from "../hooks/useGameSocket";
+import { useDiceHistory } from "../hooks/useDiceHistory";
+import { useInitiative } from "../hooks/useInitiative";
+import { useTokenClipboard } from "../hooks/useTokenClipboard";
+import { usePages } from "../hooks/usePages";
+import { usePanels } from "../hooks/usePanels";
 import "../App.css";
-
-type PageContextMenu = { pageId: string; x: number; y: number };
-
-// Zoom applied on /view when "Focus view" centers on the current token.
-const INITIATIVE_FOCUS_SCALE = 2;
-
-type Clipboard = {
-  tokens: TokenData[];
-  centroid: { x: number; y: number };
-};
 
 export default function DM() {
   const { pages, presentedPageId, ping, diceResult, connected, send } =
     useGameSocket();
-  const [activePageId, setActivePageId] = useState<string | null>(null);
   const [aspectLocked, setAspectLocked] = useState(true);
   const [activeTool, setActiveTool] = useState<ActiveTool>("select");
   const [mapMenuOpen, setMapMenuOpen] = useState(false);
-  const [pagesMenuOpen, setPagesMenuOpen] = useState(false);
-  const [renamingPageId, setRenamingPageId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const [pageContextMenu, setPageContextMenu] =
-    useState<PageContextMenu | null>(null);
   const [selectedTokenIds, setSelectedTokenIds] = useState<Set<string>>(
     new Set(),
   );
-  const [clipboard, setClipboard] = useState<Clipboard | null>(null);
   const [localArrow, setLocalArrow] = useState<ArrowOverlay | null>(null);
   const [localRadius, setLocalRadius] = useState<RadiusCircle | null>(null);
-  const [dicePanelOpen, setDicePanelOpen] = useState(false);
-  const [diceHistory, setDiceHistory] = useState<DiceRollResult[]>([]);
-  const [privateRollRequests, setPrivateRollRequests] = useState<DiceRequest[]>([]);
-  const [initiativePanelOpen, setInitiativePanelOpen] = useState(false);
-  const [initiativeEntries, setInitiativeEntries] = useState<InitiativeEntry[]>([]);
-  const [initiativeCurrentId, setInitiativeCurrentId] = useState<string | null>(null);
-  const [initiativeFocusView, setInitiativeFocusView] = useState(false);
-  const [topPanel, setTopPanel] = useState<"initiative" | "dice" | "monsters">("dice");
   const [monsters, setMonsters] = useState<Monster[]>([]);
-  const [monstersPanelOpen, setMonstersPanelOpen] = useState(false);
   const [monsterWindow, setMonsterWindow] = useState<{
     tokenId: string;
     x: number;
@@ -69,34 +46,53 @@ export default function DM() {
   const [tokenMenuOpen, setTokenMenuOpen] = useState(false);
 
   const mapAreaRef = useRef<HTMLDivElement>(null);
-  const pendingInitiativeRolls = useRef<{ entryId: string; label: string }[]>(
-    [],
-  );
   const mapInputRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
-  const cursorWorldPos = useRef({ x: 0, y: 0 });
+  const tokenMenuRef = useRef<HTMLDivElement>(null);
+  const mapMenuRef = useRef<HTMLDivElement>(null);
 
-  // On first snapshot, initialize active page to the presented page.
-  useEffect(() => {
-    if (activePageId === null && pages.length > 0) {
-      setActivePageId(presentedPageId ?? pages[0].id);
-    }
-  }, [pages, presentedPageId, activePageId]);
+  const {
+    activePage,
+    activeId,
+    pagesMenuRef,
+    pagesMenuOpen,
+    setPagesMenuOpen,
+    renamingPageId,
+    setRenamingPageId,
+    renameValue,
+    setRenameValue,
+    pageContextMenu,
+    setPageContextMenu,
+    switchToPage,
+    handleAddPage,
+    handlePresentPage,
+    handleDeletePage,
+    startRename,
+    commitRename,
+  } = usePages({
+    pages,
+    presentedPageId,
+    send,
+    onPageSwitch: () => setSelectedTokenIds(new Set()),
+  });
 
-  // If the active page is deleted remotely, fall back to the first page.
-  useEffect(() => {
-    if (
-      activePageId &&
-      pages.length > 0 &&
-      !pages.find((p) => p.id === activePageId)
-    ) {
-      setActivePageId(pages[0].id);
-    }
-  }, [pages, activePageId]);
+  const {
+    history: diceHistory,
+    privateRollRequests,
+    handleRoll,
+    handleDiceResult,
+    handleMonsterRoll,
+  } = useDiceHistory({ diceResult, send });
 
-  const activePage =
-    pages.find((p) => p.id === activePageId) ?? pages[0] ?? null;
-  const activeId = activePage?.id ?? "";
+  const panels = usePanels();
+
+  const initiative = useInitiative({
+    diceResult,
+    activePage,
+    activeId,
+    monsters,
+    send,
+  });
 
   const measureToolActive = activeTool === "arrow" || activeTool === "radius";
   const fogToolActive =
@@ -110,185 +106,27 @@ export default function DM() {
         ? "Reveal Poly"
         : "Hide";
 
-  // Track cursor position in world space for paste targeting.
-  useEffect(() => {
-    function handleMouseMove(e: MouseEvent) {
-      const stage = stageRef.current;
-      const container = mapAreaRef.current;
-      if (!stage || !container) return;
-      const rect = container.getBoundingClientRect();
-      const scale = stage.scaleX();
-      cursorWorldPos.current = {
-        x: (e.clientX - rect.left - stage.x()) / scale,
-        y: (e.clientY - rect.top - stage.y()) / scale,
-      };
-    }
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
-
-  // Ctrl/Cmd+C to copy selected tokens; Ctrl/Cmd+V to paste at cursor.
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (!e.metaKey && !e.ctrlKey) return;
-      const tag = (document.activeElement as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-
-      if (e.key === "c") {
-        if (!activePage || selectedTokenIds.size === 0) return;
-        const selected = activePage.tokens.filter((t) =>
-          selectedTokenIds.has(t.id),
-        );
-        if (selected.length === 0) return;
-        const centroid = {
-          x: selected.reduce((s, t) => s + t.x, 0) / selected.length,
-          y: selected.reduce((s, t) => s + t.y, 0) / selected.length,
-        };
-        setClipboard({ tokens: selected, centroid });
-        e.preventDefault();
-      }
-
-      if (e.key === "v") {
-        if (!clipboard || !activeId) return;
-        const { x: cx, y: cy } = clipboard.centroid;
-        const { x: px, y: py } = cursorWorldPos.current;
-        for (const t of clipboard.tokens) {
-          send({
-            case: "tokenAdd",
-            value: {
-              pageId: activeId,
-              token: {
-                id: uuid(),
-                url: t.url,
-                x: px + (t.x - cx),
-                y: py + (t.y - cy),
-                color: t.color,
-                borderWidth: t.borderWidth,
-                statusEffects: t.statusEffects,
-                name: t.name,
-                showName: t.showName,
-                public: t.public,
-                // Copies keep the monster link and max HP but start unwounded.
-                ...(t.monster
-                  ? { monster: t.monster, hp: t.hp, wounds: 0 }
-                  : {}),
-              },
-            },
-          });
-        }
-        e.preventDefault();
-      }
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [activePage, selectedTokenIds, clipboard, activeId, send]);
-
-  useEffect(() => {
-    if (!diceResult) return;
-    setDiceHistory((prev) => [...prev, diceResult]);
-    // Resolve a pending initiative roll matching this result's label.
-    if (diceResult.private || !diceResult.label) return;
-    const idx = pendingInitiativeRolls.current.findIndex(
-      (p) => p.label === diceResult.label,
-    );
-    if (idx === -1) return;
-    const [pending] = pendingInitiativeRolls.current.splice(idx, 1);
-    setInitiativeEntries((prev) =>
-      prev.map((e) =>
-        e.entryId === pending.entryId ? { ...e, value: diceResult.total } : e,
-      ),
-    );
-  }, [diceResult]);
+  useTokenClipboard({
+    activePage,
+    activeId,
+    selectedTokenIds,
+    stageRef,
+    mapAreaRef,
+    send,
+  });
 
   useEffect(() => {
     fetchMonsters().then(setMonsters).catch(console.error);
   }, []);
 
-  // With "Focus view" on, center /view on the token whose turn it is.
-  useEffect(() => {
-    if (!initiativeFocusView || !initiativeCurrentId) return;
-    const entry = initiativeEntries.find(
-      (e) => e.entryId === initiativeCurrentId,
-    );
-    const token = activePage?.tokens.find((t) => t.id === entry?.tokenId);
-    if (!token || !activeId) return;
-    send({
-      case: "viewportSync",
-      value: {
-        pageId: activeId,
-        worldCenterX: token.x,
-        worldCenterY: token.y,
-        scale: INITIATIVE_FOCUS_SCALE,
-      },
-    });
-  }, [initiativeFocusView, initiativeCurrentId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function handleDiceResult(result: DiceRollResult) {
-    setDiceHistory((prev) => [
-      ...prev,
-      { ...result, private: true, playerName: "DM" },
-    ]);
-  }
-
-  function handleMonsterRoll(expression: string, label?: string) {
-    send({
-      case: "diceRollRequest",
-      value: { expression, playerName: "DM", label },
-    });
-  }
-
   function handleTokenDoubleClick(id: string, x: number, y: number) {
     setMonsterWindow({ tokenId: id, x, y });
   }
 
-  function handleRoll(expression: string, isPrivate: boolean, advMode?: "advantage" | "disadvantage", label?: string) {
-    if (isPrivate) {
-      setPrivateRollRequests((prev) => [
-        ...prev,
-        { id: uuid(), expression, advMode, label },
-      ]);
-    } else {
-      send({
-        case: "diceRollRequest",
-        value: { expression, playerName: "DM", advMode, label },
-      });
-    }
-  }
-
-  // Close token menu on outside click.
-  useEffect(() => {
-    if (!tokenMenuOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (!(e.target as HTMLElement).closest(".token-menu-group"))
-        setTokenMenuOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [tokenMenuOpen]);
-
-  // Close map menu on outside click.
-  useEffect(() => {
-    if (!mapMenuOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (!(e.target as HTMLElement).closest(".map-menu-group"))
-        setMapMenuOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [mapMenuOpen]);
-
-  // Close pages menu on outside click.
-  useEffect(() => {
-    if (!pagesMenuOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (!(e.target as HTMLElement).closest(".pages-menu-group")) {
-        setPagesMenuOpen(false);
-        setRenamingPageId(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [pagesMenuOpen]);
+  // Close each toolbar menu when a mousedown lands outside it. The Pages menu's
+  // own dismissal is owned by usePages.
+  useOutsideClick(tokenMenuRef, () => setTokenMenuOpen(false), tokenMenuOpen);
+  useOutsideClick(mapMenuRef, () => setMapMenuOpen(false), mapMenuOpen);
 
   async function handleMapFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -369,14 +207,7 @@ export default function DM() {
     if (!activeId) return;
     for (const id of ids)
       send({ case: "tokenRemove", value: { pageId: activeId, id } });
-    setInitiativeEntries((prev) => {
-      const next = prev.filter((e) => !ids.has(e.tokenId));
-      if (initiativeCurrentId !== null) {
-        const removed = prev.find((e) => ids.has(e.tokenId) && e.entryId === initiativeCurrentId);
-        if (removed) setInitiativeCurrentId(null);
-      }
-      return next;
-    });
+    initiative.removeByTokenIds(ids);
     setSelectedTokenIds(new Set());
   }
 
@@ -447,33 +278,6 @@ export default function DM() {
     send({ case: "ping", value: { pageId: activeId, ...pos } });
   }
 
-  function handleAddToInitiative(tokenIds: Set<string>) {
-    if (!activePage) return;
-    const affected = activePage.tokens.filter((t) => tokenIds.has(t.id));
-    const toAdd = affected.map((t) => ({
-      entryId: uuid(),
-      tokenId: t.id,
-      name: t.name || t.monster || "",
-      url: t.url,
-      value: 0,
-    }));
-    // Monster-linked tokens roll initiative (1d20 + DEX) on /view; the
-    // result sets their initiative value when it comes back.
-    toAdd.forEach((entry, i) => {
-      const monster = monsters.find((m) => m.name === affected[i].monster);
-      if (!monster) return;
-      const dex = monster.stats.dexterity;
-      const expression = `1d20${dex > 0 ? `+${dex}` : dex < 0 ? `${dex}` : ""}`;
-      const label = `${entry.name || monster.name} initiative`;
-      pendingInitiativeRolls.current.push({ entryId: entry.entryId, label });
-      send({
-        case: "diceRollRequest",
-        value: { expression, playerName: "DM", label },
-      });
-    });
-    if (toAdd.length > 0) setInitiativeEntries((prev) => [...prev, ...toAdd]);
-  }
-
   function handleBringPlayersHere(
     worldCenterX: number,
     worldCenterY: number,
@@ -483,48 +287,6 @@ export default function DM() {
       case: "viewportSync",
       value: { pageId: activeId, worldCenterX, worldCenterY, scale },
     });
-  }
-
-  function switchToPage(pageId: string) {
-    setActivePageId(pageId);
-    setSelectedTokenIds(new Set());
-    setPagesMenuOpen(false);
-    setRenamingPageId(null);
-  }
-
-  function handleAddPage() {
-    const id = uuid();
-    const name = `Page ${pages.length + 1}`;
-    send({ case: "pageAdd", value: { id, name } });
-    setActivePageId(id);
-    setPagesMenuOpen(false);
-  }
-
-  function handlePresentPage(id: string) {
-    send({ case: "pagePresent", value: { id } });
-    setPagesMenuOpen(false);
-  }
-
-  function handleDeletePage(id: string) {
-    setPageContextMenu(null);
-    if (id === activeId) {
-      const other = pages.find((p) => p.id !== id);
-      if (other) setActivePageId(other.id);
-    }
-    send({ case: "pageRemove", value: { id } });
-  }
-
-  function startRename(page: { id: string; name: string }) {
-    setPageContextMenu(null);
-    setRenamingPageId(page.id);
-    setRenameValue(page.name);
-    if (!pagesMenuOpen) setPagesMenuOpen(true);
-  }
-
-  function commitRename(pageId: string, currentName: string) {
-    const name = renameValue.trim() || currentName;
-    send({ case: "pageRename", value: { id: pageId, name } });
-    setRenamingPageId(null);
   }
 
   return (
@@ -542,7 +304,7 @@ export default function DM() {
       <div className="window-body app-body">
         {/* ── Toolbar row ── */}
         <div className="toolbar-row">
-          <div className="menu-group pages-menu-group">
+          <div className="menu-group pages-menu-group" ref={pagesMenuRef}>
             <button onClick={() => setPagesMenuOpen((o) => !o)}>Pages ▾</button>
             {pagesMenuOpen && (
               <div className="window pages-dropdown">
@@ -611,7 +373,7 @@ export default function DM() {
             style={{ display: "none" }}
             onChange={handleMapFile}
           />
-          <div className="menu-group map-menu-group">
+          <div className="menu-group map-menu-group" ref={mapMenuRef}>
             <button onClick={() => setMapMenuOpen((o) => !o)}>Map ▾</button>
             {mapMenuOpen && (
               <div className="window map-dropdown">
@@ -658,7 +420,7 @@ export default function DM() {
             )}
           </div>
 
-          <div className="menu-group token-menu-group">
+          <div className="menu-group token-menu-group" ref={tokenMenuRef}>
             <button onClick={() => setTokenMenuOpen((o) => !o)}>
               Tokens ▾
             </button>
@@ -673,29 +435,20 @@ export default function DM() {
 
           <div className="toolbar-right">
             <button
-              className={monstersPanelOpen ? "toolbar-btn-active" : ""}
-              onClick={() => {
-                setMonstersPanelOpen((o) => !o);
-                setTopPanel("monsters");
-              }}
+              className={panels.monsters.open ? "toolbar-btn-active" : ""}
+              onClick={panels.monsters.toggle}
             >
               Monsters
             </button>
             <button
-              className={initiativePanelOpen ? "toolbar-btn-active" : ""}
-              onClick={() => {
-                setInitiativePanelOpen((o) => !o);
-                setTopPanel("initiative");
-              }}
+              className={panels.initiative.open ? "toolbar-btn-active" : ""}
+              onClick={panels.initiative.toggle}
             >
               Initiative
             </button>
             <button
-              className={dicePanelOpen ? "toolbar-btn-active" : ""}
-              onClick={() => {
-                setDicePanelOpen((o) => !o);
-                setTopPanel("dice");
-              }}
+              className={panels.dice.open ? "toolbar-btn-active" : ""}
+              onClick={panels.dice.toggle}
             >
               Dice
             </button>
@@ -834,59 +587,60 @@ export default function DM() {
             ping={ping}
             onPing={handlePing}
             onBringPlayersHere={handleBringPlayersHere}
-            onAddToInitiative={handleAddToInitiative}
+            onAddToInitiative={initiative.handleAddToInitiative}
             onTokenDoubleClick={handleTokenDoubleClick}
             monsters={monsters}
             initiativeTokenId={
-              initiativePanelOpen
-                ? initiativeEntries.find((e) => e.entryId === initiativeCurrentId)
-                    ?.tokenId ?? null
+              panels.initiative.open
+                ? initiative.entries.find(
+                    (e) => e.entryId === initiative.currentId,
+                  )?.tokenId ?? null
                 : null
             }
           />
         </div>
       </div>
-      {initiativePanelOpen && (
+      {panels.initiative.open && (
         <InitiativePanel
-          entries={initiativeEntries.map((e) => {
+          entries={initiative.entries.map((e) => {
             const t = activePage?.tokens.find((t) => t.id === e.tokenId);
             return t ? { ...e, name: t.name || t.monster || "", url: t.url } : e;
           })}
-          currentId={initiativeCurrentId}
-          onCurrentChange={setInitiativeCurrentId}
+          currentId={initiative.currentId}
+          onCurrentChange={initiative.setCurrentId}
           onValueChange={(entryId, value) =>
-            setInitiativeEntries((prev) =>
+            initiative.setEntries((prev) =>
               prev.map((e) => (e.entryId === entryId ? { ...e, value } : e)),
             )
           }
           onRemove={(entryId) =>
-            setInitiativeEntries((prev) =>
+            initiative.setEntries((prev) =>
               prev.filter((e) => e.entryId !== entryId),
             )
           }
-          onClose={() => setInitiativePanelOpen(false)}
-          zIndex={topPanel === "initiative" ? 151 : 150}
-          onFocus={() => setTopPanel("initiative")}
-          focusView={initiativeFocusView}
-          onFocusViewChange={setInitiativeFocusView}
+          onClose={panels.initiative.close}
+          zIndex={panels.initiative.zIndex}
+          onFocus={panels.initiative.focus}
+          focusView={initiative.focusView}
+          onFocusViewChange={initiative.setFocusView}
         />
       )}
-      {dicePanelOpen && (
+      {panels.dice.open && (
         <DicePanel
           history={diceHistory}
           onRoll={handleRoll}
-          onClose={() => setDicePanelOpen(false)}
-          zIndex={topPanel === "dice" ? 151 : 150}
-          onFocus={() => setTopPanel("dice")}
+          onClose={panels.dice.close}
+          zIndex={panels.dice.zIndex}
+          onFocus={panels.dice.focus}
         />
       )}
-      {monstersPanelOpen && (
+      {panels.monsters.open && (
         <MonstersPanel
           monsters={monsters}
           onRoll={handleMonsterRoll}
-          onClose={() => setMonstersPanelOpen(false)}
-          zIndex={topPanel === "monsters" ? 151 : 150}
-          onFocus={() => setTopPanel("monsters")}
+          onClose={panels.monsters.close}
+          zIndex={panels.monsters.zIndex}
+          onFocus={panels.monsters.focus}
         />
       )}
       {monsterWindow &&

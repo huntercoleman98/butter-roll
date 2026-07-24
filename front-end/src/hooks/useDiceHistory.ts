@@ -1,0 +1,73 @@
+import { useEffect, useState } from "react";
+import { uuid } from "../utils/uuid";
+import type {
+  DiceRollResult,
+  DiceRequest,
+  OutgoingPayload,
+} from "./useGameSocket";
+
+// Owns the dice log and roll dispatch: the broadcast history, the queue of
+// private rolls handed to <DiceOverlay>, and the three "roll" entry points.
+// The incoming `diceResult` (a broadcast from the server) is appended here;
+// initiative-roll resolution reacts to the same result separately in
+// useInitiative.
+export function useDiceHistory({
+  diceResult,
+  send,
+}: {
+  diceResult: DiceRollResult | null;
+  send: (payload: OutgoingPayload) => void;
+}) {
+  const [history, setHistory] = useState<DiceRollResult[]>([]);
+  const [privateRollRequests, setPrivateRollRequests] = useState<DiceRequest[]>(
+    [],
+  );
+
+  // Append each broadcast roll result to the history log.
+  useEffect(() => {
+    if (!diceResult) return;
+    setHistory((prev) => [...prev, diceResult]);
+  }, [diceResult]);
+
+  // A private roll resolved locally by <DiceOverlay>; log it as the DM's.
+  function handleDiceResult(result: DiceRollResult) {
+    setHistory((prev) => [
+      ...prev,
+      { ...result, private: true, playerName: "DM" },
+    ]);
+  }
+
+  function handleRoll(
+    expression: string,
+    isPrivate: boolean,
+    advMode?: "advantage" | "disadvantage",
+    label?: string,
+  ) {
+    if (isPrivate) {
+      setPrivateRollRequests((prev) => [
+        ...prev,
+        { id: uuid(), expression, advMode, label },
+      ]);
+    } else {
+      send({
+        case: "diceRollRequest",
+        value: { expression, playerName: "DM", advMode, label },
+      });
+    }
+  }
+
+  function handleMonsterRoll(expression: string, label?: string) {
+    send({
+      case: "diceRollRequest",
+      value: { expression, playerName: "DM", label },
+    });
+  }
+
+  return {
+    history,
+    privateRollRequests,
+    handleRoll,
+    handleDiceResult,
+    handleMonsterRoll,
+  };
+}
