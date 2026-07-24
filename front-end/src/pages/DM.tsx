@@ -9,6 +9,7 @@ import InitiativePanel, { type InitiativeEntry } from "../components/InitiativeP
 import MonstersPanel from "../components/MonstersPanel";
 import TokenMonsterWindow from "../components/TokenMonsterWindow";
 import TokenLibrary from "../components/TokenLibrary";
+import { ContextMenu } from "../components/ContextMenu";
 import type { Monster } from "../types/monster";
 import {
   useGameSocket,
@@ -288,23 +289,6 @@ export default function DM() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [pagesMenuOpen]);
-
-  // Close page context menu on outside click or Escape.
-  useEffect(() => {
-    if (!pageContextMenu) return;
-    function handleClick() {
-      setPageContextMenu(null);
-    }
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setPageContextMenu(null);
-    }
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [pageContextMenu]);
 
   async function handleMapFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -727,34 +711,17 @@ export default function DM() {
             const page = pages.find((p) => p.id === pageContextMenu.pageId);
             if (!page) return null;
             return (
-              <div
-                className="window context-menu"
-                style={{
-                  position: "fixed",
-                  left: pageContextMenu.x,
-                  top: pageContextMenu.y,
-                  zIndex: 200,
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
+              <ContextMenu
+                x={pageContextMenu.x}
+                y={pageContextMenu.y}
+                title="Page"
+                onClose={() => setPageContextMenu(null)}
               >
-                <div className="title-bar">
-                  <div className="title-bar-text">Page</div>
-                  <div className="title-bar-controls">
-                    <button
-                      aria-label="Close"
-                      onClick={() => setPageContextMenu(null)}
-                    />
-                  </div>
-                </div>
-                <div className="window-body">
-                  <ul className="tree-view">
-                    <li onClick={() => startRename(page)}>Rename</li>
-                    {pages.length > 1 && (
-                      <li onClick={() => handleDeletePage(page.id)}>Delete</li>
-                    )}
-                  </ul>
-                </div>
-              </div>
+                <li onClick={() => startRename(page)}>Rename</li>
+                {pages.length > 1 && (
+                  <li onClick={() => handleDeletePage(page.id)}>Delete</li>
+                )}
+              </ContextMenu>
             );
           })()}
 
