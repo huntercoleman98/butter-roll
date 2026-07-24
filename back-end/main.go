@@ -41,6 +41,16 @@ func main() {
 		log.Fatalf("cannot load session: %v", err)
 	}
 
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		configPath = filepath.Join(dataDir, "config.json")
+	}
+	cfg, err := LoadConfig(configPath)
+	if err != nil {
+		log.Fatalf("cannot load config: %v", err)
+	}
+	session.cfg = cfg
+
 	hub := NewHub(session, sessionPath)
 	go hub.Run()
 
@@ -63,6 +73,7 @@ func main() {
 	mux.HandleFunc("POST /api/assets/tokens/delete", cors(allowedOrigin, deleteTokenAsset(tokensDir)))
 	mux.HandleFunc("GET /api/assets/tokens/{file}", cors(allowedOrigin, serveAsset(tokensDir)))
 	mux.HandleFunc("GET /api/monsters", cors(allowedOrigin, listMonsters(monstersDir)))
+	mux.HandleFunc("GET /api/config", cors(allowedOrigin, serveConfig(cfg)))
 	mux.HandleFunc("/", spaHandler(distFS))
 
 	addr := os.Getenv("LISTEN_ADDR")

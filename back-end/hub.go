@@ -26,6 +26,20 @@ func NewHub(session *Session, sessionPath string) *Hub {
 	}
 }
 
+// broadcastToClients sends payload to every connected client, dropping any that
+// can't keep up.
+func (h *Hub) broadcastToClients(payload []byte) {
+	for c := range h.clients {
+		select {
+		case c.send <- payload:
+		default:
+			// Slow consumer — drop the connection.
+			delete(h.clients, c)
+			close(c.send)
+		}
+	}
+}
+
 // Run is the hub's event loop. Must run in its own goroutine.
 func (h *Hub) Run() {
 	for {
@@ -66,14 +80,11 @@ func (h *Hub) Run() {
 			if out != nil {
 				toSend = out
 			}
-			for c := range h.clients {
-				select {
-				case c.send <- toSend:
-				default:
-					// Slow consumer — drop the connection.
-					delete(h.clients, c)
-					close(c.send)
-				}
+			h.broadcastToClients(toSend)
+			// Follow-up messages from rule side effects (e.g. a tokenStatus after
+			// an auto-status rule) go out in the same tick as their trigger.
+			for _, extra := range h.session.followups {
+				h.broadcastToClients(extra)
 			}
 		}
 	}

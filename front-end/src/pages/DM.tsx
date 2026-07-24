@@ -659,31 +659,13 @@ export default function DM() {
               x={monsterWindow.x}
               y={monsterWindow.y}
               onUpdate={(update) => {
+                // The `dead` status is kept in sync with HP by the backend rules
+                // engine (see docs/config.md), inside this same tokenUpdate — no
+                // client-side status handling needed.
                 send({
                   case: "tokenUpdate",
                   value: { pageId: activeId, id: token.id, ...update },
                 });
-                // Wounds reaching max HP marks the token dead. Never undone
-                // automatically — the DM removes the status by hand.
-                const hp = update.hp ?? token.hp;
-                const wounds = update.wounds ?? token.wounds;
-                if (
-                  (update.wounds !== undefined || update.hp !== undefined) &&
-                  hp != null &&
-                  hp > 0 &&
-                  wounds != null &&
-                  wounds >= hp &&
-                  !(token.statusEffects ?? []).includes("dead")
-                ) {
-                  send({
-                    case: "tokenStatus",
-                    value: {
-                      pageId: activeId,
-                      id: token.id,
-                      statusEffects: [...(token.statusEffects ?? []), "dead"],
-                    },
-                  });
-                }
               }}
               onRoll={handleMonsterRoll}
               onClose={() => setMonsterWindow(null)}

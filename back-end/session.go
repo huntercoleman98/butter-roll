@@ -29,6 +29,16 @@ type Session struct {
 	Pages           map[string]*Page
 	PageOrder       []string // ordered list of page IDs for display
 	PresentedPageID string   // which page /view shows
+
+	// cfg holds the room's behavior rules, evaluated in Apply. May be nil (no
+	// rules) — e.g. in tests that construct a Session directly.
+	cfg *Config
+
+	// followups holds extra messages produced by rule side effects during the
+	// current Apply (e.g. a tokenStatus when a rule changes a token's statuses).
+	// The hub broadcasts these right after the triggering message. Reset at the
+	// start of every Apply; only touched from the single-threaded hub loop.
+	followups [][]byte
 }
 
 func NewSession() *Session {

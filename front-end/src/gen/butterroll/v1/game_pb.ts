@@ -320,10 +320,6 @@ export const TokenMoveSchema: GenMessage<TokenMove> = /*@__PURE__*/
   messageDesc(file_butterroll_v1_game, 8);
 
 /**
- * TokenMoveBatch moves several tokens atomically in one message so a
- * multi-select nudge lands in a single state update / render, rather than N
- * staggered TokenMoves that tear the group apart as their echoes arrive.
- *
  * @generated from message butterroll.v1.TokenMoveBatch
  */
 export type TokenMoveBatch = Message<"butterroll.v1.TokenMoveBatch"> & {

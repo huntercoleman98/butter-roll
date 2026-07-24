@@ -521,3 +521,10 @@ export async function fetchMonsters(): Promise<import("../types/monster").Monste
   if (!res.ok) throw new Error(`Failed to fetch monsters: ${res.statusText}`);
   return res.json() as Promise<import("../types/monster").Monster[]>;
 }
+
+/** Fetch the room's behavior config (rules) served by GET /api/config. */
+export async function fetchConfig(): Promise<import("../types/config").Config> {
+  const res = await fetch(`${API_BASE}/api/config`);
+  if (!res.ok) throw new Error(`Failed to fetch config: ${res.statusText}`);
+  return res.json() as Promise<import("../types/config").Config>;
+}

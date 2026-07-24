@@ -22,6 +22,8 @@ func finiteFloat(f float64) bool {
 // (which mutate nothing), Session methods for page-management, and Page methods
 // for page-scoped mutations.
 func (s *Session) Apply(msg []byte) ([]byte, bool) {
+	s.followups = s.followups[:0]
+
 	var env pb.Envelope
 	if err := protojson.Unmarshal(msg, &env); err != nil {
 		log.Printf("session.Apply: bad protojson: %v", err)
@@ -82,7 +84,16 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 	case *pb.Envelope_TokenRemove:
 		return nil, page.applyTokenRemove(p.TokenRemove)
 	case *pb.Envelope_TokenUpdate:
-		return nil, page.applyTokenUpdate(p.TokenUpdate)
+		tu := p.TokenUpdate
+		ok := page.applyTokenUpdate(tu)
+		if ok {
+			// Rules run after the field merges so `when` sees updated state.
+			// runRules broadcasts a followup for every token they change (a
+			// plain tokenUpdate echo can't carry status changes), so clients
+			// see the effect live instead of only after a refresh.
+			s.runRules(page, "tokenUpdate", page.Tokens[tu.Id])
+		}
+		return nil, ok
 	case *pb.Envelope_TokenStatus:
 		return nil, page.applyTokenStatus(p.TokenStatus)
 	case *pb.Envelope_FogAdd:

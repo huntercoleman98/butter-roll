@@ -655,9 +655,6 @@ func (x *TokenMove) GetY() float64 {
 	return 0
 }
 
-// TokenMoveBatch moves several tokens atomically in one message so a
-// multi-select nudge lands in a single state update / render, rather than N
-// staggered TokenMoves that tear the group apart as their echoes arrive.
 type TokenMoveBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PageId        string                 `protobuf:"bytes,1,opt,name=page_id,json=pageId,proto3" json:"page_id,omitempty"`
