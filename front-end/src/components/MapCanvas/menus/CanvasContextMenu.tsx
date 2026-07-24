@@ -1,5 +1,4 @@
-import { useRef } from "react";
-import { useOutsideClick } from "../../../hooks/useOutsideClick";
+import { ContextMenu } from "../../ContextMenu";
 
 interface CanvasContextMenuProps {
   x: number;
@@ -16,33 +15,16 @@ export function CanvasContextMenu({
   onClose,
   onBringPlayersHere,
 }: CanvasContextMenuProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  useOutsideClick(ref, onClose);
-
   return (
-    <div
-      ref={ref}
-      className="window context-menu"
-      style={{ position: "fixed", left: x, top: y, zIndex: 1000 }}
-    >
-      <div className="title-bar">
-        <div className="title-bar-text">Canvas</div>
-        <div className="title-bar-controls">
-          <button aria-label="Close" onClick={onClose} />
-        </div>
-      </div>
-      <div className="window-body">
-        <ul className="tree-view">
-          <li
-            onClick={() => {
-              onBringPlayersHere();
-              onClose();
-            }}
-          >
-            Bring player view here
-          </li>
-        </ul>
-      </div>
-    </div>
+    <ContextMenu x={x} y={y} title="Canvas" onClose={onClose}>
+      <li
+        onClick={() => {
+          onBringPlayersHere();
+          onClose();
+        }}
+      >
+        Bring player view here
+      </li>
+    </ContextMenu>
   );
 }

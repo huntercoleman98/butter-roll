@@ -444,6 +444,57 @@ export async function fetchTokenAssets(): Promise<string[]> {
   return res.json() as Promise<string[]>;
 }
 
+// ── Token library (organizational layer over the flat token store) ────────────
+
+/** A named, nestable folder. parentId "" means it lives at the root. */
+export interface TokenFolder {
+  id: string;
+  name: string;
+  parentId: string;
+}
+
+/** A token image plus its display name and folder. folderId "" = root. */
+export interface TokenAsset {
+  url: string;
+  name: string;
+  folderId: string;
+}
+
+export interface TokenLibrary {
+  folders: TokenFolder[];
+  tokens: TokenAsset[];
+}
+
+/** Delete a token image file. The library reconciles the removal on next read. */
+export async function deleteTokenAsset(url: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/assets/tokens/delete`, {
+    method: "POST",
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) throw new Error(`Failed to delete token: ${res.statusText}`);
+}
+
+/** Fetch the token library, reconciled server-side against files on disk. */
+export async function fetchTokenLibrary(): Promise<TokenLibrary> {
+  const res = await fetch(`${API_BASE}/api/assets/tokens/library`);
+  if (!res.ok) throw new Error(`Failed to fetch token library: ${res.statusText}`);
+  return res.json() as Promise<TokenLibrary>;
+}
+
+/**
+ * Persist the token library. Sent as a POST with a plain-text body so it stays
+ * a CORS "simple request" (no preflight), matching the upload endpoints. The
+ * server returns the reconciled library.
+ */
+export async function saveTokenLibrary(lib: TokenLibrary): Promise<TokenLibrary> {
+  const res = await fetch(`${API_BASE}/api/assets/tokens/library`, {
+    method: "POST",
+    body: JSON.stringify(lib),
+  });
+  if (!res.ok) throw new Error(`Failed to save token library: ${res.statusText}`);
+  return res.json() as Promise<TokenLibrary>;
+}
+
 /** Fetch the aggregated monster list served from back-end/assets/monsters/. */
 export async function fetchMonsters(): Promise<import("../types/monster").Monster[]> {
   const res = await fetch(`${API_BASE}/api/monsters`);

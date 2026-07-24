@@ -33,6 +33,8 @@ func main() {
 		log.Fatalf("cannot create monsters dir: %v", err)
 	}
 
+	libraryPath := filepath.Join(assetsDir, "token-library.json")
+
 	sessionPath := filepath.Join(dataDir, "session.json")
 	session, err := LoadSession(sessionPath)
 	if err != nil {
@@ -56,6 +58,9 @@ func main() {
 	mux.HandleFunc("GET /api/assets/{file}", cors(allowedOrigin, serveAsset(assetsDir)))
 	mux.HandleFunc("POST /api/assets/tokens", cors(allowedOrigin, uploadAsset(tokensDir, "/api/assets/tokens/")))
 	mux.HandleFunc("GET /api/assets/tokens", cors(allowedOrigin, listAssets(tokensDir, "/api/assets/tokens/")))
+	mux.HandleFunc("GET /api/assets/tokens/library", cors(allowedOrigin, getTokenLibrary(tokensDir, libraryPath, "/api/assets/tokens/")))
+	mux.HandleFunc("POST /api/assets/tokens/library", cors(allowedOrigin, saveTokenLibrary(tokensDir, libraryPath, "/api/assets/tokens/")))
+	mux.HandleFunc("POST /api/assets/tokens/delete", cors(allowedOrigin, deleteTokenAsset(tokensDir)))
 	mux.HandleFunc("GET /api/assets/tokens/{file}", cors(allowedOrigin, serveAsset(tokensDir)))
 	mux.HandleFunc("GET /api/monsters", cors(allowedOrigin, listMonsters(monstersDir)))
 	mux.HandleFunc("/", spaHandler(distFS))

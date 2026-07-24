@@ -8,12 +8,11 @@ import DiceOverlay from "../components/DiceOverlay";
 import InitiativePanel, { type InitiativeEntry } from "../components/InitiativePanel";
 import MonstersPanel from "../components/MonstersPanel";
 import TokenMonsterWindow from "../components/TokenMonsterWindow";
+import TokenLibrary from "../components/TokenLibrary";
 import type { Monster } from "../types/monster";
 import {
   useGameSocket,
   uploadAsset,
-  uploadTokenAsset,
-  fetchTokenAssets,
   fetchMonsters,
   type TokenData,
   type ArrowOverlay,
@@ -67,14 +66,12 @@ export default function DM() {
     y: number;
   } | null>(null);
   const [tokenMenuOpen, setTokenMenuOpen] = useState(false);
-  const [tokenAssets, setTokenAssets] = useState<string[]>([]);
 
   const mapAreaRef = useRef<HTMLDivElement>(null);
   const pendingInitiativeRolls = useRef<{ entryId: string; label: string }[]>(
     [],
   );
   const mapInputRef = useRef<HTMLInputElement>(null);
-  const tokenUploadRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
   const cursorWorldPos = useRef({ x: 0, y: 0 });
 
@@ -328,11 +325,8 @@ export default function DM() {
     img.src = url;
   }
 
-  function openTokenMenu() {
-    setTokenMenuOpen(true);
-    fetchTokenAssets().then(setTokenAssets).catch(console.error);
-  }
-
+  // Place a token at the current viewport center. The library menu stays open
+  // so several tokens can be dropped in a row.
   function placeToken(url: string) {
     if (!activeId) return;
     const stage = stageRef.current;
@@ -347,15 +341,6 @@ export default function DM() {
       case: "tokenAdd",
       value: { pageId: activeId, token: { id: uuid(), url, x, y } },
     });
-    setTokenMenuOpen(false);
-  }
-
-  async function handleTokenUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-    e.target.value = "";
-    const urls = await Promise.all(files.map(uploadTokenAsset));
-    setTokenAssets((prev) => [...prev, ...urls]);
   }
 
   function handleMoveToken(id: string, x: number, y: number) {
@@ -690,41 +675,13 @@ export default function DM() {
           </div>
 
           <div className="menu-group token-menu-group">
-            <button onClick={() => (tokenMenuOpen ? setTokenMenuOpen(false) : openTokenMenu())}>
+            <button onClick={() => setTokenMenuOpen((o) => !o)}>
               Tokens ▾
             </button>
             {tokenMenuOpen && (
               <div className="window token-dropdown">
                 <div className="window-body token-dropdown-body">
-                  <div className="token-upload-row">
-                    <button onClick={() => tokenUploadRef.current?.click()}>
-                      Upload new…
-                    </button>
-                    <input
-                      ref={tokenUploadRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      style={{ display: "none" }}
-                      onChange={handleTokenUpload}
-                    />
-                  </div>
-                  {tokenAssets.length === 0 ? (
-                    <div className="token-empty">No tokens uploaded yet.</div>
-                  ) : (
-                    <div className="token-grid">
-                      {tokenAssets.map((url) => (
-                        <button
-                          key={url}
-                          className="token-thumb"
-                          onClick={() => placeToken(url)}
-                          title={url.split("/").pop()}
-                        >
-                          <img src={url} alt="" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <TokenLibrary onPlaceToken={placeToken} />
                 </div>
               </div>
             )}
