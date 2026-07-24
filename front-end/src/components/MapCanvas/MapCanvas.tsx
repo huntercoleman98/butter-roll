@@ -284,6 +284,7 @@ export default function MapCanvas({
               {...t}
               isSelected={selectedTokenIds?.has(t.id)}
               isOnInitiative={initiativeTokenId === t.id}
+              showHealthbar={!readOnly}
               draggable={tokensInteractive}
               onClick={tokensInteractive ? handleTokenClick : undefined}
               onDragStart={tokensInteractive ? tokenDrag.onDragStart : undefined}

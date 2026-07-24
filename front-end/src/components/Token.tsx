@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { Group, Image as KonvaImage, Text, Circle } from "react-konva";
+import { Group, Image as KonvaImage, Text, Circle, Rect } from "react-konva";
 import Konva from "konva";
 import StatusBadge from "./StatusBadge";
 
@@ -21,6 +21,10 @@ interface TokenProps {
   name?: string;
   showName?: boolean;
   public?: boolean;
+  monster?: string;
+  hp?: number;
+  wounds?: number;
+  showHealthbar?: boolean;
   onClick?: (id: string, shift: boolean) => void;
   onDragStart?: (id: string, x: number, y: number) => void;
   onDragMove?: (id: string, x: number, y: number) => void;
@@ -30,6 +34,8 @@ interface TokenProps {
 }
 
 const TOKEN_SIZE = 60;
+const BAR_W = 44;
+const BAR_H = 6;
 
 const Token = forwardRef<TokenHandle, TokenProps>(function Token(
   {
@@ -46,6 +52,10 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
     name,
     showName,
     public: isPublic,
+    monster,
+    hp,
+    wounds,
+    showHealthbar,
     onClick,
     onDragStart,
     onDragMove,
@@ -224,6 +234,30 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
           wrap="none"
           ellipsis
         />
+      )}
+      {showHealthbar && monster && hp != null && hp > 0 && (
+        <>
+          <Rect
+            x={-BAR_W / 2}
+            y={-(TOKEN_SIZE / 2) - BAR_H - 6}
+            width={BAR_W}
+            height={BAR_H}
+            fill="rgba(0,0,0,0.6)"
+            stroke="rgba(0,0,0,0.85)"
+            strokeWidth={1}
+            cornerRadius={2}
+            listening={false}
+          />
+          <Rect
+            x={-BAR_W / 2}
+            y={-(TOKEN_SIZE / 2) - BAR_H - 6}
+            width={BAR_W * Math.max(0, Math.min(1, (hp - (wounds ?? 0)) / hp))}
+            height={BAR_H}
+            fill={(wounds ?? 0) < hp / 2 ? "#22c55e" : "#ef4444"}
+            cornerRadius={2}
+            listening={false}
+          />
+        </>
       )}
     </Group>
   );
