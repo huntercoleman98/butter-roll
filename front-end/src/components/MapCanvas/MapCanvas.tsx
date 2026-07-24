@@ -286,6 +286,7 @@ export default function MapCanvas({
               isOnInitiative={initiativeTokenId === t.id}
               showName={!readOnly || t.showName}
               showHealthbar={!readOnly}
+              shakeOnWoundsChange={readOnly}
               draggable={tokensInteractive}
               onClick={tokensInteractive ? handleTokenClick : undefined}
               onDragStart={tokensInteractive ? tokenDrag.onDragStart : undefined}

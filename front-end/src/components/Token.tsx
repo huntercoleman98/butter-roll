@@ -31,6 +31,7 @@ interface TokenProps {
   hp?: number;
   wounds?: number;
   showHealthbar?: boolean;
+  shakeOnWoundsChange?: boolean;
   onClick?: (id: string, shift: boolean) => void;
   onDragStart?: (id: string, x: number, y: number) => void;
   onDragMove?: (id: string, x: number, y: number) => void;
@@ -42,6 +43,11 @@ interface TokenProps {
 export const TOKEN_SIZE = 60;
 const BAR_W = 44;
 const BAR_H = 6;
+
+// Wounds-change shake (used on /view). Tweak these to change the feel.
+const SHAKE_DURATION_MS = 300; // total length of the shake
+const SHAKE_AMPLITUDE_PX = 4; // max horizontal offset at the start
+const SHAKE_OSCILLATIONS = 3; // number of back-and-forth swings before it settles
 
 const Token = forwardRef<TokenHandle, TokenProps>(function Token(
   {
@@ -62,6 +68,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
     hp,
     wounds,
     showHealthbar,
+    shakeOnWoundsChange,
     onClick,
     onDragStart,
     onDragMove,
@@ -151,6 +158,46 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
     tween.play();
     return () => tween.destroy();
   }, [x, y]);
+
+  // Shake the token when its wounds change — a "took a hit" cue used only on
+  // /view (gated by shakeOnWoundsChange). Animates offsetX rather than x/y so it
+  // never fights the imperative position logic above; offset is visual-only and
+  // resets to 0 when the animation ends.
+  const prevWoundsRef = useRef(wounds);
+  const shakeRef = useRef<Konva.Animation | null>(null);
+  useEffect(() => {
+    const prev = prevWoundsRef.current;
+    prevWoundsRef.current = wounds;
+    // Only shake when wounds go up (a hit) — not on heals or when unset.
+    if (!shakeOnWoundsChange || wounds == null || wounds <= (prev ?? 0)) return;
+    const node = groupRef.current;
+    const layer = node?.getLayer();
+    if (!node || !layer) return;
+
+    shakeRef.current?.stop();
+    const anim = new Konva.Animation((frame) => {
+      if (!frame) return;
+      const t = frame.time / SHAKE_DURATION_MS;
+      if (t >= 1) {
+        node.offsetX(0);
+        anim.stop();
+        return;
+      }
+      // Oscillate horizontally, decaying linearly to 0 by the end.
+      const swing = Math.sin(t * SHAKE_OSCILLATIONS * 2 * Math.PI);
+      node.offsetX(swing * SHAKE_AMPLITUDE_PX * (1 - t));
+    }, layer);
+    shakeRef.current = anim;
+    anim.start();
+  }, [wounds, shakeOnWoundsChange]);
+
+  // Stop any in-flight shake on unmount.
+  useEffect(
+    () => () => {
+      shakeRef.current?.stop();
+    },
+    [],
+  );
 
   return (
     <Group

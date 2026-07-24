@@ -1,6 +1,7 @@
 import type { IconType } from "react-icons";
 import {
   GiDeathSkull,
+  GiBlood,
   GiPoison,
   GiBlindfold,
   GiFlame,
@@ -22,6 +23,12 @@ export interface StatusEffect {
 
 export const STATUS_EFFECTS: StatusEffect[] = [
   { id: "dead", label: "Dead", Icon: GiDeathSkull, badgeColor: "#374151" },
+  {
+    id: "bloodied",
+    label: "Bloodied",
+    Icon: GiBlood,
+    badgeColor: "#991b1b",
+  },
   { id: "poisoned", label: "Poisoned", Icon: GiPoison, badgeColor: "#14532d" },
   { id: "blinded", label: "Blinded", Icon: GiBlindfold, badgeColor: "#1e3a5f" },
   { id: "burning", label: "Burning", Icon: GiFlame, badgeColor: "#7f1d1d" },
