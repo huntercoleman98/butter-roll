@@ -1003,6 +1003,16 @@ button.icon-btn {
   min-width: 0;
 }
 
+.monster-stat-btn {
+  font-size: 12px;
+  padding: 1px 6px;
+  min-width: 0;
+  min-height: 0;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+}
+
 .monster-section-title {
   font-weight: bold;
   margin-top: 6px;

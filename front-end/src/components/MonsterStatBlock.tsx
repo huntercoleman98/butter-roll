@@ -44,11 +44,20 @@ export default function MonsterStatBlock({ monster, labelName, onRoll }: Props) 
       </div>
       <div className="monster-columns">
         <div className="monster-stats-col">
-          {STAT_LABELS.map(([key, label]) => (
-            <div key={key}>
-              <strong>{label}</strong> {bonusToString(monster.stats[key])}
-            </div>
-          ))}
+          {STAT_LABELS.map(([key, label]) => {
+            const bonus = monster.stats[key];
+            const expr = `1d20${bonusToString(bonus)}`;
+            return (
+              <button
+                key={key}
+                className="monster-stat-btn"
+                title={expr}
+                onClick={() => onRoll(expr, `${rollName} — ${label} check`)}
+              >
+                <strong>{label}</strong> {bonusToString(bonus)}
+              </button>
+            );
+          })}
         </div>
         <div className="monster-main-col">
           <div className="monster-section-title">Attacks</div>
