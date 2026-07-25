@@ -56,7 +56,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
     x,
     y,
     color = "#c084fc",
-    borderWidth = 2,
+    borderWidth = 4,
     isSelected,
     isOnInitiative,
     draggable = true,

@@ -1412,6 +1412,19 @@ button.icon-btn {
   cursor: pointer;
 }
 
+/* ── Token character window (DM view of a player's sheet) ── */
+
+.token-character-window {
+  width: 400px;
+}
+
+.token-character-body {
+  padding: 6px !important;
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /* ── Token monster window ── */
 
 .token-monster-window {

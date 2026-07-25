@@ -8,6 +8,7 @@ import DiceOverlay from "../components/DiceOverlay";
 import InitiativePanel from "../components/InitiativePanel";
 import MonstersPanel from "../components/MonstersPanel";
 import TokenMonsterWindow from "../components/TokenMonsterWindow";
+import TokenCharacterWindow from "../components/TokenCharacterWindow";
 import TokenLibrary from "../components/TokenLibrary";
 import { ContextMenu } from "../components/ContextMenu";
 import { useOutsideClick } from "../hooks/useOutsideClick";
@@ -28,7 +29,7 @@ import { usePanels } from "../hooks/usePanels";
 import "../App.css";
 
 export default function DM() {
-  const { pages, presentedPageId, ping, diceResult, connected, send } =
+  const { pages, presentedPageId, ping, diceResult, connected, characters, send } =
     useGameSocket();
   const [aspectLocked, setAspectLocked] = useState(true);
   const [activeTool, setActiveTool] = useState<ActiveTool>("select");
@@ -652,6 +653,28 @@ export default function DM() {
             (t) => t.id === monsterWindow.tokenId,
           );
           if (!token) return null;
+          // A player's own token shows their (read-only) character sheet instead
+          // of the monster-link window.
+          if (token.player && token.ownerPlayerId) {
+            // Attribute rolls made from the sheet to the player, not the DM.
+            const pname = token.name || "Player";
+            return (
+              <TokenCharacterWindow
+                token={token}
+                data={characters[token.ownerPlayerId]}
+                x={monsterWindow.x}
+                y={monsterWindow.y}
+                ready={connected}
+                onRollCheck={(mod, label) => {
+                  const expr =
+                    mod === 0 ? "1d20" : mod > 0 ? `1d20+${mod}` : `1d20${mod}`;
+                  handleMonsterRoll(expr, label, pname);
+                }}
+                onRoll={(expr, label) => handleMonsterRoll(expr, label, pname)}
+                onClose={() => setMonsterWindow(null)}
+              />
+            );
+          }
           return (
             <TokenMonsterWindow
               token={token}

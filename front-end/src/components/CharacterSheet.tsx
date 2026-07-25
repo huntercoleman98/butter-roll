@@ -1,118 +1,11 @@
-import { useEffect, useState } from "react";
 import { GiDiceTwentyFacesTwenty, GiTwoCoins } from "react-icons/gi";
 import { uuid } from "../utils/uuid";
+import { ABILITY_NAMES, type AbilityName, type Character } from "./character";
 
-// ── Model ─────────────────────────────────────────────────────────
-// Phase 1 is front-end only: the character lives in local state +
-// localStorage. Nothing here is synced to the backend yet.
-
-const ABILITY_NAMES = ["STR", "DEX", "CON", "INT", "WIS", "CHA"] as const;
-type AbilityName = (typeof ABILITY_NAMES)[number];
-
-interface Attack {
-  id: string;
-  name: string;
-  range: string;
-  bonus: number;
-  damage: string;
-}
-
-interface Talent {
-  id: string;
-  text: string;
-}
-
-interface Spell {
-  id: string;
-  name: string;
-  tier: number;
-  duration: string;
-  ready: boolean;
-}
-
-interface GearItem {
-  id: string;
-  name: string;
-  qty: number;
-  slotsEach: number;
-}
-
-interface Character {
-  ancestry: string;
-  className: string;
-  level: number;
-  title: string;
-  alignment: string;
-  background: string;
-  deity: string;
-  xp: number;
-  abilities: Record<AbilityName, number>;
-  hp: number;
-  maxHp: number;
-  tempHp: number;
-  ac: number;
-  luck: boolean;
-  attacks: Attack[];
-  talents: Talent[];
-  spellcastingAbility: AbilityName | "";
-  spells: Spell[];
-  gear: GearItem[];
-  gp: number;
-  sp: number;
-  cp: number;
-  languages: string;
-}
-
-const STORAGE_KEY = "butterroll-character";
-
-// A blank character. Abilities default to 10 (neutral) and the level to 1;
-// everything else starts empty.
-function emptyCharacter(): Character {
-  return {
-    ancestry: "",
-    className: "",
-    level: 1,
-    title: "",
-    alignment: "",
-    background: "",
-    deity: "",
-    xp: 0,
-    abilities: { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 },
-    hp: 0,
-    maxHp: 0,
-    tempHp: 0,
-    ac: 0,
-    luck: false,
-    attacks: [],
-    talents: [],
-    spellcastingAbility: "",
-    spells: [],
-    gear: [],
-    gp: 0,
-    sp: 0,
-    cp: 0,
-    languages: "",
-  };
-}
-
-function loadCharacter(): Character {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptyCharacter();
-    const parsed = JSON.parse(raw) as Character;
-    const merged = { ...emptyCharacter(), ...parsed };
-    // Migrate gear saved before qty/slotsEach existed ({ slots } per line).
-    merged.gear = merged.gear.map((g) => {
-      const legacy = g as GearItem & { slots?: number };
-      return legacy.slotsEach === undefined
-        ? { id: g.id, name: g.name, qty: 1, slotsEach: legacy.slots ?? 1 }
-        : g;
-    });
-    return merged;
-  } catch {
-    return emptyCharacter();
-  }
-}
+// The sheet is a controlled component: the parent owns the Character and
+// receives patches via onChange. The player's copy lives in localStorage and is
+// pushed to the backend (see Player.tsx); the DM renders it read-only. The data
+// model + helpers live in ./character.
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -149,6 +42,13 @@ interface Props {
   // The character's name, owned by the player profile (see Player.tsx) and shown
   // read-only here — edited on the setup screen, not the sheet.
   name: string;
+  character: Character;
+  // Called with a partial patch when the player edits a field. Omitted in
+  // read-only mode (the DM's view of another player's sheet).
+  onChange?: (patch: Partial<Character>) => void;
+  // Read-only disables every input and hides add/remove controls; roll buttons
+  // stay so the DM can still roll from a player's sheet.
+  readOnly?: boolean;
   ready: boolean;
   // A d20 check that respects the current advantage/disadvantage toggle.
   onRollCheck: (mod: number, label: string) => void;
@@ -158,17 +58,14 @@ interface Props {
 
 export default function CharacterSheet({
   name,
+  character: c,
+  onChange,
+  readOnly = false,
   ready,
   onRollCheck,
   onRoll,
 }: Props) {
-  const [c, setC] = useState<Character>(() => loadCharacter());
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(c));
-  }, [c]);
-
-  const set = (patch: Partial<Character>) => setC((prev) => ({ ...prev, ...patch }));
+  const set = (patch: Partial<Character>) => onChange?.(patch);
 
   const strScore = c.abilities.STR;
   const totalSlots = Math.max(strScore, 10);
@@ -192,6 +89,7 @@ export default function CharacterSheet({
           <Field label="Ancestry">
             <input
               type="text"
+              disabled={readOnly}
               value={c.ancestry}
               onChange={(e) => set({ ancestry: e.target.value })}
             />
@@ -199,6 +97,7 @@ export default function CharacterSheet({
           <Field label="Class">
             <input
               type="text"
+              disabled={readOnly}
               value={c.className}
               onChange={(e) => set({ className: e.target.value })}
             />
@@ -206,6 +105,7 @@ export default function CharacterSheet({
           <Field label="Level">
             <input
               type="number"
+              disabled={readOnly}
               value={c.level}
               onChange={(e) => set({ level: num(e.target.value) })}
             />
@@ -213,12 +113,14 @@ export default function CharacterSheet({
           <Field label="Title">
             <input
               type="text"
+              disabled={readOnly}
               value={c.title}
               onChange={(e) => set({ title: e.target.value })}
             />
           </Field>
           <Field label="Alignment">
             <select
+              disabled={readOnly}
               value={c.alignment}
               onChange={(e) => set({ alignment: e.target.value })}
             >
@@ -231,6 +133,7 @@ export default function CharacterSheet({
           <Field label="Deity">
             <input
               type="text"
+              disabled={readOnly}
               value={c.deity}
               onChange={(e) => set({ deity: e.target.value })}
             />
@@ -238,6 +141,7 @@ export default function CharacterSheet({
           <Field label="Background">
             <input
               type="text"
+              disabled={readOnly}
               value={c.background}
               onChange={(e) => set({ background: e.target.value })}
             />
@@ -246,6 +150,7 @@ export default function CharacterSheet({
             <div className="sheet-xp">
               <input
                 type="number"
+                disabled={readOnly}
                 value={c.xp}
                 onChange={(e) => set({ xp: num(e.target.value) })}
               />
@@ -266,6 +171,7 @@ export default function CharacterSheet({
               <input
                 className="sheet-ability-score"
                 type="number"
+                disabled={readOnly}
                 value={c.abilities[a]}
                 onChange={(e) =>
                   set({
@@ -297,12 +203,14 @@ export default function CharacterSheet({
             <div className="sheet-hp">
               <input
                 type="number"
+                disabled={readOnly}
                 value={c.hp}
                 onChange={(e) => set({ hp: num(e.target.value) })}
               />
               <span>/</span>
               <input
                 type="number"
+                disabled={readOnly}
                 value={c.maxHp}
                 onChange={(e) => set({ maxHp: num(e.target.value) })}
               />
@@ -311,6 +219,7 @@ export default function CharacterSheet({
           <Field label="Temp">
             <input
               type="number"
+              disabled={readOnly}
               value={c.tempHp}
               onChange={(e) => set({ tempHp: num(e.target.value) })}
             />
@@ -318,6 +227,7 @@ export default function CharacterSheet({
           <Field label="AC">
             <input
               type="number"
+              disabled={readOnly}
               value={c.ac}
               onChange={(e) => set({ ac: num(e.target.value) })}
             />
@@ -326,6 +236,7 @@ export default function CharacterSheet({
             <input
               type="checkbox"
               id="luck-token"
+              disabled={readOnly}
               checked={c.luck}
               onChange={(e) => set({ luck: e.target.checked })}
             />
@@ -345,6 +256,7 @@ export default function CharacterSheet({
                   className="sheet-attack-name"
                   type="text"
                   placeholder="Attack name"
+                  disabled={readOnly}
                   value={atk.name}
                   onChange={(e) =>
                     set({
@@ -354,20 +266,23 @@ export default function CharacterSheet({
                     })
                   }
                 />
-                <button
-                  className="sheet-remove"
-                  title="Remove"
-                  onClick={() =>
-                    set({ attacks: c.attacks.filter((a) => a.id !== atk.id) })
-                  }
-                >
-                  ×
-                </button>
+                {!readOnly && (
+                  <button
+                    className="sheet-remove"
+                    title="Remove"
+                    onClick={() =>
+                      set({ attacks: c.attacks.filter((a) => a.id !== atk.id) })
+                    }
+                  >
+                    ×
+                  </button>
+                )}
               </div>
               <div className="sheet-attack-fields">
                 <label className="sheet-field">
                   <span className="sheet-field-label">Range</span>
                   <select
+                    disabled={readOnly}
                     value={atk.range}
                     onChange={(e) =>
                       set({
@@ -387,6 +302,7 @@ export default function CharacterSheet({
                   <div className="sheet-attack-input-roll">
                     <input
                       type="number"
+                      disabled={readOnly}
                       value={atk.bonus}
                       onChange={(e) =>
                         set({
@@ -414,6 +330,7 @@ export default function CharacterSheet({
                     <input
                       type="text"
                       placeholder="1d8+3"
+                      disabled={readOnly}
                       value={atk.damage}
                       onChange={(e) =>
                         set({
@@ -437,19 +354,21 @@ export default function CharacterSheet({
             </div>
           ))}
         </div>
-        <button
-          className="sheet-add"
-          onClick={() =>
-            set({
-              attacks: [
-                ...c.attacks,
-                { id: uuid(), name: "", range: "Close", bonus: 0, damage: "" },
-              ],
-            })
-          }
-        >
-          + Add attack
-        </button>
+        {!readOnly && (
+          <button
+            className="sheet-add"
+            onClick={() =>
+              set({
+                attacks: [
+                  ...c.attacks,
+                  { id: uuid(), name: "", range: "Close", bonus: 0, damage: "" },
+                ],
+              })
+            }
+          >
+            + Add attack
+          </button>
+        )}
       </fieldset>
 
       {/* ── Talents & Features ──────────────────────────────── */}
@@ -460,6 +379,7 @@ export default function CharacterSheet({
             <div key={t.id} className="sheet-text-row">
               <textarea
                 rows={2}
+                disabled={readOnly}
                 value={t.text}
                 onChange={(e) =>
                   set({
@@ -469,26 +389,30 @@ export default function CharacterSheet({
                   })
                 }
               />
-              <button
-                className="sheet-remove"
-                title="Remove"
-                onClick={() =>
-                  set({ talents: c.talents.filter((x) => x.id !== t.id) })
-                }
-              >
-                ×
-              </button>
+              {!readOnly && (
+                <button
+                  className="sheet-remove"
+                  title="Remove"
+                  onClick={() =>
+                    set({ talents: c.talents.filter((x) => x.id !== t.id) })
+                  }
+                >
+                  ×
+                </button>
+              )}
             </div>
           ))}
         </div>
-        <button
-          className="sheet-add"
-          onClick={() =>
-            set({ talents: [...c.talents, { id: uuid(), text: "" }] })
-          }
-        >
-          + Add talent
-        </button>
+        {!readOnly && (
+          <button
+            className="sheet-add"
+            onClick={() =>
+              set({ talents: [...c.talents, { id: uuid(), text: "" }] })
+            }
+          >
+            + Add talent
+          </button>
+        )}
       </fieldset>
 
       {/* ── Spells ──────────────────────────────────────────── */}
@@ -496,6 +420,7 @@ export default function CharacterSheet({
         <legend>Spells</legend>
         <Field label="Spellcasting">
           <select
+            disabled={readOnly}
             value={c.spellcastingAbility}
             onChange={(e) =>
               set({ spellcastingAbility: e.target.value as AbilityName | "" })
@@ -524,6 +449,7 @@ export default function CharacterSheet({
                 <input
                   type="checkbox"
                   id={`spell-ready-${s.id}`}
+                  disabled={readOnly}
                   checked={s.ready}
                   onChange={(e) =>
                     set({
@@ -538,6 +464,7 @@ export default function CharacterSheet({
               <input
                 className="sheet-spell-tier"
                 type="number"
+                disabled={readOnly}
                 value={s.tier}
                 onChange={(e) =>
                   set({
@@ -549,6 +476,7 @@ export default function CharacterSheet({
               />
               <input
                 type="text"
+                disabled={readOnly}
                 value={s.name}
                 onChange={(e) =>
                   set({
@@ -558,6 +486,7 @@ export default function CharacterSheet({
               />
               <input
                 type="text"
+                disabled={readOnly}
                 value={s.duration}
                 onChange={(e) =>
                   set({
@@ -570,40 +499,42 @@ export default function CharacterSheet({
               <button
                 className="sheet-inline-roll"
                 disabled={!ready || c.spellcastingAbility === "" || !s.ready}
-                title={
-                  s.ready ? `Cast (DC ${10 + s.tier})` : "Spell not ready"
-                }
+                title={s.ready ? `Cast (DC ${10 + s.tier})` : "Spell not ready"}
                 onClick={() =>
                   onRollCheck(spellMod, `Cast ${s.name} (DC ${10 + s.tier})`)
                 }
               >
                 Cast
               </button>
-              <button
-                className="sheet-remove"
-                title="Remove"
-                onClick={() =>
-                  set({ spells: c.spells.filter((x) => x.id !== s.id) })
-                }
-              >
-                ×
-              </button>
+              {!readOnly && (
+                <button
+                  className="sheet-remove"
+                  title="Remove"
+                  onClick={() =>
+                    set({ spells: c.spells.filter((x) => x.id !== s.id) })
+                  }
+                >
+                  ×
+                </button>
+              )}
             </div>
           ))}
         </div>
-        <button
-          className="sheet-add"
-          onClick={() =>
-            set({
-              spells: [
-                ...c.spells,
-                { id: uuid(), name: "", tier: 1, duration: "", ready: true },
-              ],
-            })
-          }
-        >
-          + Add spell
-        </button>
+        {!readOnly && (
+          <button
+            className="sheet-add"
+            onClick={() =>
+              set({
+                spells: [
+                  ...c.spells,
+                  { id: uuid(), name: "", tier: 1, duration: "", ready: true },
+                ],
+              })
+            }
+          >
+            + Add spell
+          </button>
+        )}
       </fieldset>
 
       {/* ── Gear ────────────────────────────────────────────── */}
@@ -627,6 +558,7 @@ export default function CharacterSheet({
             <div key={g.id} className="sheet-gear-row">
               <input
                 type="text"
+                disabled={readOnly}
                 value={g.name}
                 onChange={(e) =>
                   set({
@@ -638,6 +570,7 @@ export default function CharacterSheet({
                 className="sheet-gear-num"
                 type="number"
                 min={0}
+                disabled={readOnly}
                 value={g.qty}
                 onChange={(e) =>
                   set({
@@ -650,6 +583,7 @@ export default function CharacterSheet({
                 type="number"
                 min={0}
                 step={0.01}
+                disabled={readOnly}
                 value={g.slotsEach}
                 onChange={(e) =>
                   set({
@@ -659,26 +593,32 @@ export default function CharacterSheet({
                   })
                 }
               />
-              <button
-                className="sheet-remove"
-                title="Remove"
-                onClick={() => set({ gear: c.gear.filter((x) => x.id !== g.id) })}
-              >
-                ×
-              </button>
+              {!readOnly && (
+                <button
+                  className="sheet-remove"
+                  title="Remove"
+                  onClick={() =>
+                    set({ gear: c.gear.filter((x) => x.id !== g.id) })
+                  }
+                >
+                  ×
+                </button>
+              )}
             </div>
           ))}
         </div>
-        <button
-          className="sheet-add"
-          onClick={() =>
-            set({
-              gear: [...c.gear, { id: uuid(), name: "", qty: 1, slotsEach: 1 }],
-            })
-          }
-        >
-          + Add item
-        </button>
+        {!readOnly && (
+          <button
+            className="sheet-add"
+            onClick={() =>
+              set({
+                gear: [...c.gear, { id: uuid(), name: "", qty: 1, slotsEach: 1 }],
+              })
+            }
+          >
+            + Add item
+          </button>
+        )}
 
         <div className="sheet-coins">
           <GiTwoCoins className="sheet-coins-icon" />
@@ -686,6 +626,7 @@ export default function CharacterSheet({
             GP
             <input
               type="number"
+              disabled={readOnly}
               value={c.gp}
               onChange={(e) => set({ gp: num(e.target.value) })}
             />
@@ -694,6 +635,7 @@ export default function CharacterSheet({
             SP
             <input
               type="number"
+              disabled={readOnly}
               value={c.sp}
               onChange={(e) => set({ sp: num(e.target.value) })}
             />
@@ -702,6 +644,7 @@ export default function CharacterSheet({
             CP
             <input
               type="number"
+              disabled={readOnly}
               value={c.cp}
               onChange={(e) => set({ cp: num(e.target.value) })}
             />
@@ -715,6 +658,7 @@ export default function CharacterSheet({
         <textarea
           className="sheet-languages"
           rows={2}
+          disabled={readOnly}
           value={c.languages}
           onChange={(e) => set({ languages: e.target.value })}
         />

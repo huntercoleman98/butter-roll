@@ -30,6 +30,11 @@ type Session struct {
 	PageOrder       []string // ordered list of page IDs for display
 	PresentedPageID string   // which page /view shows
 
+	// Characters holds each player's sheet as an opaque JSON blob keyed by their
+	// durable player_id. The server stores/relays it (for the DM view and cross-
+	// restart persistence) without interpreting it.
+	Characters map[string]string
+
 	// cfg holds the room's behavior rules, evaluated in Apply. May be nil (no
 	// rules) — e.g. in tests that construct a Session directly.
 	cfg *Config
@@ -53,6 +58,7 @@ func NewSession() *Session {
 		Pages:           map[string]*Page{defaultID: p},
 		PageOrder:       []string{defaultID},
 		PresentedPageID: defaultID,
+		Characters:      make(map[string]string),
 	}
 }
 
@@ -86,9 +92,14 @@ func (s *Session) snapshotEnvelope() *pb.Envelope {
 			FogPolys:  fogPolys,
 		})
 	}
+	characters := make([]*pb.Character, 0, len(s.Characters))
+	for pid, data := range s.Characters {
+		characters = append(characters, &pb.Character{PlayerId: pid, Data: data})
+	}
 	return &pb.Envelope{Payload: &pb.Envelope_Snapshot{Snapshot: &pb.Snapshot{
 		PresentedPageId: s.PresentedPageID,
 		Pages:           pages,
+		Characters:      characters,
 	}}}
 }
 
@@ -152,6 +163,10 @@ func LoadSession(path string) (*Session, error) {
 		Pages:           make(map[string]*Page, len(snap.Pages)),
 		PageOrder:       make([]string, 0, len(snap.Pages)),
 		PresentedPageID: snap.PresentedPageId,
+		Characters:      make(map[string]string, len(snap.Characters)),
+	}
+	for _, ch := range snap.Characters {
+		s.Characters[ch.PlayerId] = ch.Data
 	}
 	for _, pd := range snap.Pages {
 		p := &Page{

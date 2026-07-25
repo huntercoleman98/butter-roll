@@ -63,8 +63,8 @@ function computeSeed(
   const sharedColor = affected.every((t) => (t.color ?? "#c084fc") === firstColor)
     ? firstColor
     : null;
-  const firstBW = affected[0]?.borderWidth ?? 2;
-  const sharedBW = affected.every((t) => (t.borderWidth ?? 2) === firstBW)
+  const firstBW = affected[0]?.borderWidth ?? 4;
+  const sharedBW = affected.every((t) => (t.borderWidth ?? 4) === firstBW)
     ? firstBW
     : null;
   const firstEffects = new Set(affected[0]?.statusEffects ?? []);
@@ -274,7 +274,10 @@ export function TokenContextMenu({
             type="text"
             value={multiSelected ? "--" : menuName}
             placeholder="Token name"
-            disabled={multiSelected}
+            // A player token's name is driven by the player's character name, so
+            // it's read-only here.
+            disabled={multiSelected || isPlayerToken}
+            title={isPlayerToken ? "Set by the player's character name" : undefined}
             onChange={(e) => {
               setMenuName(e.target.value);
               scheduleNameUpdate(new Set([tokenId]), e.target.value, menuShowName);
@@ -299,6 +302,10 @@ export function TokenContextMenu({
           <input
             type="color"
             value={menuColor ?? "#808080"}
+            // A player token's border color is driven by the player's chosen
+            // color, so it's read-only here.
+            disabled={isPlayerToken}
+            title={isPlayerToken ? "Set by the player's color" : undefined}
             onChange={(e) => {
               setMenuColor(e.target.value);
               scheduleUpdate(affectedIds(), { color: e.target.value });

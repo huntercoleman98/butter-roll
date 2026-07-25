@@ -4,11 +4,28 @@ import { useGameSocket, type DiceRollResult } from "../hooks/useGameSocket";
 import { parseDiceExpression } from "../utils/parseDiceExpression";
 import { uuid } from "../utils/uuid";
 import CharacterSheet from "../components/CharacterSheet";
+import {
+  type Character,
+  emptyCharacter,
+  normalizeCharacter,
+} from "../components/character";
 import TokenLibrary from "../components/TokenLibrary";
 import "../App.css";
 
 const DIE_SIDES = [4, 6, 8, 10, 12, 20, 100];
 const STORAGE_KEY = "butterroll-player-profile";
+const CHAR_KEY = "butterroll-character";
+const CHAR_PUSH_DEBOUNCE_MS = 500;
+
+function loadCharacter(): Character {
+  try {
+    const raw = localStorage.getItem(CHAR_KEY);
+    if (!raw) return emptyCharacter();
+    return normalizeCharacter(JSON.parse(raw));
+  } catch {
+    return emptyCharacter();
+  }
+}
 
 interface PlayerProfile {
   // Durable, browser-stored identity. Anchors the player ↔ token link across
@@ -74,8 +91,10 @@ export default function Player() {
   const [advMode, setAdvMode] = useState<"normal" | "advantage" | "disadvantage">("normal");
   const [error, setError] = useState("");
   const [history, setHistory] = useState<DiceRollResult[]>([]);
+  const [character, setCharacter] = useState<Character>(() => loadCharacter());
   const historyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const charPushRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const el = historyRef.current;
@@ -110,6 +129,36 @@ export default function Player() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, connected, presentedPageId]);
+
+  // Push the sheet to the backend on (re)connect so the server (and the DM) have
+  // the current copy even after a restart. Edits push via handleCharacterChange.
+  useEffect(() => {
+    if (profile && connected) pushCharacter(character);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, connected]);
+
+  // One-way sync: localStorage is the player's source of truth; we mirror the
+  // serialized sheet to the backend (debounced) so the DM can view it.
+  function pushCharacter(next: Character) {
+    if (!profile) return;
+    send({
+      case: "characterUpdate",
+      value: { playerId: profile.playerId, data: JSON.stringify(next) },
+    });
+  }
+
+  function handleCharacterChange(patch: Partial<Character>) {
+    setCharacter((prev) => {
+      const next = { ...prev, ...patch };
+      localStorage.setItem(CHAR_KEY, JSON.stringify(next));
+      if (charPushRef.current) clearTimeout(charPushRef.current);
+      charPushRef.current = setTimeout(
+        () => pushCharacter(next),
+        CHAR_PUSH_DEBOUNCE_MS,
+      );
+      return next;
+    });
+  }
 
   function handleSave() {
     const name = setupName.trim();
@@ -214,7 +263,7 @@ export default function Player() {
           </div>
         </div>
         <div className="window-body player-setup-body">
-          <p>Choose a name, dice color, and token.</p>
+          <p>Choose a name, color, and token.</p>
           <div className="player-setup-fields">
             <label htmlFor="setup-name">Character Name</label>
             <input
@@ -229,7 +278,9 @@ export default function Player() {
                 if (e.key === "Enter") handleSave();
               }}
             />
-            <label htmlFor="setup-color">Dice color</label>
+            <label htmlFor="setup-color" title="Used for your dice and token border">
+              Your Color
+            </label>
             <input
               id="setup-color"
               type="color"
@@ -356,6 +407,8 @@ export default function Player() {
           <div className="player-sheet-scroll">
             <CharacterSheet
               name={profile.name}
+              character={character}
+              onChange={handleCharacterChange}
               ready={ready}
               onRollCheck={rollCheck}
               onRoll={handleRoll}

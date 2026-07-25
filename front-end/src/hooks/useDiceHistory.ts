@@ -56,10 +56,17 @@ export function useDiceHistory({
     }
   }
 
-  function handleMonsterRoll(expression: string, label?: string) {
+  // Rolls the DM makes on someone's behalf. playerName defaults to "DM" but is
+  // overridden when rolling from a player's character sheet, so the log reads
+  // "<Player> rolled …" rather than "DM rolled …".
+  function handleMonsterRoll(
+    expression: string,
+    label?: string,
+    playerName = "DM",
+  ) {
     send({
       case: "diceRollRequest",
-      value: { expression, playerName: "DM", label },
+      value: { expression, playerName, label },
     });
   }
 

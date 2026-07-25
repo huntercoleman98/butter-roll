@@ -98,6 +98,8 @@ export function useGameSocket() {
   const [diceResult, setDiceResult] = useState<DiceRollResult | null>(null);
   const [connected, setConnected] = useState(false);
   const [myClientId, setMyClientId] = useState<string | null>(null);
+  // Player sheets as opaque JSON blobs, keyed by playerId (owner_player_id).
+  const [characters, setCharacters] = useState<Record<string, string>>({});
 
   const wsRef = useRef<WebSocket | null>(null);
   const pingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -144,6 +146,9 @@ export function useGameSocket() {
           );
           presentedPageIdRef.current = s.presentedPageId;
           setPresentedPageId(s.presentedPageId);
+          setCharacters(
+            Object.fromEntries(s.characters.map((c) => [c.playerId, c.data])),
+          );
           break;
         }
 
@@ -367,6 +372,12 @@ export function useGameSocket() {
           setMyClientId(payload.value.clientId);
           break;
 
+        case "characterUpdate": {
+          const m = payload.value;
+          setCharacters((prev) => ({ ...prev, [m.playerId]: m.data }));
+          break;
+        }
+
         case "diceRollRequest": {
           const m = payload.value;
           setDiceRequests((prev) => [
@@ -427,6 +438,7 @@ export function useGameSocket() {
     diceResult,
     connected,
     myClientId,
+    characters,
     send,
   };
 }

@@ -56,6 +56,8 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 		return nil, validateDiceRollRequest(p.DiceRollRequest)
 	case *pb.Envelope_DiceRollResult:
 		return nil, validateDiceRollResult(p.DiceRollResult)
+	case *pb.Envelope_CharacterUpdate:
+		return nil, s.applyCharacterUpdate(p.CharacterUpdate)
 	}
 
 	// All remaining messages target a specific page. Resolve it once.
@@ -110,6 +112,21 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 		log.Printf("session.Apply: unhandled message type %T", env.Payload)
 		return nil, false
 	}
+}
+
+// applyCharacterUpdate stores a player's sheet blob keyed by their player_id.
+// The original message is rebroadcast (return true) so every client — the DM in
+// particular — gets the update live.
+func (s *Session) applyCharacterUpdate(m *pb.Character) bool {
+	if m.PlayerId == "" {
+		log.Printf("session.Apply character_update: empty playerId")
+		return false
+	}
+	if s.Characters == nil {
+		s.Characters = make(map[string]string)
+	}
+	s.Characters[m.PlayerId] = m.Data
+	return true
 }
 
 // ── Page-management handlers ─────────────────────────────────────────────────
