@@ -23,6 +23,14 @@ message Token {
   string monster = 11;
   optional int32 hp = 12;
   optional int32 wounds = 13;
+  // owner_player_id ties a token to a durable player identity (the browser's
+  // playerId), surviving reconnects and restarts. Set on a player's character
+  // token and on any monster they own (familiar, summon). Unset = DM/NPC token.
+  optional string owner_player_id = 14;
+  // player marks the owner's own character token (backed by their sheet), as
+  // distinct from an owned monster (player == false). At most one player == true
+  // token per owner per page.
+  bool player = 15;
 }
 
 // FogPoly is one revealed polygon cut out of the fog overlay. points is a flat
@@ -52,6 +60,15 @@ message Hello {
 message Snapshot {
   string presented_page_id = 1;
   repeated Page pages = 2;
+  repeated Character characters = 3;
+}
+
+// Character holds a player's sheet as an opaque JSON blob keyed by the durable
+// player_id. The server stores and relays it (so the DM can view it and it
+// survives restarts) but does not interpret its contents.
+message Character {
+  string player_id = 1;
+  string data = 2;
 }
 
 // ── Client → server messages (re-broadcast to all clients) ───────────────────
@@ -210,6 +227,19 @@ message DiceRollResult {
   string label = 10;
 }
 
+// PlayerJoin asks the server to ensure this player has a character token on the
+// given page. It is idempotent: the server adopts the player's existing
+// player-token on that page (updating name/color) or creates one at the page
+// center. The server never rebroadcasts PlayerJoin itself — it broadcasts the
+// resulting TokenAdd or TokenUpdate so existing clients update normally.
+message PlayerJoin {
+  string player_id = 1;  // durable, browser-stored identity
+  string name = 2;
+  string color = 3;      // border/dice color
+  string token_url = 4;  // chosen token image
+  string page_id = 5;    // page to place the token on (the presented page)
+}
+
 // ── Envelope ─────────────────────────────────────────────────────────────────
 // Every message on the wire is an Envelope with exactly one payload set.
 // The oneof field name (e.g. "tokenMove") is the discriminator in protojson.
@@ -240,5 +270,7 @@ message Envelope {
     DiceRollRequest dice_roll_request = 23;
     DiceRollResult dice_roll_result = 24;
     TokenMoveBatch token_move_batch = 25;
+    PlayerJoin player_join = 26;
+    Character character_update = 27;
   }
 }
