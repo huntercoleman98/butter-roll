@@ -695,6 +695,49 @@
   cursor: pointer;
 }
 
+.player-setup-token {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.player-setup-token-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.player-setup-token-preview {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border: 1px solid #808080;
+  background: #fff;
+}
+
+.player-setup-token-hint {
+  font-size: 12px;
+  color: #666;
+}
+
+.player-setup-token-picker {
+  border: 1px solid #808080;
+  background: #fff;
+  max-height: 280px;
+  overflow: hidden;
+  display: flex;
+}
+
+.player-setup-token-picker .token-lib {
+  flex: 1;
+}
+
+.player-setup-token-picker .token-lib-body {
+  max-height: 210px;
+}
+
 /* ── Player page (phone-optimized) ── */
 
 .player-app {
@@ -739,45 +782,6 @@
   border-top: 2px solid #808080;
 }
 
-.player-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.player-stat-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.player-stat-label {
-  width: 36px;
-  font-size: 13px;
-  font-weight: bold;
-  flex-shrink: 0;
-}
-
-.player-stat-input {
-  width: 52px;
-  text-align: center;
-  font-size: 14px;
-  padding: 4px;
-}
-
-.player-stat-mod {
-  width: 28px;
-  font-size: 13px;
-  color: #444;
-  flex-shrink: 0;
-  text-align: right;
-}
-
-.player-stat-roll {
-  font-size: 13px;
-}
-
-
 .player-controls {
   display: flex;
   flex-direction: column;
@@ -814,7 +818,15 @@
 
 .player-adv-row {
   display: flex;
+  align-items: center;
   gap: 6px;
+  padding: 8px 8px 0;
+  flex-shrink: 0;
+}
+
+.player-adv-row .player-offline {
+  margin-left: auto;
+  padding: 0;
 }
 
 .player-adv-btn {
@@ -895,6 +907,362 @@ button.icon-btn {
 .player-history-entry {
   padding: 4px 0;
   border-bottom: 1px solid #e0e0e0;
+}
+
+/* ── Character sheet (phone-first, single scrolling column) ── */
+
+.player-sheet-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sheet fieldset {
+  padding: 8px 10px 10px;
+  margin: 0;
+}
+
+.sheet legend {
+  font-weight: bold;
+}
+
+.sheet input,
+.sheet select,
+.sheet textarea {
+  box-sizing: border-box;
+}
+
+.sheet textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+}
+
+/* Bio ---------------------------------------------------------------- */
+.sheet-name {
+  font-size: 18px;
+  font-weight: bold;
+  padding: 2px 0 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #808080;
+}
+
+.sheet-bio-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+}
+
+.sheet-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sheet-field-label {
+  font-size: 10px;
+  font-weight: bold;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sheet-field input,
+.sheet-field select {
+  width: 100%;
+  min-width: 0;
+}
+
+.sheet-xp {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.sheet-xp input {
+  width: 56px;
+  flex-shrink: 0;
+}
+
+.sheet-xp-next {
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
+}
+
+/* Abilities --------------------------------------------------------- */
+.sheet-abilities {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.sheet-ability {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border: 1px solid #808080;
+  background: #fff;
+}
+
+.sheet-ability-name {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.sheet-ability-mod {
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.sheet-ability-score {
+  width: 44px;
+  text-align: center;
+  padding: 2px;
+}
+
+.sheet-roll-btn {
+  min-width: 0;
+  width: 32px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--text-color);
+}
+
+/* Combat ------------------------------------------------------------ */
+.sheet-combat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.sheet-hp {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sheet-hp input {
+  width: 48px;
+  text-align: center;
+}
+
+.sheet-combat .sheet-field input {
+  width: 56px;
+  text-align: center;
+}
+
+.sheet-luck {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* Generic editable lists ------------------------------------------- */
+.sheet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sheet-add {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.sheet-remove {
+  min-width: 22px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.sheet-inline-roll {
+  min-width: 0;
+  padding: 2px 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Attacks ----------------------------------------------------------- */
+.sheet-attack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid #808080;
+  background: #fff;
+}
+
+.sheet-attack-top {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.sheet-attack-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: bold;
+}
+
+.sheet-attack-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.sheet-attack-fields .sheet-field input {
+  width: 100%;
+  min-width: 0;
+}
+
+.sheet-attack-input-roll {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.sheet-attack-input-roll input {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.sheet-attack-input-roll .sheet-roll-btn {
+  height: 24px;
+  width: 28px;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+/* Talents ----------------------------------------------------------- */
+.sheet-text-row {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.sheet-text-row textarea {
+  flex: 1;
+}
+
+/* Spells ------------------------------------------------------------ */
+.sheet-spell-head,
+.sheet-spell-row {
+  display: grid;
+  grid-template-columns: 40px 40px 1fr 64px 48px 22px;
+  gap: 4px;
+  align-items: center;
+}
+
+.sheet-spell-ready {
+  display: flex;
+  justify-content: center;
+}
+
+/* 98.css draws the checkbox via the sibling label; keep the empty label sized
+   so the box centers in its column. */
+.sheet-spell-ready label {
+  min-height: 13px;
+}
+
+.sheet-spell-head {
+  font-size: 10px;
+  font-weight: bold;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sheet-spell-row input {
+  width: 100%;
+  min-width: 0;
+}
+
+.sheet fieldset > .sheet-field {
+  margin-bottom: 8px;
+}
+
+/* Gear -------------------------------------------------------------- */
+.sheet-gear-head,
+.sheet-gear-row {
+  display: grid;
+  grid-template-columns: 1fr 44px 56px 22px;
+  gap: 4px;
+  align-items: center;
+}
+
+.sheet-gear-head {
+  font-size: 10px;
+  font-weight: bold;
+  color: #444;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sheet-gear-row input {
+  width: 100%;
+  min-width: 0;
+}
+
+.sheet-gear-num {
+  text-align: center;
+}
+
+.sheet-slots-over {
+  color: #c00;
+  font-weight: bold;
+}
+
+.sheet-coins {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #d4d0c8;
+}
+
+.sheet-coins-icon {
+  font-size: 20px;
+  color: #d4a017;
+  flex-shrink: 0;
+}
+
+.sheet-coins label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.sheet-coins input {
+  width: 56px;
+  text-align: center;
+}
+
+.sheet-languages {
+  width: 100%;
 }
 
 /* ── Monsters window ── */

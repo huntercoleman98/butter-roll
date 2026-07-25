@@ -11,9 +11,16 @@ type ItemKind = "folder" | "token";
 
 interface TokenLibraryProps {
   onPlaceToken: (url: string) => void;
+  // Picker mode: browse, filter, select, and upload, but no library mutation —
+  // no drag-to-rearrange, no new folders, no rename/delete. Used by /player so a
+  // player can't reorganize the DM's shared library.
+  readOnly?: boolean;
 }
 
-export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
+export default function TokenLibrary({
+  onPlaceToken,
+  readOnly = false,
+}: TokenLibraryProps) {
   const {
     lib,
     loading,
@@ -159,7 +166,7 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
           draggingKey === `token:${token.url}` ? " dragging" : ""
         }`}
         style={{ paddingLeft: 8 + depth * 14 }}
-        draggable={!editing}
+        draggable={!editing && !readOnly}
         onClick={editing ? undefined : () => onPlaceToken(token.url)}
         onDragStart={(e) => {
           e.dataTransfer.setData(TOKEN_MIME, token.url);
@@ -167,7 +174,7 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
           setDraggingKey(`token:${token.url}`);
         }}
         onDragEnd={endDrag}
-        onContextMenu={(e) => openMenu("token", token.url, e)}
+        onContextMenu={readOnly ? undefined : (e) => openMenu("token", token.url, e)}
       >
         <img className="token-lib-thumb" src={token.url} alt="" title={token.name} />
         {editing ? (
@@ -206,9 +213,11 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
             draggingKey === `folder:${folder.id}` ? " dragging" : ""
           }`}
           style={{ paddingLeft: 4 + depth * 14 }}
-          draggable={!editing}
+          draggable={!editing && !readOnly}
           onClick={() => toggleExpand(folder.id)}
-          onContextMenu={(e) => openMenu("folder", folder.id, e)}
+          onContextMenu={
+            readOnly ? undefined : (e) => openMenu("folder", folder.id, e)
+          }
           onDragStart={(e) => {
             e.stopPropagation();
             e.dataTransfer.setData(FOLDER_MIME, folder.id);
@@ -216,9 +225,13 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
             setDraggingKey(`folder:${folder.id}`);
           }}
           onDragEnd={endDrag}
-          onDragOver={(e) => onDragOverTarget(folder.id, e, true)}
-          onDragLeave={(e) => onDragLeaveTarget(folder.id, e)}
-          onDrop={(e) => onDropInto(folder.id, e)}
+          onDragOver={
+            readOnly ? undefined : (e) => onDragOverTarget(folder.id, e, true)
+          }
+          onDragLeave={
+            readOnly ? undefined : (e) => onDragLeaveTarget(folder.id, e)
+          }
+          onDrop={readOnly ? undefined : (e) => onDropInto(folder.id, e)}
         >
           <span className="token-lib-twisty" aria-hidden="true">
             {isOpen ? "▾" : "▸"}
@@ -245,17 +258,19 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
           ) : (
             <span className="token-lib-folder-name">{folder.name}</span>
           )}
-          <span className="token-lib-folder-actions">
-            <button
-              title="New subfolder"
-              onClick={(e) => {
-                e.stopPropagation();
-                newFolder(folder.id);
-              }}
-            >
-              +
-            </button>
-          </span>
+          {!readOnly && (
+            <span className="token-lib-folder-actions">
+              <button
+                title="New subfolder"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  newFolder(folder.id);
+                }}
+              >
+                +
+              </button>
+            </span>
+          )}
         </div>
         {isOpen && (
           <div>
@@ -279,7 +294,9 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
       <div className="token-lib-header">
         <div className="token-lib-header-row">
           <button onClick={() => pickFiles(ROOT)}>Upload…</button>
-          <button onClick={() => newFolder(ROOT)}>New folder</button>
+          {!readOnly && (
+            <button onClick={() => newFolder(ROOT)}>New folder</button>
+          )}
           <input
             ref={uploadRef}
             type="file"
@@ -299,9 +316,9 @@ export default function TokenLibrary({ onPlaceToken }: TokenLibraryProps) {
       </div>
       <div
         className={`token-lib-body${rootDragOver ? " drag-over" : ""}`}
-        onDragOver={(e) => onDragOverTarget(ROOT, e, false)}
-        onDragLeave={(e) => onDragLeaveTarget(ROOT, e)}
-        onDrop={(e) => onDropInto(ROOT, e)}
+        onDragOver={readOnly ? undefined : (e) => onDragOverTarget(ROOT, e, false)}
+        onDragLeave={readOnly ? undefined : (e) => onDragLeaveTarget(ROOT, e)}
+        onDrop={readOnly ? undefined : (e) => onDropInto(ROOT, e)}
       >
         {loading ? (
           <div className="token-lib-empty">Loading…</div>

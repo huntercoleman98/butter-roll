@@ -191,6 +191,9 @@ export function TokenContextMenu({
   }
 
   const multiSelected = affectedIds().size > 1;
+  // A player's character token is backed by their sheet, not a monster stat
+  // block, so monster linking is disabled for it.
+  const isPlayerToken = tokens.some((t) => affectedIds().has(t.id) && t.player);
 
   return (
     <div
@@ -385,7 +388,20 @@ export function TokenContextMenu({
             )}
           </div>
           <label style={{ marginTop: 6 }}>Monster</label>
-          {menuMonster === "" ? (
+          {isPlayerToken ? (
+            <button
+              disabled
+              style={{
+                width: "100%",
+                textAlign: "left",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Player Character
+            </button>
+          ) : menuMonster === "" ? (
             <div
               ref={monsterDropdownRef}
               style={{ position: "relative", minWidth: 150 }}

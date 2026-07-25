@@ -91,6 +91,12 @@ export function useTokenClipboard({
                 ...(t.monster
                   ? { monster: t.monster, hp: t.hp, wounds: 0 }
                   : {}),
+                // Carry the player association through as-is. The server drops it
+                // if it would duplicate an owner already on the target page (one
+                // player token per player per page), rewriting the broadcast so
+                // clients render the corrected token.
+                player: t.player,
+                ownerPlayerId: t.ownerPlayerId,
               },
             },
           });

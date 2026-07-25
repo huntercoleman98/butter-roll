@@ -76,7 +76,7 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 	case *pb.Envelope_MapResize:
 		return nil, page.applyMapResize(p.MapResize)
 	case *pb.Envelope_TokenAdd:
-		return nil, page.applyTokenAdd(p.TokenAdd)
+		return page.applyTokenAdd(p.TokenAdd)
 	case *pb.Envelope_TokenMove:
 		return nil, page.applyTokenMove(p.TokenMove)
 	case *pb.Envelope_TokenMoveBatch:
@@ -96,6 +96,10 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 		return nil, ok
 	case *pb.Envelope_TokenStatus:
 		return nil, page.applyTokenStatus(p.TokenStatus)
+	case *pb.Envelope_PlayerJoin:
+		// Join is idempotent and never rebroadcast as-is: it returns the
+		// synthesized TokenAdd/TokenUpdate to broadcast (or nil,false for a no-op).
+		return page.applyPlayerJoin(p.PlayerJoin)
 	case *pb.Envelope_FogAdd:
 		return nil, page.applyFogAdd(p.FogAdd)
 	case *pb.Envelope_FogRemove:
@@ -247,14 +251,26 @@ func (p *Page) applyMapResize(m *pb.MapResize) bool {
 	return true
 }
 
-func (p *Page) applyTokenAdd(m *pb.TokenAdd) bool {
+func (p *Page) applyTokenAdd(m *pb.TokenAdd) ([]byte, bool) {
 	t := m.Token
 	if t == nil || t.Id == "" || t.Url == "" || !finiteFloat(t.X) || !finiteFloat(t.Y) {
 		log.Printf("session.Apply token_add: invalid payload")
-		return false
+		return nil, false
+	}
+	// Enforce one player-character token per player per page: if this token
+	// claims an owner that already has one here (e.g. a copy/paste of a player
+	// token onto its own page), drop the association and rebroadcast the
+	// corrected token so every client renders it unassociated.
+	if t.Player && t.GetOwnerPlayerId() != "" && p.playerToken(t.GetOwnerPlayerId()) != nil {
+		t.Player = false
+		t.OwnerPlayerId = nil
+		p.Tokens[t.Id] = t
+		return marshalEnvelope(&pb.Envelope{Payload: &pb.Envelope_TokenAdd{
+			TokenAdd: &pb.TokenAdd{PageId: p.ID, Token: t},
+		}})
 	}
 	p.Tokens[t.Id] = t
-	return true
+	return nil, true
 }
 
 func (p *Page) applyTokenMove(m *pb.TokenMove) bool {
@@ -342,6 +358,98 @@ func (p *Page) applyTokenUpdate(m *pb.TokenUpdate) bool {
 	return true
 }
 
+// applyPlayerJoin ensures the joining player has exactly one character token on
+// this page, then returns the message to broadcast so other clients update. It
+// is idempotent (safe to re-send on every reconnect / page change):
+//   - an existing player-token owned by this player is adopted, updating its
+//     name/color; if nothing changed, it's a no-op (nil, false — not persisted),
+//   - otherwise a new player-token is created at the page center.
+func (p *Page) applyPlayerJoin(m *pb.PlayerJoin) ([]byte, bool) {
+	if m.PlayerId == "" || m.TokenUrl == "" {
+		log.Printf("session.Apply player_join: invalid payload (playerId=%q url=%q)", m.PlayerId, m.TokenUrl)
+		return nil, false
+	}
+
+	// Adopt: the singleton is per-owner per page (m.Player == true tokens).
+	if t := p.playerToken(m.PlayerId); t != nil {
+		changed := false
+		if m.Name != "" && t.Name != m.Name {
+			t.Name = m.Name
+			changed = true
+		}
+		if m.Color != "" && t.GetColor() != m.Color {
+			c := m.Color
+			t.Color = &c
+			changed = true
+		}
+		if !changed {
+			return nil, false // already correct — nothing to persist or send
+		}
+		return marshalEnvelope(&pb.Envelope{Payload: &pb.Envelope_TokenUpdate{
+			TokenUpdate: &pb.TokenUpdate{PageId: p.ID, Id: t.Id, Name: &t.Name, Color: t.Color},
+		}})
+	}
+
+	// Create: place at the page center, scattered so simultaneous joiners don't
+	// stack perfectly.
+	id, err := newUUID()
+	if err != nil {
+		log.Printf("session.Apply player_join: uuid: %v", err)
+		return nil, false
+	}
+	cx, cy := p.center()
+	offset := float64(p.playerTokenCount()) * 40
+	playerID := m.PlayerId
+	tok := &pb.Token{
+		Id:            id,
+		Url:           m.TokenUrl,
+		X:             cx + offset,
+		Y:             cy + offset,
+		Name:          m.Name,
+		ShowName:      true,
+		Public:        true,
+		Player:        true,
+		OwnerPlayerId: &playerID,
+	}
+	if m.Color != "" {
+		c := m.Color
+		tok.Color = &c
+	}
+	p.Tokens[id] = tok
+	return marshalEnvelope(&pb.Envelope{Payload: &pb.Envelope_TokenAdd{
+		TokenAdd: &pb.TokenAdd{PageId: p.ID, Token: tok},
+	}})
+}
+
+// playerToken returns this page's character token owned by playerID, or nil.
+func (p *Page) playerToken(playerID string) *pb.Token {
+	for _, t := range p.Tokens {
+		if t.Player && t.GetOwnerPlayerId() == playerID {
+			return t
+		}
+	}
+	return nil
+}
+
+// playerTokenCount counts character tokens on the page (for join scatter).
+func (p *Page) playerTokenCount() int {
+	n := 0
+	for _, t := range p.Tokens {
+		if t.Player {
+			n++
+		}
+	}
+	return n
+}
+
+// center returns the page's map center, or the origin if no map is set yet.
+func (p *Page) center() (float64, float64) {
+	if p.MapWidth > 0 && p.MapHeight > 0 {
+		return float64(p.MapWidth) / 2, float64(p.MapHeight) / 2
+	}
+	return 0, 0
+}
+
 func (p *Page) applyTokenStatus(m *pb.TokenStatus) bool {
 	if m.Id == "" {
 		log.Printf("session.Apply token_status: empty id")
@@ -385,6 +493,17 @@ func (p *Page) applyFogClear(_ *pb.FogClear) bool {
 	return true
 }
 
+// marshalEnvelope serializes env for broadcast, returning (nil, false) on error
+// so a failed marshal becomes a no-op rather than broadcasting nil bytes.
+func marshalEnvelope(env *pb.Envelope) ([]byte, bool) {
+	b, err := marshalOpts.Marshal(env)
+	if err != nil {
+		log.Printf("marshalEnvelope error: %v", err)
+		return nil, false
+	}
+	return b, true
+}
+
 // pageIDOf returns the pageId of a page-scoped message, or ("", false) if the
 // message type is not page-scoped.
 func pageIDOf(env *pb.Envelope) (string, bool) {
@@ -405,6 +524,8 @@ func pageIDOf(env *pb.Envelope) (string, bool) {
 		return p.TokenUpdate.PageId, true
 	case *pb.Envelope_TokenStatus:
 		return p.TokenStatus.PageId, true
+	case *pb.Envelope_PlayerJoin:
+		return p.PlayerJoin.PageId, true
 	case *pb.Envelope_FogAdd:
 		return p.FogAdd.PageId, true
 	case *pb.Envelope_FogRemove:

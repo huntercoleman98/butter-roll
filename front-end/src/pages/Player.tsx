@@ -2,24 +2,40 @@ import { useEffect, useRef, useState } from "react";
 import { GiCog, GiSheikahEye, GiSightDisabled } from "react-icons/gi";
 import { useGameSocket, type DiceRollResult } from "../hooks/useGameSocket";
 import { parseDiceExpression } from "../utils/parseDiceExpression";
+import { uuid } from "../utils/uuid";
+import CharacterSheet from "../components/CharacterSheet";
+import TokenLibrary from "../components/TokenLibrary";
 import "../App.css";
 
 const DIE_SIDES = [4, 6, 8, 10, 12, 20, 100];
 const STORAGE_KEY = "butterroll-player-profile";
-const STATS_KEY = "butterroll-ability-scores";
-const ABILITY_NAMES = ["STR", "CON", "DEX", "INT", "WIS", "CHA"] as const;
-type AbilityName = (typeof ABILITY_NAMES)[number];
 
 interface PlayerProfile {
+  // Durable, browser-stored identity. Anchors the player ↔ token link across
+  // reconnects and restarts (server matches it against Token.owner_player_id).
+  playerId: string;
   name: string;
   color: string;
+  // The token image the player picked; used to create their map token on join.
+  tokenUrl: string;
 }
 
 function loadProfile(): PlayerProfile | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as PlayerProfile;
+    const p = JSON.parse(raw) as Partial<PlayerProfile>;
+    if (!p.name) return null;
+    // Migrate older profiles ({ name, color }) by minting a stable playerId and
+    // persisting it, so the id doesn't change on the next load.
+    const migrated: PlayerProfile = {
+      playerId: p.playerId || uuid(),
+      name: p.name,
+      color: p.color || "#4c6ef5",
+      tokenUrl: p.tokenUrl || "",
+    };
+    if (!p.playerId) saveProfile(migrated);
+    return migrated;
   } catch {
     return null;
   }
@@ -27,23 +43,6 @@ function loadProfile(): PlayerProfile | null {
 
 function saveProfile(p: PlayerProfile) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
-}
-
-function defaultScores(): Record<AbilityName, number> {
-  return Object.fromEntries(ABILITY_NAMES.map((n) => [n, 10])) as Record<
-    AbilityName,
-    number
-  >;
-}
-
-function loadScores(): Record<AbilityName, number> {
-  try {
-    const raw = localStorage.getItem(STATS_KEY);
-    if (!raw) return defaultScores();
-    return JSON.parse(raw) as Record<AbilityName, number>;
-  } catch {
-    return defaultScores();
-  }
 }
 
 function rollLocally(count: number, sides: number): number[] {
@@ -60,26 +59,16 @@ function formatEntry(r: DiceRollResult): string {
   return `${desc} → ${r.total}${rollsStr}`;
 }
 
-function abilityMod(score: number): number {
-  return Math.floor((score - 10) / 2);
-}
-
-function modStr(score: number): string {
-  const m = abilityMod(score);
-  return m >= 0 ? `+${m}` : `${m}`;
-}
-
 export default function Player() {
-  const { diceResult, myClientId, connected, send } = useGameSocket();
+  const { diceResult, myClientId, connected, presentedPageId, send } =
+    useGameSocket();
   const [profile, setProfile] = useState<PlayerProfile | null>(() =>
     loadProfile(),
   );
   const [setupName, setSetupName] = useState("");
   const [setupColor, setSetupColor] = useState("#4c6ef5");
-  const [tab, setTab] = useState<"dice" | "stats">("dice");
-  const [scores, setScores] = useState<Record<AbilityName, number>>(() =>
-    loadScores(),
-  );
+  const [setupTokenUrl, setSetupTokenUrl] = useState("");
+  const [tab, setTab] = useState<"sheet" | "dice">("sheet");
   const [expr, setExpr] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [advMode, setAdvMode] = useState<"normal" | "advantage" | "disadvantage">("normal");
@@ -87,10 +76,6 @@ export default function Player() {
   const [history, setHistory] = useState<DiceRollResult[]>([]);
   const historyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    localStorage.setItem(STATS_KEY, JSON.stringify(scores));
-  }, [scores]);
 
   useEffect(() => {
     const el = historyRef.current;
@@ -107,10 +92,36 @@ export default function Player() {
     }
   }, [diceResult, myClientId]);
 
+  // Claim (or re-adopt) our token on the presented page whenever we connect or
+  // the DM presents a different page. The server handler is idempotent, so
+  // re-sending on every reconnect/page change is safe and gives us one token per
+  // page. `send` is intentionally excluded — it's a fresh closure each render.
+  useEffect(() => {
+    if (!profile || !profile.tokenUrl || !connected || !presentedPageId) return;
+    send({
+      case: "playerJoin",
+      value: {
+        playerId: profile.playerId,
+        name: profile.name,
+        color: profile.color,
+        tokenUrl: profile.tokenUrl,
+        pageId: presentedPageId,
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, connected, presentedPageId]);
+
   function handleSave() {
     const name = setupName.trim();
-    if (!name) return;
-    const p: PlayerProfile = { name, color: setupColor };
+    if (!name || !setupTokenUrl) return;
+    // Preserve the existing playerId when re-editing (loadProfile still returns
+    // the persisted profile since we don't clear storage on edit).
+    const p: PlayerProfile = {
+      playerId: profile?.playerId || loadProfile()?.playerId || uuid(),
+      name,
+      color: setupColor,
+      tokenUrl: setupTokenUrl,
+    };
     saveProfile(p);
     setProfile(p);
   }
@@ -177,20 +188,15 @@ export default function Player() {
     inputRef.current?.select();
   }
 
-  function rollStat(ability: AbilityName) {
-    const mod = abilityMod(scores[ability]);
+  // A d20 check with a flat modifier, respecting the adv/disadv toggle. Used by
+  // the character sheet for ability checks, attacks, and spell casts.
+  function rollCheck(mod: number, baseLabel: string) {
     const expression = mod === 0 ? "1d20" : mod > 0 ? `1d20+${mod}` : `1d20${mod}`;
     const label =
       advMode !== "normal"
-        ? `${ability} ${advMode === "advantage" ? "with advantage" : "with disadvantage"}`
-        : ability;
+        ? `${baseLabel} ${advMode === "advantage" ? "with advantage" : "with disadvantage"}`
+        : baseLabel;
     handleRoll(expression, label);
-  }
-
-  function handleScoreChange(ability: AbilityName, value: string) {
-    const n = parseInt(value);
-    if (!isNaN(n))
-      setScores((prev) => ({ ...prev, [ability]: Math.min(30, Math.max(1, n)) }));
   }
 
   const ready = connected && myClientId !== null && profile !== null;
@@ -208,15 +214,15 @@ export default function Player() {
           </div>
         </div>
         <div className="window-body player-setup-body">
-          <p>Choose a name and dice color.</p>
+          <p>Choose a name, dice color, and token.</p>
           <div className="player-setup-fields">
-            <label htmlFor="setup-name">Name</label>
+            <label htmlFor="setup-name">Character Name</label>
             <input
               id="setup-name"
               type="text"
               autoFocus
               maxLength={20}
-              placeholder="Your name"
+              placeholder="Character name"
               value={setupName}
               onChange={(e) => setSetupName(e.target.value)}
               onKeyDown={(e) => {
@@ -231,8 +237,29 @@ export default function Player() {
               onChange={(e) => setSetupColor(e.target.value)}
             />
           </div>
+
+          <div className="player-setup-token">
+            <div className="player-setup-token-label">
+              Token
+              {setupTokenUrl ? (
+                <img
+                  className="player-setup-token-preview"
+                  src={setupTokenUrl}
+                  alt="Selected token"
+                />
+              ) : (
+                <span className="player-setup-token-hint">
+                  Pick one below or upload your own
+                </span>
+              )}
+            </div>
+            <div className="player-setup-token-picker">
+              <TokenLibrary onPlaceToken={setSetupTokenUrl} readOnly />
+            </div>
+          </div>
+
           <button
-            disabled={!setupName.trim()}
+            disabled={!setupName.trim() || !setupTokenUrl}
             onClick={handleSave}
             style={{ marginTop: 12 }}
           >
@@ -258,6 +285,17 @@ export default function Player() {
       <div className="window-body player-body">
         <div className="player-tab-row">
           <menu role="tablist">
+            <li aria-selected={tab === "sheet"}>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setTab("sheet");
+                }}
+              >
+                Sheet
+              </a>
+            </li>
             <li aria-selected={tab === "dice"}>
               <a
                 href="#"
@@ -267,17 +305,6 @@ export default function Player() {
                 }}
               >
                 Dice
-              </a>
-            </li>
-            <li aria-selected={tab === "stats"}>
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setTab("stats");
-                }}
-              >
-                Stats
               </a>
             </li>
           </menu>
@@ -296,6 +323,7 @@ export default function Player() {
               onClick={() => {
                 setSetupName(profile.name);
                 setSetupColor(profile.color);
+                setSetupTokenUrl(profile.tokenUrl);
                 setProfile(null);
               }}
             >
@@ -304,117 +332,100 @@ export default function Player() {
           </div>
         </div>
 
-        <div className="player-tab-body">
-          <div className="player-adv-row">
-            <button
-              disabled={!ready}
-              onClick={() => setAdvMode((m) => m === "advantage" ? "normal" : "advantage")}
-              title="Advantage"
-              className={`player-adv-btn${advMode === "advantage" ? " is-active" : ""}`}
-            >
-              Adv
-            </button>
-            <button
-              disabled={!ready}
-              onClick={() => setAdvMode((m) => m === "disadvantage" ? "normal" : "disadvantage")}
-              title="Disadvantage"
-              className={`player-adv-btn${advMode === "disadvantage" ? " is-active" : ""}`}
-            >
-              Dis
-            </button>
+        <div className="player-adv-row">
+          <button
+            disabled={!ready}
+            onClick={() => setAdvMode((m) => m === "advantage" ? "normal" : "advantage")}
+            title="Advantage"
+            className={`player-adv-btn${advMode === "advantage" ? " is-active" : ""}`}
+          >
+            Adv
+          </button>
+          <button
+            disabled={!ready}
+            onClick={() => setAdvMode((m) => m === "disadvantage" ? "normal" : "disadvantage")}
+            title="Disadvantage"
+            className={`player-adv-btn${advMode === "disadvantage" ? " is-active" : ""}`}
+          >
+            Dis
+          </button>
+          {!connected && <span className="player-offline">○ Offline</span>}
+        </div>
+
+        {tab === "sheet" && (
+          <div className="player-sheet-scroll">
+            <CharacterSheet
+              name={profile.name}
+              ready={ready}
+              onRollCheck={rollCheck}
+              onRoll={handleRoll}
+            />
           </div>
+        )}
 
-          {tab === "dice" && (
-            <div className="player-controls">
-              <div className="player-die-grid">
-                {DIE_SIDES.map((sides) => (
-                  <button
-                    key={sides}
-                    disabled={!ready}
-                    onClick={() => {
-                      const label = sides === 20 && advMode !== "normal"
-                        ? (advMode === "advantage" ? "with advantage" : "with disadvantage")
-                        : undefined;
-                      handleRoll(`d${sides}`, label);
-                    }}
-                    className="player-die-btn"
-                    style={{ borderLeft: `4px solid ${profile.color}` }}
-                  >
-                    d{sides}
-                  </button>
-                ))}
-              </div>
+        {tab === "dice" && (
+          <>
+            <div className="player-tab-body">
+              <div className="player-controls">
+                <div className="player-die-grid">
+                  {DIE_SIDES.map((sides) => (
+                    <button
+                      key={sides}
+                      disabled={!ready}
+                      onClick={() => {
+                        const label = sides === 20 && advMode !== "normal"
+                          ? (advMode === "advantage" ? "with advantage" : "with disadvantage")
+                          : undefined;
+                        handleRoll(`d${sides}`, label);
+                      }}
+                      className="player-die-btn"
+                      style={{ borderLeft: `4px solid ${profile.color}` }}
+                    >
+                      d{sides}
+                    </button>
+                  ))}
+                </div>
 
-              <div className="player-roll-row">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="e.g. 2d6+3"
-                  value={expr}
-                  disabled={!ready}
-                  onChange={(e) => {
-                    setExpr(e.target.value);
-                    setError("");
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") submit();
-                  }}
-                />
-                <button disabled={!ready} onClick={submit}>
-                  Roll
-                </button>
-              </div>
-
-              {error && <div className="player-error">{error}</div>}
-              {!connected && (
-                <div className="player-offline">○ Offline</div>
-              )}
-            </div>
-          )}
-
-          {tab === "stats" && (
-            <div className="player-stats">
-              {ABILITY_NAMES.map((ability) => (
-                <div key={ability} className="player-stat-row">
-                  <span className="player-stat-label">{ability}</span>
+                <div className="player-roll-row">
                   <input
-                    type="number"
-                    min={1}
-                    max={30}
-                    value={scores[ability]}
-                    onChange={(e) => handleScoreChange(ability, e.target.value)}
-                    className="player-stat-input"
-                  />
-                  <span className="player-stat-mod">
-                    {modStr(scores[ability])}
-                  </span>
-                  <button
+                    ref={inputRef}
+                    type="text"
+                    placeholder="e.g. 2d6+3"
+                    value={expr}
                     disabled={!ready}
-                    onClick={() => rollStat(ability)}
-                    className="player-stat-roll"
-                  >
+                    onChange={(e) => {
+                      setExpr(e.target.value);
+                      setError("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") submit();
+                    }}
+                  />
+                  <button disabled={!ready} onClick={submit}>
                     Roll
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-        <div className="player-history-wrapper">
-          <div className="player-history-label">Roll History</div>
-          <div className="player-history" ref={historyRef}>
-            {history.length === 0 ? (
-              <div className="player-history-empty">No rolls yet.</div>
-            ) : (
-              history.map((r, i) => (
-                <div key={i} className="player-history-entry">
-                  {formatEntry(r)}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+                {error && <div className="player-error">{error}</div>}
+              </div>
+            </div>
+
+            <div className="player-history-wrapper">
+              <div className="player-history-label">Roll History</div>
+              <div className="player-history" ref={historyRef}>
+                {history.length === 0 ? (
+                  <div className="player-history-empty">No rolls yet.</div>
+                ) : (
+                  history.map((r, i) => (
+                    <div key={i} className="player-history-entry">
+                      {formatEntry(r)}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
