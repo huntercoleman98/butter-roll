@@ -9,17 +9,42 @@ const FOLDER_MIME = "application/x-folder-id";
 
 type ItemKind = "folder" | "token";
 
+// All folder ids in the subtree rooted at `root` (inclusive), by breadth-first
+// walk over parentId links.
+function subtreeFolderIds(
+  folders: TokenFolder[],
+  root: string,
+): Set<string> {
+  const ids = new Set<string>([root]);
+  let frontier = [root];
+  while (frontier.length) {
+    const next: string[] = [];
+    for (const f of folders) {
+      if (!ids.has(f.id) && frontier.includes(f.parentId)) {
+        ids.add(f.id);
+        next.push(f.id);
+      }
+    }
+    frontier = next;
+  }
+  return ids;
+}
+
 interface TokenLibraryProps {
   onPlaceToken: (url: string) => void;
   // Picker mode: browse, filter, select, and upload, but no library mutation —
   // no drag-to-rearrange, no new folders, no rename/delete. Used by /player so a
   // player can't reorganize the DM's shared library.
   readOnly?: boolean;
+  // Confine the visible tree to the folder with this id (and its subfolders).
+  // Undefined shows the whole library. If set but not found, nothing shows.
+  rootFolderId?: string;
 }
 
 export default function TokenLibrary({
   onPlaceToken,
   readOnly = false,
+  rootFolderId,
 }: TokenLibraryProps) {
   const {
     lib,
@@ -282,18 +307,37 @@ export default function TokenLibrary({
     );
   }
 
+  // Resolve the confined root. undefined → whole library (ROOT). A configured
+  // id is used directly if it exists; if it doesn't, rootId is null so the
+  // picker shows nothing rather than the entire library.
+  const confined = rootFolderId !== undefined && rootFolderId !== "";
+  const rootId: string | null = confined
+    ? lib.folders.some((f) => f.id === rootFolderId)
+      ? rootFolderId!
+      : null
+    : ROOT;
+  // Folder ids within the confined subtree (inclusive), for scoping the filter.
+  const subtreeIds =
+    confined && rootId !== null ? subtreeFolderIds(lib.folders, rootId) : null;
+  const uploadRoot = rootId ?? ROOT;
+
   const rootDragOver = dragOverId === ROOT;
   const query = filter.trim().toLowerCase();
-  // While filtering, show a flat list of matching tokens instead of the tree.
+  // While filtering, show a flat list of matching tokens instead of the tree,
+  // restricted to the confined subtree when one is set.
   const matches = query
-    ? lib.tokens.filter((t) => t.name.toLowerCase().includes(query))
+    ? lib.tokens.filter(
+        (t) =>
+          (subtreeIds ? subtreeIds.has(t.folderId) : true) &&
+          t.name.toLowerCase().includes(query),
+      )
     : [];
 
   return (
     <div className="token-lib">
       <div className="token-lib-header">
         <div className="token-lib-header-row">
-          <button onClick={() => pickFiles(ROOT)}>Upload…</button>
+          <button onClick={() => pickFiles(uploadRoot)}>Upload…</button>
           {!readOnly && (
             <button onClick={() => newFolder(ROOT)}>New folder</button>
           )}
@@ -322,18 +366,23 @@ export default function TokenLibrary({
       >
         {loading ? (
           <div className="token-lib-empty">Loading…</div>
+        ) : rootId === null ? (
+          <div className="token-lib-empty">
+            No tokens available — configured folder not found.
+          </div>
         ) : query ? (
           matches.length === 0 ? (
             <div className="token-lib-empty">No matches.</div>
           ) : (
             matches.map((t) => renderToken(t, 0))
           )
-        ) : lib.folders.length === 0 && lib.tokens.length === 0 ? (
+        ) : childFolders(rootId).length === 0 &&
+          tokensIn(rootId).length === 0 ? (
           <div className="token-lib-empty">No tokens yet. Upload some above.</div>
         ) : (
           <>
-            {childFolders(ROOT).map((f) => renderFolder(f, 0))}
-            {tokensIn(ROOT).map((t) => renderToken(t, 0))}
+            {childFolders(rootId).map((f) => renderFolder(f, 0))}
+            {tokensIn(rootId).map((t) => renderToken(t, 0))}
           </>
         )}
       </div>

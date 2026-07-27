@@ -10,4 +10,7 @@ export interface Rule {
 
 export interface Config {
   rules: Rule[];
+  // Confines the /player token picker to the folder with this id and its
+  // subfolders. Empty/absent means the whole library is available.
+  playerTokenFolderId?: string;
 }

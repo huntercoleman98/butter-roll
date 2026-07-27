@@ -15,7 +15,8 @@ import (
 // entries the hub evaluates authoritatively. It is loaded once at launch and is
 // immutable for the process lifetime.
 type Config struct {
-	Rules []Rule `json:"rules"`
+	Rules               []Rule `json:"rules"`
+	PlayerTokenFolderID string `json:"playerTokenFolderId"`
 
 	// byEvent indexes compiled rules by their On event, populated by compile().
 	byEvent map[string][]Rule

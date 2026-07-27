@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { GiCog, GiSheikahEye, GiSightDisabled } from "react-icons/gi";
-import { useGameSocket, type DiceRollResult } from "../hooks/useGameSocket";
+import {
+  useGameSocket,
+  fetchConfig,
+  type DiceRollResult,
+} from "../hooks/useGameSocket";
 import { parseDiceExpression } from "../utils/parseDiceExpression";
 import { uuid } from "../utils/uuid";
 import CharacterSheet from "../components/CharacterSheet";
@@ -92,6 +96,11 @@ export default function Player() {
   const [error, setError] = useState("");
   const [history, setHistory] = useState<DiceRollResult[]>([]);
   const [character, setCharacter] = useState<Character>(() => loadCharacter());
+  // The folder id the onboarding token picker is confined to (from /api/config);
+  // undefined until loaded, meaning "whole library" until we know otherwise.
+  const [playerTokenFolderId, setPlayerTokenFolderId] = useState<
+    string | undefined
+  >(undefined);
   const historyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const charPushRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,6 +109,12 @@ export default function Player() {
     const el = historyRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [history]);
+
+  useEffect(() => {
+    fetchConfig()
+      .then((cfg) => setPlayerTokenFolderId(cfg.playerTokenFolderId || undefined))
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (
@@ -305,7 +320,11 @@ export default function Player() {
               )}
             </div>
             <div className="player-setup-token-picker">
-              <TokenLibrary onPlaceToken={setSetupTokenUrl} readOnly />
+              <TokenLibrary
+                onPlaceToken={setSetupTokenUrl}
+                readOnly
+                rootFolderId={playerTokenFolderId}
+              />
             </div>
           </div>
 
