@@ -68,6 +68,15 @@ export interface ViewportSync {
   scale: number;
 }
 
+// A player's record as tracked client-side: the opaque sheet blob plus the
+// display name and token image mirrored from their join (see proto Character).
+export interface CharacterRecord {
+  data: string;
+  name: string;
+  tokenUrl: string;
+  color: string;
+}
+
 export interface Page {
   id: string;
   name: string;
@@ -98,8 +107,10 @@ export function useGameSocket() {
   const [diceResult, setDiceResult] = useState<DiceRollResult | null>(null);
   const [connected, setConnected] = useState(false);
   const [myClientId, setMyClientId] = useState<string | null>(null);
-  // Player sheets as opaque JSON blobs, keyed by playerId (owner_player_id).
-  const [characters, setCharacters] = useState<Record<string, string>>({});
+  // Player records keyed by playerId (owner_player_id): sheet blob + name + token.
+  const [characters, setCharacters] = useState<Record<string, CharacterRecord>>(
+    {},
+  );
 
   const wsRef = useRef<WebSocket | null>(null);
   const pingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -147,7 +158,17 @@ export function useGameSocket() {
           presentedPageIdRef.current = s.presentedPageId;
           setPresentedPageId(s.presentedPageId);
           setCharacters(
-            Object.fromEntries(s.characters.map((c) => [c.playerId, c.data])),
+            Object.fromEntries(
+              s.characters.map((c) => [
+                c.playerId,
+                {
+                  data: c.data,
+                  name: c.name,
+                  tokenUrl: c.tokenUrl,
+                  color: c.color,
+                },
+              ]),
+            ),
           );
           break;
         }
@@ -374,7 +395,37 @@ export function useGameSocket() {
 
         case "characterUpdate": {
           const m = payload.value;
-          setCharacters((prev) => ({ ...prev, [m.playerId]: m.data }));
+          // A player's own sheet push carries only data (name/tokenUrl empty);
+          // the join-driven update carries the identity. Keep whichever field a
+          // message leaves blank, mirroring the server's merge.
+          setCharacters((prev) => {
+            const existing = prev[m.playerId];
+            return {
+              ...prev,
+              [m.playerId]: {
+                data: m.data,
+                name: m.name || existing?.name || "",
+                tokenUrl: m.tokenUrl || existing?.tokenUrl || "",
+                color: m.color || existing?.color || "",
+              },
+            };
+          });
+          break;
+        }
+
+        case "playerRemove": {
+          const { playerId } = payload.value;
+          setPages((prev) =>
+            prev.map((p) => ({
+              ...p,
+              tokens: p.tokens.filter((t) => t.ownerPlayerId !== playerId),
+            })),
+          );
+          setCharacters((prev) => {
+            const next = { ...prev };
+            delete next[playerId];
+            return next;
+          });
           break;
         }
 

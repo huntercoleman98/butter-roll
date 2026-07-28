@@ -81,8 +81,7 @@ function formatEntry(r: DiceRollResult): string {
 }
 
 export default function Player() {
-  const { diceResult, myClientId, connected, presentedPageId, send } =
-    useGameSocket();
+  const { diceResult, myClientId, connected, send } = useGameSocket();
   const [profile, setProfile] = useState<PlayerProfile | null>(() =>
     loadProfile(),
   );
@@ -126,12 +125,13 @@ export default function Player() {
     }
   }, [diceResult, myClientId]);
 
-  // Claim (or re-adopt) our token on the presented page whenever we connect or
-  // the DM presents a different page. The server handler is idempotent, so
-  // re-sending on every reconnect/page change is safe and gives us one token per
-  // page. `send` is intentionally excluded — it's a fresh closure each render.
+  // Register our identity (name, color, token image) with the server whenever we
+  // connect so the DM's player bar can show us. This no longer places a token —
+  // the DM adds our token by clicking us in that bar. Idempotent, so re-sending
+  // on every reconnect is safe. `send` is intentionally excluded — it's a fresh
+  // closure each render.
   useEffect(() => {
-    if (!profile || !profile.tokenUrl || !connected || !presentedPageId) return;
+    if (!profile || !profile.tokenUrl || !connected) return;
     send({
       case: "playerJoin",
       value: {
@@ -139,11 +139,11 @@ export default function Player() {
         name: profile.name,
         color: profile.color,
         tokenUrl: profile.tokenUrl,
-        pageId: presentedPageId,
+        pageId: "",
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, connected, presentedPageId]);
+  }, [profile, connected]);
 
   // Push the sheet to the backend on (re)connect so the server (and the DM) have
   // the current copy even after a restart. Edits push via handleCharacterChange.

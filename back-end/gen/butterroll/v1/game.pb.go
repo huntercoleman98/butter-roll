@@ -439,11 +439,16 @@ func (x *Snapshot) GetCharacters() []*Character {
 
 // Character holds a player's sheet as an opaque JSON blob keyed by the durable
 // player_id. The server stores and relays it (so the DM can view it and it
-// survives restarts) but does not interpret its contents.
+// survives restarts) but does not interpret its contents. name and token_url
+// mirror the player's chosen display name and token image so clients (the DM's
+// player bar) can show the player even on pages where they have no token.
 type Character struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PlayerId      string                 `protobuf:"bytes,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"`
 	Data          string                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	TokenUrl      string                 `protobuf:"bytes,3,opt,name=token_url,json=tokenUrl,proto3" json:"token_url,omitempty"`
+	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	Color         string                 `protobuf:"bytes,5,opt,name=color,proto3" json:"color,omitempty"` // border/dice color, so the DM can place their token
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -488,6 +493,27 @@ func (x *Character) GetPlayerId() string {
 func (x *Character) GetData() string {
 	if x != nil {
 		return x.Data
+	}
+	return ""
+}
+
+func (x *Character) GetTokenUrl() string {
+	if x != nil {
+		return x.TokenUrl
+	}
+	return ""
+}
+
+func (x *Character) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Character) GetColor() string {
+	if x != nil {
+		return x.Color
 	}
 	return ""
 }
@@ -2005,18 +2031,17 @@ func (x *DiceRollResult) GetLabel() string {
 	return ""
 }
 
-// PlayerJoin asks the server to ensure this player has a character token on the
-// given page. It is idempotent: the server adopts the player's existing
-// player-token on that page (updating name/color) or creates one at the page
-// center. The server never rebroadcasts PlayerJoin itself — it broadcasts the
-// resulting TokenAdd or TokenUpdate so existing clients update normally.
+// PlayerJoin registers a player's identity (name, color, token image) with the
+// server so the DM's player bar can show them. It no longer places any token —
+// the DM adds a player's token by clicking them in that bar. The server never
+// rebroadcasts PlayerJoin itself; it broadcasts the resulting characterUpdate.
 type PlayerJoin struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PlayerId      string                 `protobuf:"bytes,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"` // durable, browser-stored identity
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Color         string                 `protobuf:"bytes,3,opt,name=color,proto3" json:"color,omitempty"`                       // border/dice color
 	TokenUrl      string                 `protobuf:"bytes,4,opt,name=token_url,json=tokenUrl,proto3" json:"token_url,omitempty"` // chosen token image
-	PageId        string                 `protobuf:"bytes,5,opt,name=page_id,json=pageId,proto3" json:"page_id,omitempty"`       // page to place the token on (the presented page)
+	PageId        string                 `protobuf:"bytes,5,opt,name=page_id,json=pageId,proto3" json:"page_id,omitempty"`       // deprecated: no longer used (join places no token)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2086,6 +2111,53 @@ func (x *PlayerJoin) GetPageId() string {
 	return ""
 }
 
+// PlayerRemove asks the server to fully evict a player: delete their stored
+// character sheet and remove every token they own across all pages. The server
+// rebroadcasts it so all clients drop the player's tokens and sheet.
+type PlayerRemove struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlayerId      string                 `protobuf:"bytes,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"` // durable, browser-stored identity
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlayerRemove) Reset() {
+	*x = PlayerRemove{}
+	mi := &file_butterroll_v1_game_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlayerRemove) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlayerRemove) ProtoMessage() {}
+
+func (x *PlayerRemove) ProtoReflect() protoreflect.Message {
+	mi := &file_butterroll_v1_game_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlayerRemove.ProtoReflect.Descriptor instead.
+func (*PlayerRemove) Descriptor() ([]byte, []int) {
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *PlayerRemove) GetPlayerId() string {
+	if x != nil {
+		return x.PlayerId
+	}
+	return ""
+}
+
 // ── Envelope ─────────────────────────────────────────────────────────────────
 // Every message on the wire is an Envelope with exactly one payload set.
 // The oneof field name (e.g. "tokenMove") is the discriminator in protojson.
@@ -2120,6 +2192,7 @@ type Envelope struct {
 	//	*Envelope_TokenMoveBatch
 	//	*Envelope_PlayerJoin
 	//	*Envelope_CharacterUpdate
+	//	*Envelope_PlayerRemove
 	Payload       isEnvelope_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2127,7 +2200,7 @@ type Envelope struct {
 
 func (x *Envelope) Reset() {
 	*x = Envelope{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[31]
+	mi := &file_butterroll_v1_game_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2139,7 +2212,7 @@ func (x *Envelope) String() string {
 func (*Envelope) ProtoMessage() {}
 
 func (x *Envelope) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[31]
+	mi := &file_butterroll_v1_game_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2152,7 +2225,7 @@ func (x *Envelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Envelope.ProtoReflect.Descriptor instead.
 func (*Envelope) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{31}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *Envelope) GetPayload() isEnvelope_Payload {
@@ -2405,6 +2478,15 @@ func (x *Envelope) GetCharacterUpdate() *Character {
 	return nil
 }
 
+func (x *Envelope) GetPlayerRemove() *PlayerRemove {
+	if x != nil {
+		if x, ok := x.Payload.(*Envelope_PlayerRemove); ok {
+			return x.PlayerRemove
+		}
+	}
+	return nil
+}
+
 type isEnvelope_Payload interface {
 	isEnvelope_Payload()
 }
@@ -2517,6 +2599,10 @@ type Envelope_CharacterUpdate struct {
 	CharacterUpdate *Character `protobuf:"bytes,27,opt,name=character_update,json=characterUpdate,proto3,oneof"`
 }
 
+type Envelope_PlayerRemove struct {
+	PlayerRemove *PlayerRemove `protobuf:"bytes,28,opt,name=player_remove,json=playerRemove,proto3,oneof"`
+}
+
 func (*Envelope_Hello) isEnvelope_Payload() {}
 
 func (*Envelope_Snapshot) isEnvelope_Payload() {}
@@ -2571,6 +2657,8 @@ func (*Envelope_PlayerJoin) isEnvelope_Payload() {}
 
 func (*Envelope_CharacterUpdate) isEnvelope_Payload() {}
 
+func (*Envelope_PlayerRemove) isEnvelope_Payload() {}
+
 var File_butterroll_v1_game_proto protoreflect.FileDescriptor
 
 const file_butterroll_v1_game_proto_rawDesc = "" +
@@ -2617,10 +2705,13 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\x05pages\x18\x02 \x03(\v2\x13.butterroll.v1.PageR\x05pages\x128\n" +
 	"\n" +
 	"characters\x18\x03 \x03(\v2\x18.butterroll.v1.CharacterR\n" +
-	"characters\"<\n" +
+	"characters\"\x83\x01\n" +
 	"\tCharacter\x12\x1b\n" +
 	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\tR\x04data\"a\n" +
+	"\x04data\x18\x02 \x01(\tR\x04data\x12\x1b\n" +
+	"\ttoken_url\x18\x03 \x01(\tR\btokenUrl\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12\x14\n" +
+	"\x05color\x18\x05 \x01(\tR\x05color\"a\n" +
 	"\x06MapSet\x12\x17\n" +
 	"\apage_id\x18\x01 \x01(\tR\x06pageId\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n" +
@@ -2756,7 +2847,9 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05color\x18\x03 \x01(\tR\x05color\x12\x1b\n" +
 	"\ttoken_url\x18\x04 \x01(\tR\btokenUrl\x12\x17\n" +
-	"\apage_id\x18\x05 \x01(\tR\x06pageId\"\x90\r\n" +
+	"\apage_id\x18\x05 \x01(\tR\x06pageId\"+\n" +
+	"\fPlayerRemove\x12\x1b\n" +
+	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\"\xd4\r\n" +
 	"\bEnvelope\x12,\n" +
 	"\x05hello\x18\x01 \x01(\v2\x14.butterroll.v1.HelloH\x00R\x05hello\x125\n" +
 	"\bsnapshot\x18\x02 \x01(\v2\x17.butterroll.v1.SnapshotH\x00R\bsnapshot\x120\n" +
@@ -2792,7 +2885,8 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\x10token_move_batch\x18\x19 \x01(\v2\x1d.butterroll.v1.TokenMoveBatchH\x00R\x0etokenMoveBatch\x12<\n" +
 	"\vplayer_join\x18\x1a \x01(\v2\x19.butterroll.v1.PlayerJoinH\x00R\n" +
 	"playerJoin\x12E\n" +
-	"\x10character_update\x18\x1b \x01(\v2\x18.butterroll.v1.CharacterH\x00R\x0fcharacterUpdateB\t\n" +
+	"\x10character_update\x18\x1b \x01(\v2\x18.butterroll.v1.CharacterH\x00R\x0fcharacterUpdate\x12B\n" +
+	"\rplayer_remove\x18\x1c \x01(\v2\x1b.butterroll.v1.PlayerRemoveH\x00R\fplayerRemoveB\t\n" +
 	"\apayloadB3Z1butter-roll/server/gen/butterroll/v1;butterrollv1b\x06proto3"
 
 var (
@@ -2807,7 +2901,7 @@ func file_butterroll_v1_game_proto_rawDescGZIP() []byte {
 	return file_butterroll_v1_game_proto_rawDescData
 }
 
-var file_butterroll_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_butterroll_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_butterroll_v1_game_proto_goTypes = []any{
 	(*Token)(nil),           // 0: butterroll.v1.Token
 	(*FogPoly)(nil),         // 1: butterroll.v1.FogPoly
@@ -2840,7 +2934,8 @@ var file_butterroll_v1_game_proto_goTypes = []any{
 	(*DiceRollRequest)(nil), // 28: butterroll.v1.DiceRollRequest
 	(*DiceRollResult)(nil),  // 29: butterroll.v1.DiceRollResult
 	(*PlayerJoin)(nil),      // 30: butterroll.v1.PlayerJoin
-	(*Envelope)(nil),        // 31: butterroll.v1.Envelope
+	(*PlayerRemove)(nil),    // 31: butterroll.v1.PlayerRemove
+	(*Envelope)(nil),        // 32: butterroll.v1.Envelope
 }
 var file_butterroll_v1_game_proto_depIdxs = []int32{
 	0,  // 0: butterroll.v1.Page.tokens:type_name -> butterroll.v1.Token
@@ -2876,11 +2971,12 @@ var file_butterroll_v1_game_proto_depIdxs = []int32{
 	10, // 30: butterroll.v1.Envelope.token_move_batch:type_name -> butterroll.v1.TokenMoveBatch
 	30, // 31: butterroll.v1.Envelope.player_join:type_name -> butterroll.v1.PlayerJoin
 	5,  // 32: butterroll.v1.Envelope.character_update:type_name -> butterroll.v1.Character
-	33, // [33:33] is the sub-list for method output_type
-	33, // [33:33] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	31, // 33: butterroll.v1.Envelope.player_remove:type_name -> butterroll.v1.PlayerRemove
+	34, // [34:34] is the sub-list for method output_type
+	34, // [34:34] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_butterroll_v1_game_proto_init() }
@@ -2891,7 +2987,7 @@ func file_butterroll_v1_game_proto_init() {
 	file_butterroll_v1_game_proto_msgTypes[0].OneofWrappers = []any{}
 	file_butterroll_v1_game_proto_msgTypes[13].OneofWrappers = []any{}
 	file_butterroll_v1_game_proto_msgTypes[28].OneofWrappers = []any{}
-	file_butterroll_v1_game_proto_msgTypes[31].OneofWrappers = []any{
+	file_butterroll_v1_game_proto_msgTypes[32].OneofWrappers = []any{
 		(*Envelope_Hello)(nil),
 		(*Envelope_Snapshot)(nil),
 		(*Envelope_MapSet)(nil),
@@ -2919,6 +3015,7 @@ func file_butterroll_v1_game_proto_init() {
 		(*Envelope_TokenMoveBatch)(nil),
 		(*Envelope_PlayerJoin)(nil),
 		(*Envelope_CharacterUpdate)(nil),
+		(*Envelope_PlayerRemove)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -2926,7 +3023,7 @@ func file_butterroll_v1_game_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_butterroll_v1_game_proto_rawDesc), len(file_butterroll_v1_game_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   32,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

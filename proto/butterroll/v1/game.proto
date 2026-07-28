@@ -65,10 +65,15 @@ message Snapshot {
 
 // Character holds a player's sheet as an opaque JSON blob keyed by the durable
 // player_id. The server stores and relays it (so the DM can view it and it
-// survives restarts) but does not interpret its contents.
+// survives restarts) but does not interpret its contents. name and token_url
+// mirror the player's chosen display name and token image so clients (the DM's
+// player bar) can show the player even on pages where they have no token.
 message Character {
   string player_id = 1;
   string data = 2;
+  string token_url = 3;
+  string name = 4;
+  string color = 5;  // border/dice color, so the DM can place their token
 }
 
 // ── Client → server messages (re-broadcast to all clients) ───────────────────
@@ -227,17 +232,23 @@ message DiceRollResult {
   string label = 10;
 }
 
-// PlayerJoin asks the server to ensure this player has a character token on the
-// given page. It is idempotent: the server adopts the player's existing
-// player-token on that page (updating name/color) or creates one at the page
-// center. The server never rebroadcasts PlayerJoin itself — it broadcasts the
-// resulting TokenAdd or TokenUpdate so existing clients update normally.
+// PlayerJoin registers a player's identity (name, color, token image) with the
+// server so the DM's player bar can show them. It no longer places any token —
+// the DM adds a player's token by clicking them in that bar. The server never
+// rebroadcasts PlayerJoin itself; it broadcasts the resulting characterUpdate.
 message PlayerJoin {
   string player_id = 1;  // durable, browser-stored identity
   string name = 2;
   string color = 3;      // border/dice color
   string token_url = 4;  // chosen token image
-  string page_id = 5;    // page to place the token on (the presented page)
+  string page_id = 5;    // deprecated: no longer used (join places no token)
+}
+
+// PlayerRemove asks the server to fully evict a player: delete their stored
+// character sheet and remove every token they own across all pages. The server
+// rebroadcasts it so all clients drop the player's tokens and sheet.
+message PlayerRemove {
+  string player_id = 1;  // durable, browser-stored identity
 }
 
 // ── Envelope ─────────────────────────────────────────────────────────────────
@@ -272,5 +283,6 @@ message Envelope {
     TokenMoveBatch token_move_batch = 25;
     PlayerJoin player_join = 26;
     Character character_update = 27;
+    PlayerRemove player_remove = 28;
   }
 }

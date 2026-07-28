@@ -58,6 +58,10 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 		return nil, validateDiceRollResult(p.DiceRollResult)
 	case *pb.Envelope_CharacterUpdate:
 		return nil, s.applyCharacterUpdate(p.CharacterUpdate)
+	case *pb.Envelope_PlayerRemove:
+		return nil, s.applyPlayerRemove(p.PlayerRemove)
+	case *pb.Envelope_PlayerJoin:
+		return s.applyPlayerJoin(p.PlayerJoin)
 	}
 
 	// All remaining messages target a specific page. Resolve it once.
@@ -98,10 +102,6 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 		return nil, ok
 	case *pb.Envelope_TokenStatus:
 		return nil, page.applyTokenStatus(p.TokenStatus)
-	case *pb.Envelope_PlayerJoin:
-		// Join is idempotent and never rebroadcast as-is: it returns the
-		// synthesized TokenAdd/TokenUpdate to broadcast (or nil,false for a no-op).
-		return page.applyPlayerJoin(p.PlayerJoin)
 	case *pb.Envelope_FogAdd:
 		return nil, page.applyFogAdd(p.FogAdd)
 	case *pb.Envelope_FogRemove:
@@ -114,18 +114,108 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 	}
 }
 
-// applyCharacterUpdate stores a player's sheet blob keyed by their player_id.
-// The original message is rebroadcast (return true) so every client — the DM in
-// particular — gets the update live.
+// applyCharacterUpdate stores a player's sheet blob keyed by their player_id,
+// preserving the name/token_url set at join (the player's sheet pushes carry
+// only Data). The original message is rebroadcast (return true) so every client
+// — the DM in particular — gets the update live.
 func (s *Session) applyCharacterUpdate(m *pb.Character) bool {
 	if m.PlayerId == "" {
 		log.Printf("session.Apply character_update: empty playerId")
 		return false
 	}
 	if s.Characters == nil {
-		s.Characters = make(map[string]string)
+		s.Characters = make(map[string]*pb.Character)
 	}
-	s.Characters[m.PlayerId] = m.Data
+	ch := s.Characters[m.PlayerId]
+	if ch == nil {
+		ch = &pb.Character{PlayerId: m.PlayerId}
+		s.Characters[m.PlayerId] = ch
+	}
+	ch.Data = m.Data
+	if m.TokenUrl != "" {
+		ch.TokenUrl = m.TokenUrl
+	}
+	if m.Name != "" {
+		ch.Name = m.Name
+	}
+	return true
+}
+
+// characterIdentityUpdate records a player's display name and token image on
+// their Character (creating it if the sheet hasn't been pushed yet) so clients —
+// the DM's player bar in particular — learn the identity even on pages where the
+// player has no token. Returns the marshaled characterUpdate to broadcast, or
+// nil when nothing changed. Called from the PlayerJoin path, the moment
+// name/token are chosen.
+func (s *Session) characterIdentityUpdate(playerID, name, tokenURL, color string) []byte {
+	if playerID == "" {
+		return nil
+	}
+	if s.Characters == nil {
+		s.Characters = make(map[string]*pb.Character)
+	}
+	ch := s.Characters[playerID]
+	if ch == nil {
+		ch = &pb.Character{PlayerId: playerID}
+		s.Characters[playerID] = ch
+	}
+	changed := false
+	if name != "" && ch.Name != name {
+		ch.Name = name
+		changed = true
+	}
+	if tokenURL != "" && ch.TokenUrl != tokenURL {
+		ch.TokenUrl = tokenURL
+		changed = true
+	}
+	if color != "" && ch.Color != color {
+		ch.Color = color
+		changed = true
+	}
+	if !changed {
+		return nil
+	}
+	b, ok := marshalEnvelope(&pb.Envelope{Payload: &pb.Envelope_CharacterUpdate{
+		CharacterUpdate: ch,
+	}})
+	if !ok {
+		return nil
+	}
+	return b
+}
+
+// applyPlayerJoin registers a player's identity (name, color, token image) so
+// the DM's player bar can show them. It places no token — the DM adds a player's
+// token by clicking their (grayed) chip in the bar. Returns the characterUpdate
+// to broadcast, or (nil,false) when the payload is invalid or nothing changed.
+func (s *Session) applyPlayerJoin(m *pb.PlayerJoin) ([]byte, bool) {
+	if m.PlayerId == "" || m.TokenUrl == "" {
+		log.Printf("session.Apply player_join: invalid payload (playerId=%q url=%q)", m.PlayerId, m.TokenUrl)
+		return nil, false
+	}
+	identity := s.characterIdentityUpdate(m.PlayerId, m.Name, m.TokenUrl, m.Color)
+	if identity == nil {
+		return nil, false
+	}
+	return identity, true
+}
+
+// applyPlayerRemove evicts a player: drops their stored sheet and every token
+// they own across all pages. The original message is rebroadcast (return true)
+// so every client removes the player's tokens and sheet live.
+func (s *Session) applyPlayerRemove(m *pb.PlayerRemove) bool {
+	if m.PlayerId == "" {
+		log.Printf("session.Apply player_remove: empty playerId")
+		return false
+	}
+	delete(s.Characters, m.PlayerId)
+	for _, page := range s.Pages {
+		for id, t := range page.Tokens {
+			if t.GetOwnerPlayerId() == m.PlayerId {
+				delete(page.Tokens, id)
+			}
+		}
+	}
 	return true
 }
 
@@ -375,70 +465,8 @@ func (p *Page) applyTokenUpdate(m *pb.TokenUpdate) bool {
 	return true
 }
 
-// applyPlayerJoin ensures the joining player has exactly one character token on
-// this page, then returns the message to broadcast so other clients update. It
-// is idempotent (safe to re-send on every reconnect / page change):
-//   - an existing player-token owned by this player is adopted, updating its
-//     name/color; if nothing changed, it's a no-op (nil, false — not persisted),
-//   - otherwise a new player-token is created at the page center.
-func (p *Page) applyPlayerJoin(m *pb.PlayerJoin) ([]byte, bool) {
-	if m.PlayerId == "" || m.TokenUrl == "" {
-		log.Printf("session.Apply player_join: invalid payload (playerId=%q url=%q)", m.PlayerId, m.TokenUrl)
-		return nil, false
-	}
-
-	// Adopt: the singleton is per-owner per page (m.Player == true tokens).
-	if t := p.playerToken(m.PlayerId); t != nil {
-		changed := false
-		if m.Name != "" && t.Name != m.Name {
-			t.Name = m.Name
-			changed = true
-		}
-		if m.Color != "" && t.GetColor() != m.Color {
-			c := m.Color
-			t.Color = &c
-			changed = true
-		}
-		if !changed {
-			return nil, false // already correct — nothing to persist or send
-		}
-		return marshalEnvelope(&pb.Envelope{Payload: &pb.Envelope_TokenUpdate{
-			TokenUpdate: &pb.TokenUpdate{PageId: p.ID, Id: t.Id, Name: &t.Name, Color: t.Color},
-		}})
-	}
-
-	// Create: place at the page center, scattered so simultaneous joiners don't
-	// stack perfectly.
-	id, err := newUUID()
-	if err != nil {
-		log.Printf("session.Apply player_join: uuid: %v", err)
-		return nil, false
-	}
-	cx, cy := p.center()
-	offset := float64(p.playerTokenCount()) * 40
-	playerID := m.PlayerId
-	tok := &pb.Token{
-		Id:            id,
-		Url:           m.TokenUrl,
-		X:             cx + offset,
-		Y:             cy + offset,
-		Name:          m.Name,
-		ShowName:      true,
-		Public:        true,
-		Player:        true,
-		OwnerPlayerId: &playerID,
-	}
-	if m.Color != "" {
-		c := m.Color
-		tok.Color = &c
-	}
-	p.Tokens[id] = tok
-	return marshalEnvelope(&pb.Envelope{Payload: &pb.Envelope_TokenAdd{
-		TokenAdd: &pb.TokenAdd{PageId: p.ID, Token: tok},
-	}})
-}
-
 // playerToken returns this page's character token owned by playerID, or nil.
+// Used by applyTokenAdd to enforce one player-character token per page.
 func (p *Page) playerToken(playerID string) *pb.Token {
 	for _, t := range p.Tokens {
 		if t.Player && t.GetOwnerPlayerId() == playerID {
@@ -446,25 +474,6 @@ func (p *Page) playerToken(playerID string) *pb.Token {
 		}
 	}
 	return nil
-}
-
-// playerTokenCount counts character tokens on the page (for join scatter).
-func (p *Page) playerTokenCount() int {
-	n := 0
-	for _, t := range p.Tokens {
-		if t.Player {
-			n++
-		}
-	}
-	return n
-}
-
-// center returns the page's map center, or the origin if no map is set yet.
-func (p *Page) center() (float64, float64) {
-	if p.MapWidth > 0 && p.MapHeight > 0 {
-		return float64(p.MapWidth) / 2, float64(p.MapHeight) / 2
-	}
-	return 0, 0
 }
 
 func (p *Page) applyTokenStatus(m *pb.TokenStatus) bool {
@@ -541,8 +550,6 @@ func pageIDOf(env *pb.Envelope) (string, bool) {
 		return p.TokenUpdate.PageId, true
 	case *pb.Envelope_TokenStatus:
 		return p.TokenStatus.PageId, true
-	case *pb.Envelope_PlayerJoin:
-		return p.PlayerJoin.PageId, true
 	case *pb.Envelope_FogAdd:
 		return p.FogAdd.PageId, true
 	case *pb.Envelope_FogRemove:

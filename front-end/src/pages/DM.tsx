@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { uuid } from "../utils/uuid";
-import type Konva from "konva";
+import Konva from "konva";
 import MapCanvas, { type ActiveTool } from "../components/MapCanvas";
 import MapSizeInput from "../components/MapSizeInput";
 import DicePanel from "../components/DicePanel";
@@ -19,9 +19,11 @@ import {
   fetchMonsters,
   type ArrowOverlay,
   type RadiusCircle,
+  type TokenData,
+  type CharacterRecord,
 } from "../hooks/useGameSocket";
 import { useDiceHistory } from "../hooks/useDiceHistory";
-import { useInitiative } from "../hooks/useInitiative";
+import { useInitiative, INITIATIVE_FOCUS_SCALE } from "../hooks/useInitiative";
 import { useTokenClipboard } from "../hooks/useTokenClipboard";
 import { useTokenKeyboardMove } from "../hooks/useTokenKeyboardMove";
 import { usePages } from "../hooks/usePages";
@@ -46,6 +48,15 @@ export default function DM() {
     y: number;
   } | null>(null);
   const [tokenMenuOpen, setTokenMenuOpen] = useState(false);
+  const [playerMenu, setPlayerMenu] = useState<{
+    playerId: string;
+    name: string;
+    // The player's token on the active page, or null when they have none here
+    // (a grayed chip) — the token-centric actions are hidden in that case.
+    token: TokenData | null;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const mapAreaRef = useRef<HTMLDivElement>(null);
   const mapInputRef = useRef<HTMLInputElement>(null);
@@ -151,10 +162,9 @@ export default function DM() {
     img.src = url;
   }
 
-  // Place a token at the current viewport center. The library menu stays open
-  // so several tokens can be dropped in a row.
-  function placeToken(url: string) {
-    if (!activeId) return;
+  // The world-space point at the center of the DM's current viewport, where
+  // newly placed tokens land.
+  function viewportCenterWorld() {
     const stage = stageRef.current;
     let x = (mapAreaRef.current?.clientWidth ?? window.innerWidth) / 2;
     let y = (mapAreaRef.current?.clientHeight ?? window.innerHeight) / 2;
@@ -163,9 +173,43 @@ export default function DM() {
       x = (x - stage.x()) / scale;
       y = (y - stage.y()) / scale;
     }
+    return { x, y };
+  }
+
+  // Place a token at the current viewport center. The library menu stays open
+  // so several tokens can be dropped in a row.
+  function placeToken(url: string) {
+    if (!activeId) return;
+    const { x, y } = viewportCenterWorld();
     send({
       case: "tokenAdd",
       value: { pageId: activeId, token: { id: uuid(), url, x, y } },
+    });
+  }
+
+  // Add a player's character token to the active page from their bar chip. The
+  // token carries the player's stored identity (name, color, image) and owner
+  // link; the server enforces one player token per player per page.
+  function placePlayerToken(playerId: string, ch: CharacterRecord) {
+    if (!activeId || !ch.tokenUrl) return;
+    const { x, y } = viewportCenterWorld();
+    send({
+      case: "tokenAdd",
+      value: {
+        pageId: activeId,
+        token: {
+          id: uuid(),
+          url: ch.tokenUrl,
+          x,
+          y,
+          name: ch.name,
+          color: ch.color || undefined,
+          showName: true,
+          public: true,
+          player: true,
+          ownerPlayerId: playerId,
+        },
+      },
     });
   }
 
@@ -291,6 +335,39 @@ export default function DM() {
       case: "viewportSync",
       value: { pageId: activeId, worldCenterX, worldCenterY, scale },
     });
+  }
+
+  // Pan/zoom the DM's own stage so the token sits centered at the shared focus
+  // zoom (same as initiative "Focus view"). Animated to match the viewer tween.
+  function centerViewOnToken(token: TokenData) {
+    const stage = stageRef.current;
+    const area = mapAreaRef.current;
+    if (!stage || !area) return;
+    const scale = INITIATIVE_FOCUS_SCALE;
+    new Konva.Tween({
+      node: stage,
+      x: area.clientWidth / 2 - token.x * scale,
+      y: area.clientHeight / 2 - token.y * scale,
+      scaleX: scale,
+      scaleY: scale,
+      duration: 0.3,
+      easing: Konva.Easings.EaseInOut,
+    }).play();
+  }
+
+  // Evict a player everywhere: server drops their sheet and all owned tokens
+  // across every page, then rebroadcasts so all clients (including us) update.
+  // We also prune the local initiative list of their active-page tokens, which
+  // is client-only state the server doesn't track.
+  function handleDeletePlayer(playerId: string) {
+    const tokenIds = new Set(
+      (activePage?.tokens ?? [])
+        .filter((t) => t.ownerPlayerId === playerId)
+        .map((t) => t.id),
+    );
+    send({ case: "playerRemove", value: { playerId } });
+    initiative.removeByTokenIds(tokenIds);
+    setSelectedTokenIds(new Set());
   }
 
   return (
@@ -461,6 +538,113 @@ export default function DM() {
             </span>
           </div>
         </div>
+
+        {/* ── Player token bar ── */}
+        {(() => {
+          const players = Object.entries(characters);
+          if (players.length === 0) return null;
+          // Index the active page's player tokens by owner so each chip can tell
+          // whether that player is present here (and drive the focus actions).
+          const tokenByOwner = new Map<string, TokenData>();
+          for (const t of activePage?.tokens ?? [])
+            if (t.ownerPlayerId) tokenByOwner.set(t.ownerPlayerId, t);
+          return (
+            <div className="player-token-bar">
+              {players.map(([playerId, ch]) => {
+                const token = tokenByOwner.get(playerId) ?? null;
+                const name = ch.name || token?.name || "Player";
+                const url = ch.tokenUrl || token?.url || "";
+                return (
+                  <button
+                    key={playerId}
+                    className={`player-token-chip${token ? "" : " player-token-chip-absent"}`}
+                    title={
+                      token ? name : `${name} (click to add to this page)`
+                    }
+                    onClick={() =>
+                      token
+                        ? centerViewOnToken(token)
+                        : placePlayerToken(playerId, ch)
+                    }
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setPlayerMenu({
+                        playerId,
+                        name,
+                        token,
+                        x: e.clientX,
+                        y: e.clientY,
+                      });
+                    }}
+                  >
+                    <img
+                      className="player-token-chip-img"
+                      src={url}
+                      alt={name}
+                      style={
+                        token?.color ? { borderColor: token.color } : undefined
+                      }
+                    />
+                    <span className="player-token-chip-name">{name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
+
+        {/* ── Player token context menu ── */}
+        {playerMenu &&
+          (() => {
+            // Captured for narrowing: the focus/sheet actions only exist when the
+            // player has a token on this page; absent players get Delete only.
+            const { token } = playerMenu;
+            return (
+              <ContextMenu
+                x={playerMenu.x}
+                y={playerMenu.y}
+                title={playerMenu.name}
+                onClose={() => setPlayerMenu(null)}
+              >
+                {token && (
+                  <li
+                    onClick={() => {
+                      setMonsterWindow({
+                        tokenId: token.id,
+                        x: playerMenu.x,
+                        y: playerMenu.y,
+                      });
+                      setPlayerMenu(null);
+                    }}
+                  >
+                    Character sheet
+                  </li>
+                )}
+                {token && (
+                  <li
+                    onClick={() => {
+                      handleBringPlayersHere(
+                        token.x,
+                        token.y,
+                        INITIATIVE_FOCUS_SCALE,
+                      );
+                      setPlayerMenu(null);
+                    }}
+                  >
+                    Bring player view here
+                  </li>
+                )}
+                <li
+                  onClick={() => {
+                    handleDeletePlayer(playerMenu.playerId);
+                    setPlayerMenu(null);
+                  }}
+                >
+                  Delete
+                </li>
+              </ContextMenu>
+            );
+          })()}
 
         {/* ── Page context menu ── */}
         {pageContextMenu &&
@@ -661,7 +845,7 @@ export default function DM() {
             return (
               <TokenCharacterWindow
                 token={token}
-                data={characters[token.ownerPlayerId]}
+                data={characters[token.ownerPlayerId]?.data}
                 x={monsterWindow.x}
                 y={monsterWindow.y}
                 ready={connected}

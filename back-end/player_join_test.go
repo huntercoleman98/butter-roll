@@ -32,83 +32,43 @@ func playerTokensOf(p *Page, playerID string) []*pb.Token {
 	return out
 }
 
-func TestPlayerJoinCreatesOneTokenAndIsIdempotent(t *testing.T) {
+func TestPlayerJoinRegistersIdentityAndPlacesNoToken(t *testing.T) {
 	s := NewSession()
-	s.Pages["page-1"].MapWidth = 200
-	s.Pages["page-1"].MapHeight = 100
 
-	// First join creates a public, named, player-owned token at the page center.
+	// First join registers the player's Character identity and broadcasts it as a
+	// characterUpdate — but places no token on any page.
 	out, ok := s.Apply(joinMsg("p1", "Alice", "#ff0000", "/a.png", "page-1"))
 	if !ok {
 		t.Fatal("first join was not broadcast")
 	}
-	toks := playerTokensOf(s.Pages["page-1"], "p1")
-	if len(toks) != 1 {
-		t.Fatalf("after join: %d owned tokens, want 1", len(toks))
+	if n := len(playerTokensOf(s.Pages["page-1"], "p1")); n != 0 {
+		t.Fatalf("join placed %d tokens, want 0 (DM adds them by clicking)", n)
 	}
-	tok := toks[0]
-	if !tok.Player || tok.GetOwnerPlayerId() != "p1" || tok.Name != "Alice" ||
-		tok.GetColor() != "#ff0000" || !tok.Public || !tok.ShowName {
-		t.Errorf("unexpected token: %+v", tok)
+	ch := s.Characters["p1"]
+	if ch == nil || ch.Name != "Alice" || ch.TokenUrl != "/a.png" || ch.Color != "#ff0000" {
+		t.Errorf("unexpected character identity: %+v", ch)
 	}
-	if tok.X != 100 || tok.Y != 50 {
-		t.Errorf("token at (%v,%v), want page center (100,50)", tok.X, tok.Y)
-	}
-	// The broadcast is a tokenAdd carrying the new token.
-	if got := mustEnvelope(t, out).GetTokenAdd(); got == nil || got.Token.Id != tok.Id {
-		t.Errorf("first join broadcast = %T, want tokenAdd for %s", mustEnvelope(t, out).Payload, tok.Id)
+	cu := mustEnvelope(t, out).GetCharacterUpdate()
+	if cu == nil || cu.PlayerId != "p1" || cu.Name != "Alice" {
+		t.Errorf("first join broadcast = %+v, want characterUpdate for p1", cu)
 	}
 
-	// Re-join with identical data is a no-op (no duplicate, nothing broadcast).
+	// Re-join with identical data is a no-op (nothing changed, nothing broadcast).
 	if _, ok := s.Apply(joinMsg("p1", "Alice", "#ff0000", "/a.png", "page-1")); ok {
 		t.Error("identical re-join should be a no-op (not broadcast)")
 	}
-	if n := len(playerTokensOf(s.Pages["page-1"], "p1")); n != 1 {
-		t.Fatalf("after re-join: %d owned tokens, want 1 (no duplicate)", n)
-	}
 
-	// Re-join with a new name/color adopts the same token via a tokenUpdate.
+	// Re-join with a new name/color updates the identity via a characterUpdate.
 	out, ok = s.Apply(joinMsg("p1", "Alice the Bold", "#00ff00", "/a.png", "page-1"))
 	if !ok {
 		t.Fatal("name/color change should broadcast")
 	}
-	if n := len(playerTokensOf(s.Pages["page-1"], "p1")); n != 1 {
-		t.Fatalf("after rename: %d owned tokens, want 1", n)
+	cu = mustEnvelope(t, out).GetCharacterUpdate()
+	if cu == nil || cu.Name != "Alice the Bold" || cu.Color != "#00ff00" {
+		t.Errorf("update broadcast = %+v, want characterUpdate with new name/color", cu)
 	}
-	tu := mustEnvelope(t, out).GetTokenUpdate()
-	if tu == nil || tu.GetName() != "Alice the Bold" || tu.GetColor() != "#00ff00" {
-		t.Errorf("adopt broadcast = %+v, want tokenUpdate with new name/color", tu)
-	}
-	if adopted := playerTokensOf(s.Pages["page-1"], "p1")[0]; adopted.Name != "Alice the Bold" {
-		t.Errorf("adopted token name = %q, want updated", adopted.Name)
-	}
-}
-
-func TestPlayerJoinIsPerPage(t *testing.T) {
-	s := NewSession()
-	s.Apply([]byte(`{"pageAdd":{"id":"page-2","name":"Cave"}}`))
-
-	s.Apply(joinMsg("p1", "Alice", "#fff", "/a.png", "page-1"))
-	s.Apply(joinMsg("p1", "Alice", "#fff", "/a.png", "page-2"))
-
-	// Same player gets one token on EACH page (singleton is per-page).
-	if n := len(playerTokensOf(s.Pages["page-1"], "p1")); n != 1 {
-		t.Errorf("page-1: %d owned tokens, want 1", n)
-	}
-	if n := len(playerTokensOf(s.Pages["page-2"], "p1")); n != 1 {
-		t.Errorf("page-2: %d owned tokens, want 1", n)
-	}
-}
-
-func TestPlayerJoinScattersMultiplePlayers(t *testing.T) {
-	s := NewSession()
-	s.Apply(joinMsg("p1", "Alice", "#fff", "/a.png", "page-1"))
-	s.Apply(joinMsg("p2", "Bob", "#000", "/b.png", "page-1"))
-
-	a := playerTokensOf(s.Pages["page-1"], "p1")[0]
-	b := playerTokensOf(s.Pages["page-1"], "p2")[0]
-	if a.X == b.X && a.Y == b.Y {
-		t.Errorf("two joiners overlap exactly at (%v,%v)", a.X, a.Y)
+	if s.Characters["p1"].Name != "Alice the Bold" {
+		t.Errorf("identity name = %q, want updated", s.Characters["p1"].Name)
 	}
 }
 
@@ -140,8 +100,8 @@ func addTokenMsg(pageID, id, url, ownerID string, player bool) []byte {
 
 func TestTokenAddStripsDuplicatePlayerAssociation(t *testing.T) {
 	s := NewSession()
-	// The player already has a character token on the page (via join).
-	s.Apply(joinMsg("p1", "Alice", "#fff", "/a.png", "page-1"))
+	// The player already has a character token on the page.
+	s.Apply(addTokenMsg("page-1", "orig1", "/a.png", "p1", true))
 
 	// Pasting a copy that claims the same owner on the same page: association is
 	// stripped and the broadcast carries the corrected (unassociated) token.
@@ -169,7 +129,7 @@ func TestTokenAddStripsDuplicatePlayerAssociation(t *testing.T) {
 func TestTokenAddKeepsAssociationWithoutConflict(t *testing.T) {
 	s := NewSession()
 	s.Apply([]byte(`{"pageAdd":{"id":"page-2","name":"Cave"}}`))
-	s.Apply(joinMsg("p1", "Alice", "#fff", "/a.png", "page-1"))
+	s.Apply(addTokenMsg("page-1", "orig1", "/a.png", "p1", true))
 
 	// Same owner, but a DIFFERENT page with no token yet: association is kept and
 	// the original message is rebroadcast (out == nil).

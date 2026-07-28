@@ -68,6 +68,61 @@
   align-items: center;
 }
 
+/* ── Player token bar ── */
+
+.player-token-bar {
+  display: flex;
+  gap: 6px;
+  padding: 4px 6px;
+  align-items: flex-start;
+  flex-shrink: 0;
+  overflow-x: auto;
+  border-bottom: 1px solid #808080;
+}
+
+.player-token-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.player-token-chip-img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #808080;
+  background: #fff;
+}
+
+/* Players with no token on the current page: dimmed + desaturated. Clicking the
+   chip adds their token to the page, so it stays interactive. */
+.player-token-chip-absent .player-token-chip-img {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+
+.player-token-chip-absent .player-token-chip-name {
+  opacity: 0.55;
+}
+
+.player-token-chip-name {
+  max-width: 56px;
+  font-size: 11px;
+  line-height: 1.1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── Content area ── */
 
 .content {

@@ -8,8 +8,9 @@ import type {
   OutgoingPayload,
 } from "./useGameSocket";
 
-// Zoom applied on /view when "Focus view" centers on the current token.
-const INITIATIVE_FOCUS_SCALE = 2;
+// Zoom applied when focusing on a token: /view's initiative "Focus view", the
+// DM's own left-click focus, and "Bring player view here" all share this.
+export const INITIATIVE_FOCUS_SCALE = 2;
 
 // Owns initiative tracking: the entry list, whose turn it is, "focus view", and
 // the pending-roll resolution dance. Monster-linked tokens roll initiative on
