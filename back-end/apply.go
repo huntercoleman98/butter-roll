@@ -114,50 +114,64 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) {
 	}
 }
 
-// applyCharacterUpdate stores a player's sheet blob keyed by their player_id,
-// preserving the name/token_url set at join (the player's sheet pushes carry
-// only Data). The original message is rebroadcast (return true) so every client
-// — the DM in particular — gets the update live.
+// applyCharacterUpdate stores a character's sheet blob keyed by its
+// character_id, preserving the name/token_url/color set at join (the player's
+// sheet pushes carry only Data + ids). It also carries the archived flag, so a
+// player switching characters archives the old one with a single update. The
+// original message is rebroadcast (return true) so every client — the DM in
+// particular — gets the update live.
 func (s *Session) applyCharacterUpdate(m *pb.Character) bool {
-	if m.PlayerId == "" {
-		log.Printf("session.Apply character_update: empty playerId")
+	if m.PlayerId == "" || m.CharacterId == "" {
+		log.Printf("session.Apply character_update: missing ids (playerId=%q characterId=%q)", m.PlayerId, m.CharacterId)
 		return false
 	}
 	if s.Characters == nil {
 		s.Characters = make(map[string]*pb.Character)
 	}
-	ch := s.Characters[m.PlayerId]
+	ch := s.Characters[m.CharacterId]
 	if ch == nil {
-		ch = &pb.Character{PlayerId: m.PlayerId}
-		s.Characters[m.PlayerId] = ch
+		ch = &pb.Character{CharacterId: m.CharacterId}
+		s.Characters[m.CharacterId] = ch
 	}
 	ch.Data = m.Data
+	ch.Archived = m.Archived
+	// A retired character belongs to no individual player: it lives in a shared
+	// graveyard, so evicting a player leaves it intact. An active one is owned by
+	// the player that pushed it.
+	if m.Archived {
+		ch.PlayerId = ""
+	} else {
+		ch.PlayerId = m.PlayerId
+	}
 	if m.TokenUrl != "" {
 		ch.TokenUrl = m.TokenUrl
 	}
 	if m.Name != "" {
 		ch.Name = m.Name
 	}
+	if m.Color != "" {
+		ch.Color = m.Color
+	}
 	return true
 }
 
-// characterIdentityUpdate records a player's display name and token image on
-// their Character (creating it if the sheet hasn't been pushed yet) so clients —
+// characterIdentityUpdate records a character's display name and token image on
+// its Character (creating it if the sheet hasn't been pushed yet) so clients —
 // the DM's player bar in particular — learn the identity even on pages where the
 // player has no token. Returns the marshaled characterUpdate to broadcast, or
 // nil when nothing changed. Called from the PlayerJoin path, the moment
 // name/token are chosen.
-func (s *Session) characterIdentityUpdate(playerID, name, tokenURL, color string) []byte {
-	if playerID == "" {
+func (s *Session) characterIdentityUpdate(playerID, characterID, name, tokenURL, color string) []byte {
+	if playerID == "" || characterID == "" {
 		return nil
 	}
 	if s.Characters == nil {
 		s.Characters = make(map[string]*pb.Character)
 	}
-	ch := s.Characters[playerID]
+	ch := s.Characters[characterID]
 	if ch == nil {
-		ch = &pb.Character{PlayerId: playerID}
-		s.Characters[playerID] = ch
+		ch = &pb.Character{PlayerId: playerID, CharacterId: characterID}
+		s.Characters[characterID] = ch
 	}
 	changed := false
 	if name != "" && ch.Name != name {
@@ -184,31 +198,36 @@ func (s *Session) characterIdentityUpdate(playerID, name, tokenURL, color string
 	return b
 }
 
-// applyPlayerJoin registers a player's identity (name, color, token image) so
-// the DM's player bar can show them. It places no token — the DM adds a player's
-// token by clicking their (grayed) chip in the bar. Returns the characterUpdate
-// to broadcast, or (nil,false) when the payload is invalid or nothing changed.
+// applyPlayerJoin registers a player's active-character identity (name, color,
+// token image) so the DM's player bar can show them. It places no token — the DM
+// adds a player's token by clicking their (grayed) chip in the bar. Returns the
+// characterUpdate to broadcast, or (nil,false) when the payload is invalid or
+// nothing changed.
 func (s *Session) applyPlayerJoin(m *pb.PlayerJoin) ([]byte, bool) {
-	if m.PlayerId == "" || m.TokenUrl == "" {
-		log.Printf("session.Apply player_join: invalid payload (playerId=%q url=%q)", m.PlayerId, m.TokenUrl)
+	if m.PlayerId == "" || m.CharacterId == "" || m.TokenUrl == "" {
+		log.Printf("session.Apply player_join: invalid payload (playerId=%q characterId=%q url=%q)", m.PlayerId, m.CharacterId, m.TokenUrl)
 		return nil, false
 	}
-	identity := s.characterIdentityUpdate(m.PlayerId, m.Name, m.TokenUrl, m.Color)
+	identity := s.characterIdentityUpdate(m.PlayerId, m.CharacterId, m.Name, m.TokenUrl, m.Color)
 	if identity == nil {
 		return nil, false
 	}
 	return identity, true
 }
 
-// applyPlayerRemove evicts a player: drops their stored sheet and every token
-// they own across all pages. The original message is rebroadcast (return true)
-// so every client removes the player's tokens and sheet live.
+// applyPlayerRemove evicts a player: drops their entire character roster and
+// every token they own across all pages. The original message is rebroadcast
+// (return true) so every client removes the player's tokens and sheets live.
 func (s *Session) applyPlayerRemove(m *pb.PlayerRemove) bool {
 	if m.PlayerId == "" {
 		log.Printf("session.Apply player_remove: empty playerId")
 		return false
 	}
-	delete(s.Characters, m.PlayerId)
+	for id, ch := range s.Characters {
+		if ch.PlayerId == m.PlayerId {
+			delete(s.Characters, id)
+		}
+	}
 	for _, page := range s.Pages {
 		for id, t := range page.Tokens {
 			if t.GetOwnerPlayerId() == m.PlayerId {
@@ -364,11 +383,13 @@ func (p *Page) applyTokenAdd(m *pb.TokenAdd) ([]byte, bool) {
 		log.Printf("session.Apply token_add: invalid payload")
 		return nil, false
 	}
-	// Enforce one player-character token per player per page: if this token
-	// claims an owner that already has one here (e.g. a copy/paste of a player
-	// token onto its own page), drop the association and rebroadcast the
-	// corrected token so every client renders it unassociated.
-	if t.Player && t.GetOwnerPlayerId() != "" && p.playerToken(t.GetOwnerPlayerId()) != nil {
+	// Enforce one token per character per page: if this token would duplicate a
+	// character already on the page (e.g. a copy/paste of a player token onto its
+	// own page), drop the association and rebroadcast the corrected token so every
+	// client renders it unassociated. Scoping this by character (not just owner)
+	// lets a player place their new active token even while a retired character's
+	// leftover token is still on the page.
+	if t.Player && t.GetOwnerPlayerId() != "" && p.conflictingPlayerToken(t) != nil {
 		t.Player = false
 		t.OwnerPlayerId = nil
 		p.Tokens[t.Id] = t
@@ -465,12 +486,15 @@ func (p *Page) applyTokenUpdate(m *pb.TokenUpdate) bool {
 	return true
 }
 
-// playerToken returns this page's character token owned by playerID, or nil.
-// Used by applyTokenAdd to enforce one player-character token per page.
-func (p *Page) playerToken(playerID string) *pb.Token {
-	for _, t := range p.Tokens {
-		if t.Player && t.GetOwnerPlayerId() == playerID {
-			return t
+// conflictingPlayerToken returns an existing player token on this page that
+// represents the same character as t (so adding t would duplicate it), or nil.
+// Used by applyTokenAdd to enforce one token per character per page — a player
+// can still have their new active token placed while a retired character's
+// leftover token is on the page, since the two carry different character ids.
+func (p *Page) conflictingPlayerToken(t *pb.Token) *pb.Token {
+	for _, ex := range p.Tokens {
+		if ex.Player && ex.Id != t.Id && ex.CharacterId == t.CharacterId {
+			return ex
 		}
 	}
 	return nil

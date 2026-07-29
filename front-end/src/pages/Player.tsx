@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GiCog, GiSheikahEye, GiSightDisabled } from "react-icons/gi";
+import { GiCog, GiNewShoot, GiSheikahEye, GiSightDisabled } from "react-icons/gi";
 import {
   useGameSocket,
   fetchConfig,
@@ -35,6 +35,9 @@ interface PlayerProfile {
   // Durable, browser-stored identity. Anchors the player ↔ token link across
   // reconnects and restarts (server matches it against Token.owner_player_id).
   playerId: string;
+  // The player's currently-active character. name/color/tokenUrl describe this
+  // character; switching characters mints a new id and archives the old one.
+  activeCharacterId: string;
   name: string;
   color: string;
   // The token image the player picked; used to create their map token on join.
@@ -47,15 +50,18 @@ function loadProfile(): PlayerProfile | null {
     if (!raw) return null;
     const p = JSON.parse(raw) as Partial<PlayerProfile>;
     if (!p.name) return null;
-    // Migrate older profiles ({ name, color }) by minting a stable playerId and
-    // persisting it, so the id doesn't change on the next load.
+    // Migrate older profiles by minting a stable playerId and persisting it, so
+    // the id doesn't change on the next load. Pre-roster profiles reuse the
+    // playerId as their first character id, matching the server's migration.
+    const playerId = p.playerId || uuid();
     const migrated: PlayerProfile = {
-      playerId: p.playerId || uuid(),
+      playerId,
+      activeCharacterId: p.activeCharacterId || playerId,
       name: p.name,
       color: p.color || "#4c6ef5",
       tokenUrl: p.tokenUrl || "",
     };
-    if (!p.playerId) saveProfile(migrated);
+    if (!p.playerId || !p.activeCharacterId) saveProfile(migrated);
     return migrated;
   } catch {
     return null;
@@ -95,6 +101,11 @@ export default function Player() {
   const [error, setError] = useState("");
   const [history, setHistory] = useState<DiceRollResult[]>([]);
   const [character, setCharacter] = useState<Character>(() => loadCharacter());
+  // When starting a fresh character, the id to assign on save (the setup screen
+  // is reused for it). null means "edit the current character in place".
+  const [pendingCharacterId, setPendingCharacterId] = useState<string | null>(
+    null,
+  );
   // The folder id the onboarding token picker is confined to (from /api/config);
   // undefined until loaded, meaning "whole library" until we know otherwise.
   const [playerTokenFolderId, setPlayerTokenFolderId] = useState<
@@ -136,6 +147,7 @@ export default function Player() {
       case: "playerJoin",
       value: {
         playerId: profile.playerId,
+        characterId: profile.activeCharacterId,
         name: profile.name,
         color: profile.color,
         tokenUrl: profile.tokenUrl,
@@ -158,7 +170,11 @@ export default function Player() {
     if (!profile) return;
     send({
       case: "characterUpdate",
-      value: { playerId: profile.playerId, data: JSON.stringify(next) },
+      value: {
+        playerId: profile.playerId,
+        characterId: profile.activeCharacterId,
+        data: JSON.stringify(next),
+      },
     });
   }
 
@@ -179,15 +195,64 @@ export default function Player() {
     const name = setupName.trim();
     if (!name || !setupTokenUrl) return;
     // Preserve the existing playerId when re-editing (loadProfile still returns
-    // the persisted profile since we don't clear storage on edit).
+    // the persisted profile since we don't clear storage on edit). pending-
+    // CharacterId, set by "New character", assigns a fresh id; otherwise we keep
+    // the current character and just edit its identity in place.
+    const existing = loadProfile();
+    const playerId = profile?.playerId || existing?.playerId || uuid();
+    const activeCharacterId =
+      pendingCharacterId ||
+      profile?.activeCharacterId ||
+      existing?.activeCharacterId ||
+      playerId;
     const p: PlayerProfile = {
-      playerId: profile?.playerId || loadProfile()?.playerId || uuid(),
+      playerId,
+      activeCharacterId,
       name,
       color: setupColor,
       tokenUrl: setupTokenUrl,
     };
     saveProfile(p);
     setProfile(p);
+    setPendingCharacterId(null);
+  }
+
+  // Retire the current character and start a fresh one. The old sheet is
+  // archived server-side (kept, not deleted) so the DM can still view it and a
+  // future "revive" can bring it back. Locally we reset the sheet and drop into
+  // the setup screen to pick the new character's name/color/token.
+  function handleNewCharacter() {
+    if (!profile) return;
+    if (
+      !window.confirm(
+        `Retire ${profile.name} and start a new character? ${profile.name} will be saved and can be brought back later.`,
+      )
+    )
+      return;
+    send({
+      case: "characterUpdate",
+      value: {
+        playerId: profile.playerId,
+        characterId: profile.activeCharacterId,
+        data: JSON.stringify(character),
+        archived: true,
+      },
+    });
+    // Commit the new active-character id to storage right away (keeping the old
+    // name/token as a placeholder). If the player abandons setup and reloads,
+    // the persisted profile already points at the fresh id, so we never re-push
+    // the just-archived character as active and wipe its sheet. Assumes the
+    // switch happens while connected, so the archive above reaches the server.
+    const newId = uuid();
+    saveProfile({ ...profile, activeCharacterId: newId });
+    const fresh = emptyCharacter();
+    localStorage.setItem(CHAR_KEY, JSON.stringify(fresh));
+    setCharacter(fresh);
+    setPendingCharacterId(newId);
+    setSetupName("");
+    setSetupColor("#4c6ef5");
+    setSetupTokenUrl("");
+    setProfile(null);
   }
 
   function handleRoll(expression: string, label?: string) {
@@ -386,6 +451,13 @@ export default function Player() {
               className="icon-btn"
             >
               {isPrivate ? <GiSightDisabled /> : <GiSheikahEye />}
+            </button>
+            <button
+              className="icon-btn"
+              title="New character (retires the current one)"
+              onClick={handleNewCharacter}
+            >
+              <GiNewShoot />
             </button>
             <button
               className="icon-btn"

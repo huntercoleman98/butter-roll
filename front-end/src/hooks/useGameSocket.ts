@@ -68,9 +68,14 @@ export interface ViewportSync {
   scale: number;
 }
 
-// A player's record as tracked client-side: the opaque sheet blob plus the
+// A character record as tracked client-side: the opaque sheet blob plus the
 // display name and token image mirrored from their join (see proto Character).
+// A player (ownerPlayerId) owns a roster of these — one active (archived ==
+// false) plus any retired sheets.
 export interface CharacterRecord {
+  characterId: string;
+  ownerPlayerId: string;
+  archived: boolean;
   data: string;
   name: string;
   tokenUrl: string;
@@ -107,7 +112,8 @@ export function useGameSocket() {
   const [diceResult, setDiceResult] = useState<DiceRollResult | null>(null);
   const [connected, setConnected] = useState(false);
   const [myClientId, setMyClientId] = useState<string | null>(null);
-  // Player records keyed by playerId (owner_player_id): sheet blob + name + token.
+  // Character records keyed by characterId. Multiple may share an ownerPlayerId
+  // (a player's roster); consumers group by ownerPlayerId and pick the active one.
   const [characters, setCharacters] = useState<Record<string, CharacterRecord>>(
     {},
   );
@@ -160,8 +166,11 @@ export function useGameSocket() {
           setCharacters(
             Object.fromEntries(
               s.characters.map((c) => [
-                c.playerId,
+                c.characterId,
                 {
+                  characterId: c.characterId,
+                  ownerPlayerId: c.playerId,
+                  archived: c.archived,
                   data: c.data,
                   name: c.name,
                   tokenUrl: c.tokenUrl,
@@ -399,10 +408,15 @@ export function useGameSocket() {
           // the join-driven update carries the identity. Keep whichever field a
           // message leaves blank, mirroring the server's merge.
           setCharacters((prev) => {
-            const existing = prev[m.playerId];
+            const existing = prev[m.characterId];
             return {
               ...prev,
-              [m.playerId]: {
+              [m.characterId]: {
+                characterId: m.characterId,
+                // A retired character is unassociated (mirrors the server, which
+                // clears the owner on archive but rebroadcasts the raw message).
+                ownerPlayerId: m.archived ? "" : m.playerId,
+                archived: m.archived,
                 data: m.data,
                 name: m.name || existing?.name || "",
                 tokenUrl: m.tokenUrl || existing?.tokenUrl || "",
@@ -421,11 +435,14 @@ export function useGameSocket() {
               tokens: p.tokens.filter((t) => t.ownerPlayerId !== playerId),
             })),
           );
-          setCharacters((prev) => {
-            const next = { ...prev };
-            delete next[playerId];
-            return next;
-          });
+          // Drop the player's entire roster (every character they own).
+          setCharacters((prev) =>
+            Object.fromEntries(
+              Object.entries(prev).filter(
+                ([, ch]) => ch.ownerPlayerId !== playerId,
+              ),
+            ),
+          );
           break;
         }
 

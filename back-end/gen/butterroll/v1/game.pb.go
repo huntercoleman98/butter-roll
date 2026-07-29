@@ -46,7 +46,12 @@ type Token struct {
 	// player marks the owner's own character token (backed by their sheet), as
 	// distinct from an owned monster (player == false). At most one player == true
 	// token per owner per page.
-	Player        bool `protobuf:"varint,15,opt,name=player,proto3" json:"player,omitempty"`
+	Player bool `protobuf:"varint,15,opt,name=player,proto3" json:"player,omitempty"`
+	// character_id ties a player token to the specific character it represents (a
+	// player owns a roster; see Character). Lets clients tell an active
+	// character's token from a retired one's leftover token. Empty on non-player
+	// (DM/NPC/monster) tokens.
+	CharacterId   string `protobuf:"bytes,16,opt,name=character_id,json=characterId,proto3" json:"character_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -184,6 +189,13 @@ func (x *Token) GetPlayer() bool {
 		return x.Player
 	}
 	return false
+}
+
+func (x *Token) GetCharacterId() string {
+	if x != nil {
+		return x.CharacterId
+	}
+	return ""
 }
 
 // FogPoly is one revealed polygon cut out of the fog overlay. points is a flat
@@ -437,18 +449,25 @@ func (x *Snapshot) GetCharacters() []*Character {
 	return nil
 }
 
-// Character holds a player's sheet as an opaque JSON blob keyed by the durable
-// player_id. The server stores and relays it (so the DM can view it and it
-// survives restarts) but does not interpret its contents. name and token_url
-// mirror the player's chosen display name and token image so clients (the DM's
-// player bar) can show the player even on pages where they have no token.
+// Character holds a player's sheet as an opaque JSON blob. The server stores and
+// relays it (so the DM can view it and it survives restarts) but does not
+// interpret its contents. name and token_url mirror the player's chosen display
+// name and token image so clients (the DM's player bar) can show the player even
+// on pages where they have no token.
+//
+// The store is keyed by character_id. An active character (archived == false)
+// is owned by a player (player_id); switching characters archives the old one,
+// which clears player_id — retired sheets live in a shared graveyard belonging
+// to no individual player, so they survive that player being evicted.
 type Character struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PlayerId      string                 `protobuf:"bytes,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"`
 	Data          string                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 	TokenUrl      string                 `protobuf:"bytes,3,opt,name=token_url,json=tokenUrl,proto3" json:"token_url,omitempty"`
 	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
-	Color         string                 `protobuf:"bytes,5,opt,name=color,proto3" json:"color,omitempty"` // border/dice color, so the DM can place their token
+	Color         string                 `protobuf:"bytes,5,opt,name=color,proto3" json:"color,omitempty"`                                // border/dice color, so the DM can place their token
+	CharacterId   string                 `protobuf:"bytes,6,opt,name=character_id,json=characterId,proto3" json:"character_id,omitempty"` // durable per-character id; the store key
+	Archived      bool                   `protobuf:"varint,7,opt,name=archived,proto3" json:"archived,omitempty"`                         // false = the player's one active character
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -516,6 +535,20 @@ func (x *Character) GetColor() string {
 		return x.Color
 	}
 	return ""
+}
+
+func (x *Character) GetCharacterId() string {
+	if x != nil {
+		return x.CharacterId
+	}
+	return ""
+}
+
+func (x *Character) GetArchived() bool {
+	if x != nil {
+		return x.Archived
+	}
+	return false
 }
 
 type MapSet struct {
@@ -2031,17 +2064,19 @@ func (x *DiceRollResult) GetLabel() string {
 	return ""
 }
 
-// PlayerJoin registers a player's identity (name, color, token image) with the
-// server so the DM's player bar can show them. It no longer places any token —
-// the DM adds a player's token by clicking them in that bar. The server never
-// rebroadcasts PlayerJoin itself; it broadcasts the resulting characterUpdate.
+// PlayerJoin registers a player's active-character identity (name, color, token
+// image) with the server so the DM's player bar can show them. It no longer
+// places any token — the DM adds a player's token by clicking them in that bar.
+// The server never rebroadcasts PlayerJoin itself; it broadcasts the resulting
+// characterUpdate for the active character_id.
 type PlayerJoin struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PlayerId      string                 `protobuf:"bytes,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"` // durable, browser-stored identity
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Color         string                 `protobuf:"bytes,3,opt,name=color,proto3" json:"color,omitempty"`                       // border/dice color
-	TokenUrl      string                 `protobuf:"bytes,4,opt,name=token_url,json=tokenUrl,proto3" json:"token_url,omitempty"` // chosen token image
-	PageId        string                 `protobuf:"bytes,5,opt,name=page_id,json=pageId,proto3" json:"page_id,omitempty"`       // deprecated: no longer used (join places no token)
+	Color         string                 `protobuf:"bytes,3,opt,name=color,proto3" json:"color,omitempty"`                                // border/dice color
+	TokenUrl      string                 `protobuf:"bytes,4,opt,name=token_url,json=tokenUrl,proto3" json:"token_url,omitempty"`          // chosen token image
+	PageId        string                 `protobuf:"bytes,5,opt,name=page_id,json=pageId,proto3" json:"page_id,omitempty"`                // deprecated: no longer used (join places no token)
+	CharacterId   string                 `protobuf:"bytes,6,opt,name=character_id,json=characterId,proto3" json:"character_id,omitempty"` // the player's active character this identity is for
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2111,9 +2146,16 @@ func (x *PlayerJoin) GetPageId() string {
 	return ""
 }
 
-// PlayerRemove asks the server to fully evict a player: delete their stored
-// character sheet and remove every token they own across all pages. The server
-// rebroadcasts it so all clients drop the player's tokens and sheet.
+func (x *PlayerJoin) GetCharacterId() string {
+	if x != nil {
+		return x.CharacterId
+	}
+	return ""
+}
+
+// PlayerRemove asks the server to fully evict a player: delete their entire
+// character roster and remove every token they own across all pages. The server
+// rebroadcasts it so all clients drop the player's tokens and sheets.
 type PlayerRemove struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PlayerId      string                 `protobuf:"bytes,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"` // durable, browser-stored identity
@@ -2663,7 +2705,7 @@ var File_butterroll_v1_game_proto protoreflect.FileDescriptor
 
 const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\n" +
-	"\x18butterroll/v1/game.proto\x12\rbutterroll.v1\"\xca\x03\n" +
+	"\x18butterroll/v1/game.proto\x12\rbutterroll.v1\"\xed\x03\n" +
 	"\x05Token\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\f\n" +
@@ -2680,7 +2722,8 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\x02hp\x18\f \x01(\x05H\x02R\x02hp\x88\x01\x01\x12\x1b\n" +
 	"\x06wounds\x18\r \x01(\x05H\x03R\x06wounds\x88\x01\x01\x12+\n" +
 	"\x0fowner_player_id\x18\x0e \x01(\tH\x04R\rownerPlayerId\x88\x01\x01\x12\x16\n" +
-	"\x06player\x18\x0f \x01(\bR\x06playerB\b\n" +
+	"\x06player\x18\x0f \x01(\bR\x06player\x12!\n" +
+	"\fcharacter_id\x18\x10 \x01(\tR\vcharacterIdB\b\n" +
 	"\x06_colorB\x0f\n" +
 	"\r_border_widthB\x05\n" +
 	"\x03_hpB\t\n" +
@@ -2705,13 +2748,15 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\x05pages\x18\x02 \x03(\v2\x13.butterroll.v1.PageR\x05pages\x128\n" +
 	"\n" +
 	"characters\x18\x03 \x03(\v2\x18.butterroll.v1.CharacterR\n" +
-	"characters\"\x83\x01\n" +
+	"characters\"\xc2\x01\n" +
 	"\tCharacter\x12\x1b\n" +
 	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\tR\x04data\x12\x1b\n" +
 	"\ttoken_url\x18\x03 \x01(\tR\btokenUrl\x12\x12\n" +
 	"\x04name\x18\x04 \x01(\tR\x04name\x12\x14\n" +
-	"\x05color\x18\x05 \x01(\tR\x05color\"a\n" +
+	"\x05color\x18\x05 \x01(\tR\x05color\x12!\n" +
+	"\fcharacter_id\x18\x06 \x01(\tR\vcharacterId\x12\x1a\n" +
+	"\barchived\x18\a \x01(\bR\barchived\"a\n" +
 	"\x06MapSet\x12\x17\n" +
 	"\apage_id\x18\x01 \x01(\tR\x06pageId\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n" +
@@ -2840,14 +2885,15 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\n" +
 	"dice_color\x18\t \x01(\tR\tdiceColor\x12\x14\n" +
 	"\x05label\x18\n" +
-	" \x01(\tR\x05label\"\x89\x01\n" +
+	" \x01(\tR\x05label\"\xac\x01\n" +
 	"\n" +
 	"PlayerJoin\x12\x1b\n" +
 	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05color\x18\x03 \x01(\tR\x05color\x12\x1b\n" +
 	"\ttoken_url\x18\x04 \x01(\tR\btokenUrl\x12\x17\n" +
-	"\apage_id\x18\x05 \x01(\tR\x06pageId\"+\n" +
+	"\apage_id\x18\x05 \x01(\tR\x06pageId\x12!\n" +
+	"\fcharacter_id\x18\x06 \x01(\tR\vcharacterId\"+\n" +
 	"\fPlayerRemove\x12\x1b\n" +
 	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\"\xd4\r\n" +
 	"\bEnvelope\x12,\n" +

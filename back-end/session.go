@@ -30,10 +30,11 @@ type Session struct {
 	PageOrder       []string // ordered list of page IDs for display
 	PresentedPageID string   // which page /view shows
 
-	// Characters holds each player's record (opaque sheet blob plus display
-	// name and token image) keyed by their durable player_id. The server
-	// stores/relays it (for the DM view and cross-restart persistence) without
-	// interpreting the sheet blob.
+	// Characters holds every character record (opaque sheet blob plus display
+	// name and token image) keyed by its durable character_id. A player
+	// (player_id) may own several — one active (archived == false) plus retired
+	// sheets. The server stores/relays them (for the DM view and cross-restart
+	// persistence) without interpreting the sheet blob.
 	Characters map[string]*pb.Character
 
 	// cfg holds the room's behavior rules, evaluated in Apply. May be nil (no
@@ -167,7 +168,14 @@ func LoadSession(path string) (*Session, error) {
 		Characters:      make(map[string]*pb.Character, len(snap.Characters)),
 	}
 	for _, ch := range snap.Characters {
-		s.Characters[ch.PlayerId] = ch
+		// Migrate pre-roster snapshots: characters saved before character_id
+		// existed were keyed by player_id and are the player's one (active)
+		// sheet. Mint an id (reuse player_id, which is unique per active
+		// character) so they re-key cleanly and stay active.
+		if ch.CharacterId == "" {
+			ch.CharacterId = ch.PlayerId
+		}
+		s.Characters[ch.CharacterId] = ch
 	}
 	for _, pd := range snap.Pages {
 		p := &Page{

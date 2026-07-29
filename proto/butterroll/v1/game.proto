@@ -31,6 +31,11 @@ message Token {
   // distinct from an owned monster (player == false). At most one player == true
   // token per owner per page.
   bool player = 15;
+  // character_id ties a player token to the specific character it represents (a
+  // player owns a roster; see Character). Lets clients tell an active
+  // character's token from a retired one's leftover token. Empty on non-player
+  // (DM/NPC/monster) tokens.
+  string character_id = 16;
 }
 
 // FogPoly is one revealed polygon cut out of the fog overlay. points is a flat
@@ -63,17 +68,24 @@ message Snapshot {
   repeated Character characters = 3;
 }
 
-// Character holds a player's sheet as an opaque JSON blob keyed by the durable
-// player_id. The server stores and relays it (so the DM can view it and it
-// survives restarts) but does not interpret its contents. name and token_url
-// mirror the player's chosen display name and token image so clients (the DM's
-// player bar) can show the player even on pages where they have no token.
+// Character holds a player's sheet as an opaque JSON blob. The server stores and
+// relays it (so the DM can view it and it survives restarts) but does not
+// interpret its contents. name and token_url mirror the player's chosen display
+// name and token image so clients (the DM's player bar) can show the player even
+// on pages where they have no token.
+//
+// The store is keyed by character_id. An active character (archived == false)
+// is owned by a player (player_id); switching characters archives the old one,
+// which clears player_id — retired sheets live in a shared graveyard belonging
+// to no individual player, so they survive that player being evicted.
 message Character {
   string player_id = 1;
   string data = 2;
   string token_url = 3;
   string name = 4;
   string color = 5;  // border/dice color, so the DM can place their token
+  string character_id = 6;  // durable per-character id; the store key
+  bool archived = 7;        // false = the player's one active character
 }
 
 // ── Client → server messages (re-broadcast to all clients) ───────────────────
@@ -232,21 +244,23 @@ message DiceRollResult {
   string label = 10;
 }
 
-// PlayerJoin registers a player's identity (name, color, token image) with the
-// server so the DM's player bar can show them. It no longer places any token —
-// the DM adds a player's token by clicking them in that bar. The server never
-// rebroadcasts PlayerJoin itself; it broadcasts the resulting characterUpdate.
+// PlayerJoin registers a player's active-character identity (name, color, token
+// image) with the server so the DM's player bar can show them. It no longer
+// places any token — the DM adds a player's token by clicking them in that bar.
+// The server never rebroadcasts PlayerJoin itself; it broadcasts the resulting
+// characterUpdate for the active character_id.
 message PlayerJoin {
-  string player_id = 1;  // durable, browser-stored identity
+  string player_id = 1;     // durable, browser-stored identity
   string name = 2;
-  string color = 3;      // border/dice color
-  string token_url = 4;  // chosen token image
-  string page_id = 5;    // deprecated: no longer used (join places no token)
+  string color = 3;         // border/dice color
+  string token_url = 4;     // chosen token image
+  string page_id = 5;       // deprecated: no longer used (join places no token)
+  string character_id = 6;  // the player's active character this identity is for
 }
 
-// PlayerRemove asks the server to fully evict a player: delete their stored
-// character sheet and remove every token they own across all pages. The server
-// rebroadcasts it so all clients drop the player's tokens and sheet.
+// PlayerRemove asks the server to fully evict a player: delete their entire
+// character roster and remove every token they own across all pages. The server
+// rebroadcasts it so all clients drop the player's tokens and sheets.
 message PlayerRemove {
   string player_id = 1;  // durable, browser-stored identity
 }

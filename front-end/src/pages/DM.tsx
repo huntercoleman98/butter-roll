@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { GiTombstone } from "react-icons/gi";
 import { uuid } from "../utils/uuid";
 import Konva from "konva";
 import MapCanvas, { type ActiveTool } from "../components/MapCanvas";
@@ -57,6 +58,18 @@ export default function DM() {
     x: number;
     y: number;
   } | null>(null);
+  // A read-only character sheet opened from the player bar (a retired character
+  // has no map token, so it can't reuse the token-driven sheet window).
+  const [sheetWindow, setSheetWindow] = useState<{
+    name: string;
+    data: string | undefined;
+    x: number;
+    y: number;
+  } | null>(null);
+  // The shared graveyard menu (all retired characters), opened from the bar.
+  const [retiredMenu, setRetiredMenu] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
   const mapAreaRef = useRef<HTMLDivElement>(null);
   const mapInputRef = useRef<HTMLInputElement>(null);
@@ -208,9 +221,18 @@ export default function DM() {
           public: true,
           player: true,
           ownerPlayerId: playerId,
+          characterId: ch.characterId,
         },
       },
     });
+  }
+
+  // The player's active (non-archived) character, if any. `characters` is keyed
+  // by characterId and holds the whole roster, so we resolve the live one here.
+  function activeCharacterFor(playerId: string): CharacterRecord | undefined {
+    return Object.values(characters).find(
+      (c) => c.ownerPlayerId === playerId && !c.archived,
+    );
   }
 
   function handleMoveToken(id: string, x: number, y: number) {
@@ -541,17 +563,28 @@ export default function DM() {
 
         {/* ── Player token bar ── */}
         {(() => {
-          const players = Object.entries(characters);
-          if (players.length === 0) return null;
-          // Index the active page's player tokens by owner so each chip can tell
-          // whether that player is present here (and drive the focus actions).
-          const tokenByOwner = new Map<string, TokenData>();
+          // Group the roster by owning player; each chip shows that player's
+          // active character. Retired characters are unassociated and reached
+          // from the shared graveyard button instead.
+          const activeByPlayer = new Map<string, CharacterRecord>();
+          let retiredCount = 0;
+          for (const c of Object.values(characters)) {
+            if (c.archived) retiredCount++;
+            else activeByPlayer.set(c.ownerPlayerId, c);
+          }
+          const players = [...activeByPlayer.entries()];
+          if (players.length === 0 && retiredCount === 0) return null;
+          // Index this page's player tokens by the character they represent, so
+          // a chip is "present" only when its active character's own token is
+          // here (a retired character's leftover token has a different id).
+          const tokenByCharacter = new Map<string, TokenData>();
           for (const t of activePage?.tokens ?? [])
-            if (t.ownerPlayerId) tokenByOwner.set(t.ownerPlayerId, t);
+            if (t.player && t.characterId)
+              tokenByCharacter.set(t.characterId, t);
           return (
             <div className="player-token-bar">
               {players.map(([playerId, ch]) => {
-                const token = tokenByOwner.get(playerId) ?? null;
+                const token = tokenByCharacter.get(ch.characterId) ?? null;
                 const name = ch.name || token?.name || "Player";
                 const url = ch.tokenUrl || token?.url || "";
                 return (
@@ -589,9 +622,56 @@ export default function DM() {
                   </button>
                 );
               })}
+              {retiredCount > 0 && (
+                <button
+                  className="player-token-graveyard"
+                  title={`Retired characters (${retiredCount})`}
+                  onClick={(e) =>
+                    setRetiredMenu({ x: e.clientX, y: e.clientY })
+                  }
+                >
+                  <GiTombstone />
+                  <span className="player-token-chip-name">Retired</span>
+                </button>
+              )}
             </div>
           );
         })()}
+
+        {/* ── Shared graveyard menu (all retired characters) ── */}
+        {retiredMenu &&
+          (() => {
+            const retired = Object.values(characters).filter((c) => c.archived);
+            return (
+              <ContextMenu
+                x={retiredMenu.x}
+                y={retiredMenu.y}
+                title="Retired characters"
+                onClose={() => setRetiredMenu(null)}
+              >
+                {retired.length === 0 ? (
+                  <li className="context-menu-heading">None yet</li>
+                ) : (
+                  retired.map((c) => (
+                    <li
+                      key={c.characterId}
+                      onClick={() => {
+                        setSheetWindow({
+                          name: c.name || "Retired character",
+                          data: c.data,
+                          x: retiredMenu.x,
+                          y: retiredMenu.y,
+                        });
+                        setRetiredMenu(null);
+                      }}
+                    >
+                      View {c.name || "retired character"}
+                    </li>
+                  ))
+                )}
+              </ContextMenu>
+            );
+          })()}
 
         {/* ── Player token context menu ── */}
         {playerMenu &&
@@ -844,8 +924,8 @@ export default function DM() {
             const pname = token.name || "Player";
             return (
               <TokenCharacterWindow
-                token={token}
-                data={characters[token.ownerPlayerId]?.data}
+                name={pname}
+                data={activeCharacterFor(token.ownerPlayerId)?.data}
                 x={monsterWindow.x}
                 y={monsterWindow.y}
                 ready={connected}
@@ -879,6 +959,24 @@ export default function DM() {
             />
           );
         })()}
+      {sheetWindow && (
+        <TokenCharacterWindow
+          name={sheetWindow.name}
+          data={sheetWindow.data}
+          x={sheetWindow.x}
+          y={sheetWindow.y}
+          ready={connected}
+          onRollCheck={(mod, label) => {
+            const expr =
+              mod === 0 ? "1d20" : mod > 0 ? `1d20+${mod}` : `1d20${mod}`;
+            handleMonsterRoll(expr, label, sheetWindow.name);
+          }}
+          onRoll={(expr, label) =>
+            handleMonsterRoll(expr, label, sheetWindow.name)
+          }
+          onClose={() => setSheetWindow(null)}
+        />
+      )}
       <DiceOverlay requests={privateRollRequests} onResult={handleDiceResult} />
     </div>
   );

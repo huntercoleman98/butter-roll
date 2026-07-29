@@ -123,6 +123,33 @@
   white-space: nowrap;
 }
 
+/* Shared graveyard button: opens the list of retired (unassociated) characters.
+   Sits at the end of the bar, visually separated from the player chips. */
+.player-token-graveyard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px 6px;
+  margin-left: auto;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+  color: #555;
+}
+
+.player-token-graveyard svg {
+  width: 32px;
+  height: 40px;
+}
+
+.player-token-graveyard:hover {
+  color: #000;
+}
+
 /* ── Content area ── */
 
 .content {
@@ -194,6 +221,22 @@
 .context-menu .tree-view > li:hover {
   background: #000080;
   color: #fff;
+}
+
+/* A non-interactive section label within a context menu (e.g. "Retired
+   characters"), so grouped items read as a list rather than actions. */
+.context-menu .tree-view > li.context-menu-heading {
+  cursor: default;
+  margin-top: 4px;
+  padding-top: 2px;
+  border-top: 1px solid #808080;
+  font-size: 0.85em;
+  color: #444;
+}
+
+.context-menu .tree-view > li.context-menu-heading:hover {
+  background: transparent;
+  color: #444;
 }
 
 .context-menu-fields {

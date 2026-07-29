@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import type { TokenData } from "../hooks/useGameSocket";
 import CharacterSheet from "./CharacterSheet";
 import { type Character, normalizeCharacter } from "./character";
 
 interface Props {
-  token: TokenData;
-  // The owner's serialized sheet blob (from useGameSocket.characters), or
+  // The character's display name (from their token or Character record).
+  name: string;
+  // The character's serialized sheet blob (from useGameSocket.characters), or
   // undefined if the player hasn't pushed one yet.
   data: string | undefined;
   x: number;
@@ -16,10 +16,11 @@ interface Props {
   onClose: () => void;
 }
 
-// Read-only view of a player's character sheet, opened when the DM double-clicks
-// that player's token. Editing lives on the player's own /player view.
+// Read-only view of a character's sheet, opened when the DM double-clicks that
+// player's token or picks one of their characters from the player bar. Editing
+// lives on the player's own /player view.
 export default function TokenCharacterWindow({
-  token,
+  name,
   data,
   x,
   y,
@@ -70,7 +71,7 @@ export default function TokenCharacterWindow({
         style={{ cursor: "move" }}
         onMouseDown={handleTitleBarDrag}
       >
-        <div className="title-bar-text">{token.name || "Player Character"}</div>
+        <div className="title-bar-text">{name || "Player Character"}</div>
         <div className="title-bar-controls">
           <button aria-label="Close" onClick={onClose} />
         </div>
@@ -78,7 +79,7 @@ export default function TokenCharacterWindow({
       <div className="window-body token-character-body">
         {character ? (
           <CharacterSheet
-            name={token.name}
+            name={name}
             character={character}
             readOnly
             ready={ready}
