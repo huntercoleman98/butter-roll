@@ -3,6 +3,7 @@ import { GiCog, GiNewShoot, GiSheikahEye, GiSightDisabled } from "react-icons/gi
 import {
   useGameSocket,
   fetchConfig,
+  tokenLibraryApi,
   type DiceRollResult,
 } from "../hooks/useGameSocket";
 import { parseDiceExpression } from "../utils/parseDiceExpression";
@@ -13,7 +14,7 @@ import {
   emptyCharacter,
   normalizeCharacter,
 } from "../components/character";
-import TokenLibrary from "../components/TokenLibrary";
+import AssetLibrary from "../components/AssetLibrary";
 import "../App.css";
 
 const DIE_SIDES = [4, 6, 8, 10, 12, 20, 100];
@@ -385,8 +386,9 @@ export default function Player() {
               )}
             </div>
             <div className="player-setup-token-picker">
-              <TokenLibrary
-                onPlaceToken={setSetupTokenUrl}
+              <AssetLibrary
+                api={tokenLibraryApi}
+                onSelect={setSetupTokenUrl}
                 readOnly
                 rootFolderId={playerTokenFolderId}
               />

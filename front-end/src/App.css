@@ -53,7 +53,7 @@
   top: calc(100% + 2px);
   left: 0;
   z-index: 100;
-  min-width: 180px;
+  width: 280px;
 }
 
 .map-dropdown .window-body {
@@ -66,6 +66,24 @@
   display: flex;
   gap: 6px;
   align-items: center;
+  padding: 4px 4px 0;
+}
+
+.map-aspect-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+.map-aspect-toggle label {
+  cursor: pointer;
+}
+
+.map-dropdown-sep {
+  width: 100%;
+  margin: 2px 0 0;
 }
 
 /* ── Player token bar ── */

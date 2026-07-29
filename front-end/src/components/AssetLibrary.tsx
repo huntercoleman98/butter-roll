@@ -1,7 +1,11 @@
 import { useRef, useState } from "react";
 import { GiOpenFolder, GiFullFolder } from "react-icons/gi";
-import type { TokenFolder, TokenAsset } from "../hooks/useGameSocket";
-import { useTokenLibrary, ROOT } from "../hooks/useTokenLibrary";
+import type {
+  AssetFolder,
+  Asset,
+  AssetLibraryApi,
+} from "../hooks/useGameSocket";
+import { useAssetLibrary, ROOT } from "../hooks/useAssetLibrary";
 import { ContextMenu } from "./ContextMenu";
 
 const TOKEN_MIME = "application/x-token-url";
@@ -12,7 +16,7 @@ type ItemKind = "folder" | "token";
 // All folder ids in the subtree rooted at `root` (inclusive), by breadth-first
 // walk over parentId links.
 function subtreeFolderIds(
-  folders: TokenFolder[],
+  folders: AssetFolder[],
   root: string,
 ): Set<string> {
   const ids = new Set<string>([root]);
@@ -30,8 +34,13 @@ function subtreeFolderIds(
   return ids;
 }
 
-interface TokenLibraryProps {
-  onPlaceToken: (url: string) => void;
+interface AssetLibraryProps {
+  // The store to browse (tokens or maps); see tokenLibraryApi / mapLibraryApi.
+  api: AssetLibraryApi;
+  // Called with the asset's URL when the user clicks it (place token / set map).
+  onSelect: (url: string) => void;
+  // Singular label for the asset kind, used in placeholder/empty copy.
+  noun?: string;
   // Picker mode: browse, filter, select, and upload, but no library mutation —
   // no drag-to-rearrange, no new folders, no rename/delete. Used by /player so a
   // player can't reorganize the DM's shared library.
@@ -41,11 +50,13 @@ interface TokenLibraryProps {
   rootFolderId?: string;
 }
 
-export default function TokenLibrary({
-  onPlaceToken,
+export default function AssetLibrary({
+  api,
+  onSelect,
+  noun = "token",
   readOnly = false,
   rootFolderId,
-}: TokenLibraryProps) {
+}: AssetLibraryProps) {
   const {
     lib,
     loading,
@@ -59,9 +70,9 @@ export default function TokenLibrary({
     moveToken,
     moveFolder,
     uploadFiles,
-  } = useTokenLibrary();
+  } = useAssetLibrary(api);
 
-  // UI-only state (the data layer lives in useTokenLibrary).
+  // UI-only state (the data layer lives in useAssetLibrary).
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [renaming, setRenaming] = useState<{ kind: ItemKind; id: string } | null>(
     null,
@@ -182,7 +193,7 @@ export default function TokenLibrary({
 
   // ── Rendering ───────────────────────────────────────────────────────────────
 
-  function renderToken(token: TokenAsset, depth: number) {
+  function renderToken(token: Asset, depth: number) {
     const editing = isRenaming("token", token.url);
     return (
       <div
@@ -192,7 +203,7 @@ export default function TokenLibrary({
         }`}
         style={{ paddingLeft: 8 + depth * 14 }}
         draggable={!editing && !readOnly}
-        onClick={editing ? undefined : () => onPlaceToken(token.url)}
+        onClick={editing ? undefined : () => onSelect(token.url)}
         onDragStart={(e) => {
           e.dataTransfer.setData(TOKEN_MIME, token.url);
           e.dataTransfer.effectAllowed = "move";
@@ -227,7 +238,7 @@ export default function TokenLibrary({
     );
   }
 
-  function renderFolder(folder: TokenFolder, depth: number) {
+  function renderFolder(folder: AssetFolder, depth: number) {
     const isOpen = expanded.has(folder.id);
     const isDragOver = dragOverId === folder.id;
     const editing = isRenaming("folder", folder.id);
@@ -353,7 +364,7 @@ export default function TokenLibrary({
         <input
           type="text"
           className="monsters-filter"
-          placeholder="Filter tokens…"
+          placeholder={`Filter ${noun}s…`}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
@@ -368,7 +379,7 @@ export default function TokenLibrary({
           <div className="token-lib-empty">Loading…</div>
         ) : rootId === null ? (
           <div className="token-lib-empty">
-            No tokens available — configured folder not found.
+            No {noun}s available — configured folder not found.
           </div>
         ) : query ? (
           matches.length === 0 ? (
@@ -378,7 +389,7 @@ export default function TokenLibrary({
           )
         ) : childFolders(rootId).length === 0 &&
           tokensIn(rootId).length === 0 ? (
-          <div className="token-lib-empty">No tokens yet. Upload some above.</div>
+          <div className="token-lib-empty">No {noun}s yet. Upload some above.</div>
         ) : (
           <>
             {childFolders(rootId).map((f) => renderFolder(f, 0))}

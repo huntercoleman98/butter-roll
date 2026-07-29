@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  fetchTokenLibrary,
-  saveTokenLibrary,
-  uploadTokenAsset,
-  deleteTokenAsset,
-  type TokenLibrary as Library,
-  type TokenFolder,
+  type AssetLibrary as Library,
+  type AssetFolder,
+  type AssetLibraryApi,
 } from "./useGameSocket";
 import { uuid } from "../utils/uuid";
 
@@ -15,7 +12,7 @@ const emptyLib: Library = { folders: [], tokens: [] };
 
 // Is `maybeAncestorId` an ancestor of `folderId`? Used to block cyclic moves.
 function isAncestor(
-  folders: TokenFolder[],
+  folders: AssetFolder[],
   maybeAncestorId: string,
   folderId: string,
 ) {
@@ -27,9 +24,10 @@ function isAncestor(
   return false;
 }
 
-// Owns the token library's data: server load, debounced persistence, and every
-// tree mutation. UI state (expanded/renaming/menu/drag) stays in the component.
-export function useTokenLibrary() {
+// Owns an asset library's data: server load, debounced persistence, and every
+// tree mutation. `api` binds it to one store (tokens or maps); UI state
+// (expanded/renaming/menu/drag) stays in the component.
+export function useAssetLibrary(api: AssetLibraryApi) {
   const [lib, setLib] = useState<Library>(emptyLib);
   const [loading, setLoading] = useState(true);
 
@@ -39,9 +37,14 @@ export function useTokenLibrary() {
     libRef.current = lib;
   }, [lib]);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Keep the newest api in a ref so the load/flush effect stays one-shot without
+  // re-running (and re-fetching) if the caller passes a fresh api object.
+  const apiRef = useRef(api);
+  apiRef.current = api;
 
   useEffect(() => {
-    fetchTokenLibrary()
+    apiRef.current
+      .fetch()
       .then(setLib)
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -51,7 +54,7 @@ export function useTokenLibrary() {
       if (saveTimer.current) {
         clearTimeout(saveTimer.current);
         saveTimer.current = null;
-        saveTokenLibrary(libRef.current).catch(console.error);
+        apiRef.current.save(libRef.current).catch(console.error);
       }
     };
   }, []);
@@ -62,7 +65,7 @@ export function useTokenLibrary() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       saveTimer.current = null;
-      saveTokenLibrary(next).catch(console.error);
+      apiRef.current.save(next).catch(console.error);
     }, 400);
   }
 
@@ -77,7 +80,7 @@ export function useTokenLibrary() {
 
   // Returns the new folder's id so the caller can expand its parent / start rename.
   function createFolder(parentId: string): string {
-    const folder: TokenFolder = { id: uuid(), name: "New folder", parentId };
+    const folder: AssetFolder = { id: uuid(), name: "New folder", parentId };
     persist({ ...lib, folders: [...lib.folders, folder] });
     return folder.id;
   }
@@ -111,9 +114,9 @@ export function useTokenLibrary() {
     });
   }
 
-  // Remove a token from the library and delete its image file on the server.
+  // Remove an asset from the library and delete its image file on the server.
   function deleteToken(url: string) {
-    deleteTokenAsset(url).catch(console.error);
+    apiRef.current.remove(url).catch(console.error);
     persist({ ...lib, tokens: lib.tokens.filter((t) => t.url !== url) });
   }
 
@@ -148,7 +151,7 @@ export function useTokenLibrary() {
     const added = [];
     for (const file of files) {
       try {
-        const url = await uploadTokenAsset(file);
+        const url = await apiRef.current.upload(file);
         added.push({ url, name: file.name.replace(/\.[^.]+$/, ""), folderId });
       } catch (err) {
         console.error(err);

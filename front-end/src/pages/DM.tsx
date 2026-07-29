@@ -10,13 +10,14 @@ import InitiativePanel from "../components/InitiativePanel";
 import MonstersPanel from "../components/MonstersPanel";
 import TokenMonsterWindow from "../components/TokenMonsterWindow";
 import TokenCharacterWindow from "../components/TokenCharacterWindow";
-import TokenLibrary from "../components/TokenLibrary";
+import AssetLibrary from "../components/AssetLibrary";
 import { ContextMenu } from "../components/ContextMenu";
 import { useOutsideClick } from "../hooks/useOutsideClick";
 import type { Monster } from "../types/monster";
 import {
   useGameSocket,
-  uploadAsset,
+  tokenLibraryApi,
+  mapLibraryApi,
   fetchMonsters,
   type ArrowOverlay,
   type RadiusCircle,
@@ -72,7 +73,6 @@ export default function DM() {
   );
 
   const mapAreaRef = useRef<HTMLDivElement>(null);
-  const mapInputRef = useRef<HTMLInputElement>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
   const tokenMenuRef = useRef<HTMLDivElement>(null);
   const mapMenuRef = useRef<HTMLDivElement>(null);
@@ -156,11 +156,10 @@ export default function DM() {
   useOutsideClick(tokenMenuRef, () => setTokenMenuOpen(false), tokenMenuOpen);
   useOutsideClick(mapMenuRef, () => setMapMenuOpen(false), mapMenuOpen);
 
-  async function handleMapFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !activeId) return;
-    e.target.value = "";
-    const url = await uploadAsset(file);
+  // Set the active page's map to a library image. Dimensions are read from the
+  // image at selection time (the library only stores the file + its placement).
+  function setMapFromLibrary(url: string) {
+    if (!activeId) return;
     const img = new Image();
     img.onload = () =>
       send({
@@ -469,55 +468,48 @@ export default function DM() {
             )}
           </div>
 
-          <input
-            ref={mapInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={handleMapFile}
-          />
           <div className="menu-group map-menu-group" ref={mapMenuRef}>
             <button onClick={() => setMapMenuOpen((o) => !o)}>Map ▾</button>
             {mapMenuOpen && (
               <div className="window map-dropdown">
-                <div className="window-body">
-                  <button
-                    onClick={() => {
-                      mapInputRef.current?.click();
-                      setMapMenuOpen(false);
-                    }}
-                  >
-                    Set Map…
-                  </button>
+                <div className="window-body token-dropdown-body">
                   {activePage?.mapSize && (
-                    <div className="map-dropdown-row">
-                      <MapSizeInput
-                        label="W"
-                        value={activePage.mapSize.width}
-                        onChange={(n) => handleMapSizeInput("width", String(n))}
-                      />
-                      <MapSizeInput
-                        label="H"
-                        value={activePage.mapSize.height}
-                        onChange={(n) =>
-                          handleMapSizeInput("height", String(n))
-                        }
-                      />
-                      <button
-                        style={{ padding: "2px 4px" }}
-                        onClick={() => setAspectLocked((l) => !l)}
-                        title={
-                          aspectLocked
-                            ? "Unlock aspect ratio"
-                            : "Lock aspect ratio"
-                        }
-                      >
-                        {aspectLocked
-                          ? "Aspect ratio locked"
-                          : "Aspect ratio unlocked"}
-                      </button>
-                    </div>
+                    <>
+                      <div className="map-dropdown-row">
+                        <MapSizeInput
+                          label="W"
+                          value={activePage.mapSize.width}
+                          onChange={(n) =>
+                            handleMapSizeInput("width", String(n))
+                          }
+                        />
+                        <MapSizeInput
+                          label="H"
+                          value={activePage.mapSize.height}
+                          onChange={(n) =>
+                            handleMapSizeInput("height", String(n))
+                          }
+                        />
+                      </div>
+                      <div className="map-aspect-toggle">
+                        <input
+                          type="checkbox"
+                          id="map-aspect-lock"
+                          checked={aspectLocked}
+                          onChange={(e) => setAspectLocked(e.target.checked)}
+                        />
+                        <label htmlFor="map-aspect-lock">
+                          Lock aspect ratio
+                        </label>
+                      </div>
+                      <hr className="map-dropdown-sep" />
+                    </>
                   )}
+                  <AssetLibrary
+                    api={mapLibraryApi}
+                    onSelect={setMapFromLibrary}
+                    noun="map"
+                  />
                 </div>
               </div>
             )}
@@ -530,7 +522,7 @@ export default function DM() {
             {tokenMenuOpen && (
               <div className="window token-dropdown">
                 <div className="window-body token-dropdown-body">
-                  <TokenLibrary onPlaceToken={placeToken} />
+                  <AssetLibrary api={tokenLibraryApi} onSelect={placeToken} />
                 </div>
               </div>
             )}

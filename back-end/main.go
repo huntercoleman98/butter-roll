@@ -33,7 +33,13 @@ func main() {
 		log.Fatalf("cannot create monsters dir: %v", err)
 	}
 
+	mapsDir := filepath.Join(assetsDir, "maps")
+	if err := os.MkdirAll(mapsDir, 0755); err != nil {
+		log.Fatalf("cannot create maps dir: %v", err)
+	}
+
 	libraryPath := filepath.Join(assetsDir, "token-library.json")
+	mapLibraryPath := filepath.Join(assetsDir, "map-library.json")
 
 	sessionPath := filepath.Join(dataDir, "session.json")
 	session, err := LoadSession(sessionPath)
@@ -68,10 +74,15 @@ func main() {
 	mux.HandleFunc("GET /api/assets/{file}", cors(allowedOrigin, serveAsset(assetsDir)))
 	mux.HandleFunc("POST /api/assets/tokens", cors(allowedOrigin, uploadAsset(tokensDir, "/api/assets/tokens/")))
 	mux.HandleFunc("GET /api/assets/tokens", cors(allowedOrigin, listAssets(tokensDir, "/api/assets/tokens/")))
-	mux.HandleFunc("GET /api/assets/tokens/library", cors(allowedOrigin, getTokenLibrary(tokensDir, libraryPath, "/api/assets/tokens/")))
-	mux.HandleFunc("POST /api/assets/tokens/library", cors(allowedOrigin, saveTokenLibrary(tokensDir, libraryPath, "/api/assets/tokens/")))
-	mux.HandleFunc("POST /api/assets/tokens/delete", cors(allowedOrigin, deleteTokenAsset(tokensDir)))
+	mux.HandleFunc("GET /api/assets/tokens/library", cors(allowedOrigin, getAssetLibrary(tokensDir, libraryPath, "/api/assets/tokens/")))
+	mux.HandleFunc("POST /api/assets/tokens/library", cors(allowedOrigin, saveAssetLibrary(tokensDir, libraryPath, "/api/assets/tokens/")))
+	mux.HandleFunc("POST /api/assets/tokens/delete", cors(allowedOrigin, deleteAsset(tokensDir)))
 	mux.HandleFunc("GET /api/assets/tokens/{file}", cors(allowedOrigin, serveAsset(tokensDir)))
+	mux.HandleFunc("POST /api/assets/maps", cors(allowedOrigin, uploadAsset(mapsDir, "/api/assets/maps/")))
+	mux.HandleFunc("GET /api/assets/maps/library", cors(allowedOrigin, getAssetLibrary(mapsDir, mapLibraryPath, "/api/assets/maps/")))
+	mux.HandleFunc("POST /api/assets/maps/library", cors(allowedOrigin, saveAssetLibrary(mapsDir, mapLibraryPath, "/api/assets/maps/")))
+	mux.HandleFunc("POST /api/assets/maps/delete", cors(allowedOrigin, deleteAsset(mapsDir)))
+	mux.HandleFunc("GET /api/assets/maps/{file}", cors(allowedOrigin, serveAsset(mapsDir)))
 	mux.HandleFunc("GET /api/monsters", cors(allowedOrigin, listMonsters(monstersDir)))
 	mux.HandleFunc("GET /api/config", cors(allowedOrigin, serveConfig(cfg)))
 	mux.HandleFunc("/", spaHandler(distFS))

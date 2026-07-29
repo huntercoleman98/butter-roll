@@ -12,11 +12,17 @@ import (
 	"sync"
 )
 
-// The token library is an organizational layer over the flat token asset store.
-// Image files stay flat in tokensDir with stable URLs (so tokens already placed
-// on a map never break); this sidecar only records the folder tree and each
-// token's folder + display name. It is reconciled against the files on disk on
-// every read, so uploads appear automatically and deletions clean themselves up.
+// An asset library is an organizational layer over a flat asset store (used for
+// both the token store and the map store). Image files stay flat in assetsDir
+// with stable URLs (so assets already referenced on a map never break); this
+// sidecar only records the folder tree and each asset's folder + display name.
+// It is reconciled against the files on disk on every read, so uploads appear
+// automatically and deletions clean themselves up.
+//
+// The Go type/field names below are historically token-flavored (TokenLibrary,
+// LibraryToken, Tokens) and the on-disk JSON keeps the "tokens" key for
+// backward compatibility; a map library reuses the same shape and handlers,
+// pointed at a different directory and sidecar file.
 
 type LibraryFolder struct {
 	ID       string `json:"id"`
@@ -149,10 +155,10 @@ func defaultTokenName(url string) string {
 	return strings.TrimSuffix(base, filepath.Ext(base))
 }
 
-// deleteTokenAsset removes a token image file. The library sidecar isn't
-// touched — reconcileLibrary drops entries whose file is gone on the next read.
-// POST (not DELETE) with a plain body to stay a CORS "simple request".
-func deleteTokenAsset(tokensDir string) http.HandlerFunc {
+// deleteAsset removes an asset image file. The library sidecar isn't touched —
+// reconcileLibrary drops entries whose file is gone on the next read. POST (not
+// DELETE) with a plain body to stay a CORS "simple request".
+func deleteAsset(tokensDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, 4096)
 		var body struct {
@@ -177,8 +183,8 @@ func deleteTokenAsset(tokensDir string) http.HandlerFunc {
 	}
 }
 
-// getTokenLibrary returns the reconciled folder tree + tokens as JSON.
-func getTokenLibrary(tokensDir, libraryPath, urlPrefix string) http.HandlerFunc {
+// getAssetLibrary returns the reconciled folder tree + assets as JSON.
+func getAssetLibrary(tokensDir, libraryPath, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		libraryMu.Lock()
 		lib := reconcileLibrary(readLibraryFile(libraryPath), tokensDir, urlPrefix)
@@ -188,10 +194,10 @@ func getTokenLibrary(tokensDir, libraryPath, urlPrefix string) http.HandlerFunc 
 	}
 }
 
-// saveTokenLibrary persists a client-supplied library, reconciled against disk
-// first so phantom tokens are never written. Sent as a POST with a plain body
+// saveAssetLibrary persists a client-supplied library, reconciled against disk
+// first so phantom assets are never written. Sent as a POST with a plain body
 // to stay a CORS "simple request" (no preflight), matching the upload flow.
-func saveTokenLibrary(tokensDir, libraryPath, urlPrefix string) http.HandlerFunc {
+func saveAssetLibrary(tokensDir, libraryPath, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, 8<<20)
 		var lib TokenLibrary

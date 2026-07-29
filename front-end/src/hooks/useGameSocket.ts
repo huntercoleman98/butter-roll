@@ -511,89 +511,86 @@ export function useGameSocket() {
   };
 }
 
-/** Upload a file to the server's asset store. Returns the absolute URL. */
-export async function uploadAsset(file: File): Promise<string> {
-  const form = new FormData();
-  form.append("file", file);
-  const res = await fetch(`${API_BASE}/api/assets`, {
-    method: "POST",
-    body: form,
-  });
-  if (!res.ok) throw new Error(`Asset upload failed: ${res.statusText}`);
-  const data = (await res.json()) as { url: string };
-  return data.url;
-}
 
-/** Upload a file to the token asset store. Returns the absolute URL. */
-export async function uploadTokenAsset(file: File): Promise<string> {
-  const form = new FormData();
-  form.append("file", file);
-  const res = await fetch(`${API_BASE}/api/assets/tokens`, {
-    method: "POST",
-    body: form,
-  });
-  if (!res.ok) throw new Error(`Token upload failed: ${res.statusText}`);
-  const data = (await res.json()) as { url: string };
-  return data.url;
-}
-
-/** Fetch the list of all uploaded token asset URLs. */
-export async function fetchTokenAssets(): Promise<string[]> {
-  const res = await fetch(`${API_BASE}/api/assets/tokens`);
-  if (!res.ok) throw new Error(`Failed to fetch tokens: ${res.statusText}`);
-  return res.json() as Promise<string[]>;
-}
-
-// ── Token library (organizational layer over the flat token store) ────────────
+// ── Asset library (organizational layer over a flat asset store) ──────────────
+// The same folder/upload/rearrange machinery backs both the token store and the
+// map store; the two differ only by their REST base path (see AssetLibraryApi).
 
 /** A named, nestable folder. parentId "" means it lives at the root. */
-export interface TokenFolder {
+export interface AssetFolder {
   id: string;
   name: string;
   parentId: string;
 }
 
-/** A token image plus its display name and folder. folderId "" = root. */
-export interface TokenAsset {
+/** An image asset plus its display name and folder. folderId "" = root. */
+export interface Asset {
   url: string;
   name: string;
   folderId: string;
 }
 
-export interface TokenLibrary {
-  folders: TokenFolder[];
-  tokens: TokenAsset[];
+export interface AssetLibrary {
+  folders: AssetFolder[];
+  // Kept named `tokens` to match the server's JSON (and the original token-only
+  // shape); holds map assets for the map library.
+  tokens: Asset[];
 }
 
-/** Delete a token image file. The library reconciles the removal on next read. */
-export async function deleteTokenAsset(url: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/assets/tokens/delete`, {
-    method: "POST",
-    body: JSON.stringify({ url }),
-  });
-  if (!res.ok) throw new Error(`Failed to delete token: ${res.statusText}`);
-}
-
-/** Fetch the token library, reconciled server-side against files on disk. */
-export async function fetchTokenLibrary(): Promise<TokenLibrary> {
-  const res = await fetch(`${API_BASE}/api/assets/tokens/library`);
-  if (!res.ok) throw new Error(`Failed to fetch token library: ${res.statusText}`);
-  return res.json() as Promise<TokenLibrary>;
-}
+// Back-compat aliases (tokens were the original and only consumer).
+export type TokenFolder = AssetFolder;
+export type TokenAsset = Asset;
+export type TokenLibrary = AssetLibrary;
 
 /**
- * Persist the token library. Sent as a POST with a plain-text body so it stays
- * a CORS "simple request" (no preflight), matching the upload endpoints. The
- * server returns the reconciled library.
+ * The four REST operations a library browser needs, bound to one asset store's
+ * base path (e.g. "/api/assets/tokens"). `tokenLibraryApi` and `mapLibraryApi`
+ * below are the two concrete stores.
  */
-export async function saveTokenLibrary(lib: TokenLibrary): Promise<TokenLibrary> {
-  const res = await fetch(`${API_BASE}/api/assets/tokens/library`, {
-    method: "POST",
-    body: JSON.stringify(lib),
-  });
-  if (!res.ok) throw new Error(`Failed to save token library: ${res.statusText}`);
-  return res.json() as Promise<TokenLibrary>;
+export interface AssetLibraryApi {
+  fetch: () => Promise<AssetLibrary>;
+  save: (lib: AssetLibrary) => Promise<AssetLibrary>;
+  upload: (file: File) => Promise<string>;
+  remove: (url: string) => Promise<void>;
 }
+
+// Build an AssetLibraryApi over a store's base path. Delete/save use a plain
+// body to stay CORS "simple requests" (no preflight), matching the upload flow.
+function makeAssetLibraryApi(base: string): AssetLibraryApi {
+  return {
+    async fetch() {
+      const res = await fetch(`${API_BASE}${base}/library`);
+      if (!res.ok) throw new Error(`Failed to fetch library: ${res.statusText}`);
+      return res.json() as Promise<AssetLibrary>;
+    },
+    async save(lib) {
+      const res = await fetch(`${API_BASE}${base}/library`, {
+        method: "POST",
+        body: JSON.stringify(lib),
+      });
+      if (!res.ok) throw new Error(`Failed to save library: ${res.statusText}`);
+      return res.json() as Promise<AssetLibrary>;
+    },
+    async upload(file) {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`${API_BASE}${base}`, { method: "POST", body: form });
+      if (!res.ok) throw new Error(`Asset upload failed: ${res.statusText}`);
+      const data = (await res.json()) as { url: string };
+      return data.url;
+    },
+    async remove(url) {
+      const res = await fetch(`${API_BASE}${base}/delete`, {
+        method: "POST",
+        body: JSON.stringify({ url }),
+      });
+      if (!res.ok) throw new Error(`Failed to delete asset: ${res.statusText}`);
+    },
+  };
+}
+
+export const tokenLibraryApi = makeAssetLibraryApi("/api/assets/tokens");
+export const mapLibraryApi = makeAssetLibraryApi("/api/assets/maps");
 
 /** Fetch the aggregated monster list served from back-end/assets/monsters/. */
 export async function fetchMonsters(): Promise<import("../types/monster").Monster[]> {
