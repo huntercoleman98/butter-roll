@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { GiSheikahEye, GiSightDisabled } from "react-icons/gi";
 import type { DiceRollResult } from "../hooks/useGameSocket";
-import { parseDiceExpression } from "../utils/parseDiceExpression";
+import {
+  parseDiceExpression,
+  d20AdvantageLabel,
+} from "../utils/parseDiceExpression";
 
 interface Props {
   history: DiceRollResult[];
@@ -59,9 +62,7 @@ export default function DicePanel({ history, onRoll, onClose, zIndex = 150, onFo
     }
     setError("");
     const av = advMode !== "normal" ? advMode : undefined;
-    const label = parsed.sides === 20 && parsed.count === 1 && av
-      ? (av === "advantage" ? "with advantage" : "with disadvantage")
-      : undefined;
+    const label = d20AdvantageLabel(parsed.count, parsed.sides, advMode);
     onRoll(withBonus, isPrivate, av, label);
     inputRef.current?.select();
   }
@@ -145,9 +146,7 @@ export default function DicePanel({ history, onRoll, onClose, zIndex = 150, onFo
                   key={sides}
                   onClick={() => {
                     const av = advMode !== "normal" ? advMode : undefined;
-                    const label = sides === 20 && av
-                      ? (av === "advantage" ? "with advantage" : "with disadvantage")
-                      : undefined;
+                    const label = d20AdvantageLabel(1, sides, advMode);
                     onRoll(applyBonus(`d${sides}`, bonus), isPrivate, av, label);
                   }}
                 >

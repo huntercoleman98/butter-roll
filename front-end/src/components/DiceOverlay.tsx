@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef } from "react";
 import DiceBox from "@3d-dice/dice-box";
 import type { DiceRequest, DiceRollResult } from "../hooks/useGameSocket";
-import { parseDiceExpression } from "../utils/parseDiceExpression";
+import {
+  parseDiceExpression,
+  advantageApplies,
+  totalFromValues,
+} from "../utils/parseDiceExpression";
 
 const DICE_CLEAR_DELAY_MS = 5000;
 
@@ -29,7 +33,7 @@ export default function DiceOverlay({ requests, onResult }: Props) {
     if (!parsed) return;
     const { count, sides, modifier } = parsed;
 
-    const useAdvDisadv = req.advMode != null && count === 1 && sides === 20;
+    const useAdvDisadv = advantageApplies(count, sides, req.advMode);
     const notation = useAdvDisadv ? `2d${sides}` : `${count}d${sides}`;
 
     if (clearTimeoutRef.current !== null) {
@@ -46,20 +50,13 @@ export default function DiceOverlay({ requests, onResult }: Props) {
         outstandingRef.current -= 1;
 
         const dice = results as Array<{ value: number; sides: number }>;
-        const values = dice.map((d) => d.value);
-        let rolls: number[];
-        let total: number;
-        if (useAdvDisadv) {
-          const picked =
-            req.advMode === "advantage"
-              ? Math.max(...values)
-              : Math.min(...values);
-          rolls = values;
-          total = picked + modifier;
-        } else {
-          rolls = values;
-          total = rolls.reduce((s, v) => s + v, 0) + modifier;
-        }
+        const rolls = dice.map((d) => d.value);
+        const total = totalFromValues(
+          rolls,
+          modifier,
+          useAdvDisadv,
+          req.advMode,
+        );
 
         onResultRef.current({
           expression: req.expression,
