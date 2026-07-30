@@ -1,0 +1,27 @@
+run:
+  timeout: 3m
+
+linters:
+  enable:
+    - funlen
+    - gocyclo
+    - cyclop
+
+linters-settings:
+  funlen:
+    lines: 120
+    statements: 80
+  gocyclo:
+    min-complexity: 15
+  cyclop:
+    max-complexity: 15
+
+issues:
+  exclude-rules:
+    - path: gen/
+      linters:
+        - funlen
+        - gocyclo
+        - cyclop
+  exclude-files:
+    - _test\.go$

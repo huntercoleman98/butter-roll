@@ -1,7 +1,7 @@
 IMAGE_NAME ?= butter-roll
 IMAGE_TAG  ?= latest
 
-.PHONY: proto build docker-build docker-run docker-save dev-frontend dev-backend
+.PHONY: proto build lint docker-build docker-run docker-save dev-frontend dev-backend
 
 # Regenerate Go + TypeScript types from proto/butterroll/v1/*.proto.
 # Runs on every build/dev/docker target so generated code is never stale.
@@ -24,6 +24,13 @@ build: proto
 	rm -rf back-end/dist
 	cp -r front-end/dist back-end/dist
 	cd back-end && go build -o butter-roll .
+
+# Lint both halves against the size/complexity guardrails (see
+# documentation/REFACTORING.md). Front-end via ESLint; back-end via
+# golangci-lint (go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest).
+lint: front-end/node_modules
+	cd front-end && npm run lint
+	cd back-end && golangci-lint run
 
 # Build the Docker image. Codegen runs on the host first; the generated code is
 # then copied into the image (the Dockerfile does not run buf itself).
