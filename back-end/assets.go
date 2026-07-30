@@ -72,7 +72,7 @@ func uploadAsset(assetsDir, urlPrefix string) http.HandlerFunc {
 
 		publicURL := urlPrefix + filename
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"url": publicURL})
+		_ = json.NewEncoder(w).Encode(map[string]string{"url": publicURL})
 	}
 }
 
@@ -91,7 +91,7 @@ func listAssets(assetsDir, urlPrefix string) http.HandlerFunc {
 			}
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(urls)
+		_ = json.NewEncoder(w).Encode(urls)
 	}
 }
 

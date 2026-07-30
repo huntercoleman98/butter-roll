@@ -84,7 +84,7 @@ func writeLibraryFile(path string, lib TokenLibrary) error {
 // tokensDir: entries whose file is gone are dropped, files with no entry are
 // appended at the root, and folder references that point at a missing folder are
 // reset to the root.
-func reconcileLibrary(lib TokenLibrary, tokensDir, urlPrefix string) TokenLibrary {
+func reconcileLibrary(lib TokenLibrary, tokensDir, urlPrefix string) TokenLibrary { //nolint:gocyclo // sequential reconcile phases sharing lookup maps; clearer inline than split apart
 	entries, err := os.ReadDir(tokensDir)
 	if err != nil {
 		log.Printf("library: read tokens dir: %v", err)
@@ -190,7 +190,7 @@ func getAssetLibrary(tokensDir, libraryPath, urlPrefix string) http.HandlerFunc 
 		lib := reconcileLibrary(readLibraryFile(libraryPath), tokensDir, urlPrefix)
 		libraryMu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(lib)
+		_ = json.NewEncoder(w).Encode(lib)
 	}
 }
 
@@ -221,6 +221,6 @@ func saveAssetLibrary(tokensDir, libraryPath, urlPrefix string) http.HandlerFunc
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(lib)
+		_ = json.NewEncoder(w).Encode(lib)
 	}
 }

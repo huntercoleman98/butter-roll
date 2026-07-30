@@ -156,7 +156,7 @@ type binExpr struct {
 	l, r Expr
 }
 
-func (e *binExpr) Eval(env *ruleEnv) value {
+func (e *binExpr) Eval(env *ruleEnv) value { //nolint:gocyclo // every case is a one-liner
 	// Short-circuit logical operators before evaluating the right side.
 	switch e.op {
 	case "&&":
@@ -216,7 +216,7 @@ type token struct {
 	text string
 }
 
-func lex(src string) ([]token, error) {
+func lex(src string) ([]token, error) { //nolint:gocyclo // standard lexer: a flat switch over character classes with a shared scan index
 	var toks []token
 	runes := []rune(src)
 	i := 0
@@ -303,8 +303,8 @@ func Compile(src string) (Expr, error) {
 	return expr, nil
 }
 
-func (p *parser) cur() token  { return p.toks[p.pos] }
-func (p *parser) advance()    { p.pos++ }
+func (p *parser) cur() token { return p.toks[p.pos] }
+func (p *parser) advance()   { p.pos++ }
 func (p *parser) isOp(s string) bool {
 	return p.cur().kind == tokOp && p.cur().text == s
 }

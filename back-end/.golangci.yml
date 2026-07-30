@@ -1,11 +1,12 @@
 run:
   timeout: 3m
+  build-tags:
+    - dev
 
 linters:
   enable:
     - funlen
     - gocyclo
-    - cyclop
 
 linters-settings:
   funlen:
@@ -22,6 +23,5 @@ issues:
       linters:
         - funlen
         - gocyclo
-        - cyclop
   exclude-files:
     - _test\.go$

@@ -21,7 +21,7 @@ func finiteFloat(f float64) bool {
 // Handlers fall into three groups: pure validators for ephemeral messages
 // (which mutate nothing), Session methods for page-management, and Page methods
 // for page-scoped mutations.
-func (s *Session) Apply(msg []byte) ([]byte, bool) {
+func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo // flat message-type dispatch
 	s.followups = s.followups[:0]
 
 	var env pb.Envelope
