@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import DiceBox from "@3d-dice/dice-box";
 import type { DiceRequest, DiceRollResult } from "../hooks/useGameSocket";
 import { parseDiceExpression } from "../utils/parseDiceExpression";
@@ -19,9 +19,12 @@ export default function DiceOverlay({ requests, onResult }: Props) {
   const outstandingRef = useRef(0);
   const clearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onResultRef = useRef(onResult);
-  onResultRef.current = onResult;
 
-  const doRoll = useRef((box: InstanceType<typeof DiceBox>, req: DiceRequest) => {
+  useEffect(() => {
+    onResultRef.current = onResult;
+  });
+
+  const doRoll = useCallback((box: InstanceType<typeof DiceBox>, req: DiceRequest) => {
     const parsed = parseDiceExpression(req.expression);
     if (!parsed) return;
     const { count, sides, modifier } = parsed;
@@ -85,7 +88,7 @@ export default function DiceOverlay({ requests, onResult }: Props) {
         }
       })
       .catch(console.error);
-  }).current;
+  }, []);
 
   // Initialize once — no color dependency, color is supplied per-roll.
   useEffect(() => {

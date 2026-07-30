@@ -133,6 +133,7 @@ export default function Player() {
       diceResult.clientId === myClientId &&
       !diceResult.private
     ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- accumulating each new broadcast result; reacting to an external changing value is the intended use of an effect
       setHistory((prev) => [...prev, diceResult]);
     }
   }, [diceResult, myClientId]);

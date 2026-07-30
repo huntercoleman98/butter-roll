@@ -26,6 +26,7 @@ export function useDiceHistory({
   // Append each broadcast roll result to the history log.
   useEffect(() => {
     if (!diceResult) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- accumulating each new broadcast result; reacting to an external changing value is the intended use of an effect
     setHistory((prev) => [...prev, diceResult]);
   }, [diceResult]);
 

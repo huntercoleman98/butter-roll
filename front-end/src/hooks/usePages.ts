@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { uuid } from "../utils/uuid";
 import { useOutsideClick } from "./useOutsideClick";
 import type { Page, OutgoingPayload } from "./useGameSocket";
@@ -37,23 +37,14 @@ export function usePages({
     pagesMenuOpen,
   );
 
-  // On first snapshot, initialize active page to the presented page.
-  useEffect(() => {
-    if (activePageId === null && pages.length > 0) {
+  // Derive/repair the active page during render
+  if (pages.length > 0) {
+    if (activePageId === null) {
       setActivePageId(presentedPageId ?? pages[0].id);
-    }
-  }, [pages, presentedPageId, activePageId]);
-
-  // If the active page is deleted remotely, fall back to the first page.
-  useEffect(() => {
-    if (
-      activePageId &&
-      pages.length > 0 &&
-      !pages.find((p) => p.id === activePageId)
-    ) {
+    } else if (!pages.find((p) => p.id === activePageId)) {
       setActivePageId(pages[0].id);
     }
-  }, [pages, activePageId]);
+  }
 
   const activePage =
     pages.find((p) => p.id === activePageId) ?? pages[0] ?? null;

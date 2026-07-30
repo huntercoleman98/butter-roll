@@ -190,6 +190,7 @@ export default function MapCanvas({
   // Load map image
   useEffect(() => {
     if (!mapUrl) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing the loaded image is the intended side effect of a mapUrl change (the load below is async)
       setMapImage(null);
       return;
     }

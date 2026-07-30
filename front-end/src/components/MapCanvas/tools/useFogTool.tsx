@@ -44,14 +44,17 @@ export function useFogTool({
     setSelectedFogId(id);
   }
 
-  // Clear fog selection whenever hide mode is left
+  // Clear fog selection whenever hide mode is left. setFogSelection also writes
+  // a ref, so this reset must run in an effect, not during render.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on tool-mode change
     if (fogMode !== "hide") setFogSelection(null);
   }, [fogMode]);
 
   // Reset the in-progress polygon when leaving poly mode; Esc cancels it too.
   useEffect(() => {
     if (fogMode !== "poly") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- discard the in-progress polygon when leaving poly mode; this effect also owns the Esc-cancel keydown listener below
       setDraftPoly(null);
       setPolyCursor(null);
       return;
@@ -142,16 +145,17 @@ export function useFogTool({
     ? fogPolys.find((r) => r.id === selectedFogId)
     : null;
 
+  // Konva stage scale is imperative state, not React state — read it at render
+  // time for the draft-dot size. Safe because the overlay re-renders on every
+  // polyCursor change while the polygon is being drawn.
+  // eslint-disable-next-line react-hooks/refs
+  const drawScale = stageRef.current?.scaleX() ?? 1;
   const overlay = (
     <>
       {selFogPoly && <SelectedFogOverlay poly={selFogPoly} />}
       {draft && <DraftRectOverlay rect={draft} />}
       {draftPoly && (
-        <DraftPolyOverlay
-          poly={draftPoly}
-          cursor={polyCursor}
-          scale={stageRef.current?.scaleX() ?? 1}
-        />
+        <DraftPolyOverlay poly={draftPoly} cursor={polyCursor} scale={drawScale} />
       )}
     </>
   );

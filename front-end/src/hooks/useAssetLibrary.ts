@@ -40,7 +40,9 @@ export function useAssetLibrary(api: AssetLibraryApi) {
   // Keep the newest api in a ref so the load/flush effect stays one-shot without
   // re-running (and re-fetching) if the caller passes a fresh api object.
   const apiRef = useRef(api);
-  apiRef.current = api;
+  useEffect(() => {
+    apiRef.current = api;
+  });
 
   useEffect(() => {
     apiRef.current

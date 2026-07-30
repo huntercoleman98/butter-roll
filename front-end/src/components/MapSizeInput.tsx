@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface Props {
   label: string;
@@ -8,7 +8,7 @@ interface Props {
 
 function evaluate(raw: string): number | null {
   const expr = raw.trim();
-  const opMatch = expr.match(/^([\d.]+)\s*([+\-*\/])?\s*([\d.]+)$/);
+  const opMatch = expr.match(/^([\d.]+)\s*([+\-*/])?\s*([\d.]+)$/);
   if (opMatch) {
     const current = parseFloat(opMatch[1]);
     const operand = parseFloat(opMatch[3]);
@@ -31,9 +31,11 @@ export default function MapSizeInput({ label, value, onChange }: Props) {
   const [display, setDisplay] = useState(String(value));
 
   // Sync display when value changes externally (e.g. aspect-ratio lock updates the other axis)
-  useEffect(() => {
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     setDisplay(String(value));
-  }, [value]);
+  }
 
   function commit(raw: string) {
     const result = evaluate(raw);

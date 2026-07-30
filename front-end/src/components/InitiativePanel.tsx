@@ -9,9 +9,11 @@ const ValueInput = memo(function ValueInput({
 }) {
   const [local, setLocal] = useState(String(value));
 
-  useEffect(() => {
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     setLocal(String(value));
-  }, [value]);
+  }
 
   return (
     <input
