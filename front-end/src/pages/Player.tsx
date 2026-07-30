@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GiCog, GiNewShoot, GiSheikahEye, GiSightDisabled } from "react-icons/gi";
+import { GiCog, GiSheikahEye, GiSightDisabled } from "react-icons/gi";
 import {
   useGameSocket,
   fetchConfig,
@@ -223,18 +223,22 @@ export default function Player() {
   // future "revive" can bring it back. Locally we reset the sheet and drop into
   // the setup screen to pick the new character's name/color/token.
   function handleNewCharacter() {
-    if (!profile) return;
+    // The retire button lives on the settings screen, where `profile` state is
+    // null (it's cleared to show that screen), so fall back to the persisted
+    // profile in storage.
+    const current = profile ?? loadProfile();
+    if (!current) return;
     if (
       !window.confirm(
-        `Retire ${profile.name} and start a new character? ${profile.name} will be saved and can be brought back later.`,
+        `Retire ${current.name} and start a new character?`,
       )
     )
       return;
     send({
       case: "characterUpdate",
       value: {
-        playerId: profile.playerId,
-        characterId: profile.activeCharacterId,
+        playerId: current.playerId,
+        characterId: current.activeCharacterId,
         data: JSON.stringify(character),
         archived: true,
       },
@@ -245,7 +249,7 @@ export default function Player() {
     // the just-archived character as active and wipe its sheet. Assumes the
     // switch happens while connected, so the archive above reaches the server.
     const newId = uuid();
-    saveProfile({ ...profile, activeCharacterId: newId });
+    saveProfile({ ...current, activeCharacterId: newId });
     const fresh = emptyCharacter();
     localStorage.setItem(CHAR_KEY, JSON.stringify(fresh));
     setCharacter(fresh);
@@ -333,6 +337,10 @@ export default function Player() {
 
   // ── Setup screen ──────────────────────────────────────────────
   if (!profile) {
+    // Returning players (a persisted profile exists and we're editing it, rather
+    // than minting a fresh character, which sets pendingCharacterId) get an extra
+    // settings section below the setup fields. New/onboarding players don't.
+    const existing = pendingCharacterId ? null : loadProfile();
     return (
       <div className="window app player-app">
         <div className="title-bar">
@@ -395,12 +403,55 @@ export default function Player() {
             </div>
           </div>
 
+          {existing && (
+            <fieldset className="player-settings">
+              <legend>Settings</legend>
+              <div className="player-settings-row">
+                <div className="player-settings-row-text">
+                  <span className="player-settings-row-title">Spellcasting</span>
+                  <span className="player-settings-row-desc">
+                    Show the spell list on your character sheet.
+                  </span>
+                </div>
+                <div className="player-settings-row-action">
+                  <input
+                    type="checkbox"
+                    id="setting-spellcasting"
+                    checked={character.spellcastingEnabled}
+                    onChange={(e) =>
+                      handleCharacterChange({
+                        spellcastingEnabled: e.target.checked,
+                      })
+                    }
+                  />
+                  <label htmlFor="setting-spellcasting" />
+                </div>
+              </div>
+              <div className="player-settings-row">
+                <div className="player-settings-row-text">
+                  <span className="player-settings-row-title">
+                    Retire character
+                  </span>
+                  <span className="player-settings-row-desc">
+                    Archive {existing.name} and start a new character.
+                  </span>
+                </div>
+                <button
+                  onClick={handleNewCharacter}
+                  className="player-settings-row-action"
+                >
+                  Retire…
+                </button>
+              </div>
+            </fieldset>
+          )}
+
           <button
             disabled={!setupName.trim() || !setupTokenUrl}
             onClick={handleSave}
             style={{ marginTop: 12 }}
           >
-            Enter
+            {existing ? "Save" : "Enter"}
           </button>
         </div>
       </div>
@@ -456,13 +507,6 @@ export default function Player() {
             </button>
             <button
               className="icon-btn"
-              title="New character (retires the current one)"
-              onClick={handleNewCharacter}
-            >
-              <GiNewShoot />
-            </button>
-            <button
-              className="icon-btn"
               title="Change name / color"
               onClick={() => {
                 setSetupName(profile.name);
@@ -505,6 +549,7 @@ export default function Player() {
               ready={ready}
               onRollCheck={rollCheck}
               onRoll={handleRoll}
+              accentColor={profile.color}
             />
           </div>
         )}

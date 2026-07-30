@@ -1,3 +1,4 @@
+import { type CSSProperties } from "react";
 import { GiDiceTwentyFacesTwenty, GiTwoCoins } from "react-icons/gi";
 import { uuid } from "../utils/uuid";
 import { ABILITY_NAMES, type AbilityName, type Character } from "./character";
@@ -36,6 +37,19 @@ function updateItem<T extends { id: string }>(
   return list.map((it) => (it.id === id ? { ...it, ...patch } : it));
 }
 
+// Pick black or white text for a #rrggbb background so the label stays legible
+// whatever color the player chose. Uses perceived (sRGB-weighted) luminance.
+function readableTextColor(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return "#fff";
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? "#000" : "#fff";
+}
+
 // ── Props ─────────────────────────────────────────────────────────
 
 interface Props {
@@ -54,6 +68,9 @@ interface Props {
   onRollCheck: (mod: number, label: string) => void;
   // An arbitrary expression roll (damage, hit dice, …), no adv/disadv.
   onRoll: (expression: string, label?: string) => void;
+  // The player's chosen color. When set, the section legends are tinted with it
+  // (matching the player's identity). Omitted in the DM's read-only view.
+  accentColor?: string;
 }
 
 export default function CharacterSheet({
@@ -64,6 +81,7 @@ export default function CharacterSheet({
   ready,
   onRollCheck,
   onRoll,
+  accentColor,
 }: Props) {
   const set = (patch: Partial<Character>) => onChange?.(patch);
 
@@ -81,10 +99,24 @@ export default function CharacterSheet({
       : abilityMod(c.abilities[c.spellcastingAbility]);
 
   return (
-    <div className="sheet">
+    <div
+      className={accentColor ? "sheet sheet--accented" : "sheet"}
+      style={
+        accentColor
+          ? ({
+              "--sheet-accent": accentColor,
+              "--sheet-accent-fg": readableTextColor(accentColor),
+            } as CSSProperties)
+          : undefined
+      }
+    >
       {/* ── Bio ─────────────────────────────────────────────── */}
       <fieldset className="sheet-bio">
-        <div className="sheet-name">{name || "Unnamed character"}</div>
+        <div className="sheet-name">
+          <span className="sheet-name-text">
+            {name || "Unnamed character"}
+          </span>
+        </div>
         <div className="sheet-bio-grid">
           <Field label="Ancestry">
             <input
@@ -416,6 +448,8 @@ export default function CharacterSheet({
       </fieldset>
 
       {/* ── Spells ──────────────────────────────────────────── */}
+      {/* Hidden entirely when the player disables spellcasting in settings. */}
+      {c.spellcastingEnabled && (
       <fieldset>
         <legend>Spells</legend>
         <Field label="Spellcasting">
@@ -536,6 +570,7 @@ export default function CharacterSheet({
           </button>
         )}
       </fieldset>
+      )}
 
       {/* ── Gear ────────────────────────────────────────────── */}
       <fieldset>

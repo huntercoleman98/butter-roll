@@ -50,6 +50,10 @@ export interface Character {
   luck: boolean;
   attacks: Attack[];
   talents: Talent[];
+  // Player-controlled toggle (see the /player settings screen). When false, the
+  // Spells section is hidden from the sheet — for non-casters who don't want the
+  // clutter. Defaults true so existing casters keep their spell list.
+  spellcastingEnabled: boolean;
   spellcastingAbility: AbilityName | "";
   spells: Spell[];
   gear: GearItem[];
@@ -79,6 +83,7 @@ export function emptyCharacter(): Character {
     luck: false,
     attacks: [],
     talents: [],
+    spellcastingEnabled: true,
     spellcastingAbility: "",
     spells: [],
     gear: [],

@@ -854,6 +854,49 @@
   max-height: 210px;
 }
 
+/* Extra settings shown only to returning players (post-onboarding). Each
+   setting is a row: a label + description on the left, an action on the right.
+   Add more rows inside .player-settings to grow this section. */
+.player-settings {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.player-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.player-settings-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.player-settings-row-title {
+  font-size: 13px;
+}
+
+.player-settings-row-desc {
+  font-size: 11px;
+  color: #666;
+}
+
+.player-settings-row-action {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* 98.css draws the checkbox via the sibling label; keep the empty label sized
+   so the box renders for toggle-style settings. */
+.player-settings-row-action label {
+  min-height: 13px;
+}
+
 /* ── Player page (phone-optimized) ── */
 
 .player-app {
@@ -1070,6 +1113,21 @@ button.icon-btn {
   border-bottom: 1px solid #808080;
 }
 
+/* Same feathered accent as the legends, hugging the name text (the wrapping
+   div keeps the full-width divider). Only on the player's own sheet. */
+.sheet--accented .sheet-name-text {
+  display: inline-block;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--sheet-accent) 15%,
+    var(--sheet-accent) 85%,
+    transparent
+  );
+  color: var(--sheet-accent-fg);
+  padding: 1px 14px;
+}
+
 .sheet-bio-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1158,6 +1216,25 @@ button.icon-btn {
   justify-content: center;
   font-size: 16px;
   color: var(--text-color);
+}
+
+/* Fill the section legends with the player's color (set via --sheet-accent on
+   .sheet), tying the sheet to the player's identity. Text color is picked for
+   contrast (--sheet-accent-fg) so it stays legible for any color. Only on the
+   player's own sheet; the DM's read-only view leaves legends default. */
+.sheet--accented fieldset > legend {
+  /* Feather the accent at the left/right edges so it reads as a soft highlight
+     rather than a hard box. Extra horizontal padding keeps the text within the
+     opaque center band. */
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--sheet-accent) 15%,
+    var(--sheet-accent) 85%,
+    transparent
+  );
+  color: var(--sheet-accent-fg);
+  padding: 1px 14px;
 }
 
 /* Combat ------------------------------------------------------------ */
