@@ -109,7 +109,18 @@ export function useGameSocket() {
   const [ping, setPing] = useState<Ping | null>(null);
   const [viewportSync, setViewportSync] = useState<ViewportSync | null>(null);
   const [diceRequests, setDiceRequests] = useState<DiceRequest[]>([]);
+  // The latest broadcast result, kept for one-shot reactions (useInitiative
+  // matches an initiative roll back to its entry). diceLog is the accumulated
+  // stream that the roll-history views derive from — see the comment there.
   const [diceResult, setDiceResult] = useState<DiceRollResult | null>(null);
+  // Append-only log of every roll result seen, accumulated here (at the socket,
+  // where results actually arrive) rather than re-accumulated by each consumer
+  // in an effect. Holds broadcast results (public rolls resolved by the viewer,
+  // plus players' private rolls) and, via appendDiceResult, the local-only
+  // results a client resolves itself (the DM's private tower rolls, which never
+  // broadcast) — so ordering stays true to arrival. Consumers filter/slice it:
+  // the DM shows all of it, a player shows only their own (by clientId).
+  const [diceLog, setDiceLog] = useState<DiceRollResult[]>([]);
   const [connected, setConnected] = useState(false);
   const [myClientId, setMyClientId] = useState<string | null>(null);
   // Character records keyed by characterId. Multiple may share an ownerPlayerId
@@ -465,7 +476,7 @@ export function useGameSocket() {
 
         case "diceRollResult": {
           const m = payload.value;
-          setDiceResult({
+          const result: DiceRollResult = {
             expression: m.expression,
             sides: m.sides,
             rolls: m.rolls,
@@ -476,7 +487,9 @@ export function useGameSocket() {
             playerName: m.playerName || undefined,
             diceColor: m.diceColor || undefined,
             label: m.label || undefined,
-          });
+          };
+          setDiceResult(result);
+          setDiceLog((prev) => [...prev, result]);
           break;
         }
 
@@ -495,6 +508,14 @@ export function useGameSocket() {
     }
   }
 
+  // Record a result this client resolved locally without broadcasting it (the
+  // DM's private tower rolls). Public and player-private rolls already reach
+  // diceLog via the diceRollResult message; this keeps the local-only ones in
+  // the same ordered stream.
+  function appendDiceResult(result: DiceRollResult) {
+    setDiceLog((prev) => [...prev, result]);
+  }
+
   return {
     pages,
     presentedPageId,
@@ -504,6 +525,8 @@ export function useGameSocket() {
     viewportSync,
     diceRequests,
     diceResult,
+    diceLog,
+    appendDiceResult,
     connected,
     myClientId,
     characters,

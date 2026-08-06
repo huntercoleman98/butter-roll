@@ -33,8 +33,17 @@ import { usePanels } from "../hooks/usePanels";
 import "../App.css";
 
 export default function DM() {
-  const { pages, presentedPageId, ping, diceResult, connected, characters, send } =
-    useGameSocket();
+  const {
+    pages,
+    presentedPageId,
+    ping,
+    diceResult,
+    diceLog,
+    appendDiceResult,
+    connected,
+    characters,
+    send,
+  } = useGameSocket();
   const [aspectLocked, setAspectLocked] = useState(true);
   const [activeTool, setActiveTool] = useState<ActiveTool>("select");
   const [mapMenuOpen, setMapMenuOpen] = useState(false);
@@ -108,7 +117,7 @@ export default function DM() {
     handleRoll,
     handleDiceResult,
     handleMonsterRoll,
-  } = useDiceHistory({ diceResult, send });
+  } = useDiceHistory({ diceLog, appendDiceResult, send });
 
   const panels = usePanels();
 

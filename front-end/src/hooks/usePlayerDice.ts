@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DiceRollResult, OutgoingPayload } from "./useGameSocket";
 import {
   parseDiceExpression,
@@ -10,48 +10,45 @@ import {
 export type AdvState = "normal" | "advantage" | "disadvantage";
 
 // Owns the player's dice flow: the roll-bar input state (expression, private
-// toggle, advantage mode, error), the local roll-history log, and the three
-// roll entry points. `handleRoll`/`rollCheck` are handed to <CharacterSheet> so
-// ability checks and attacks route through the same path as the die grid.
+// toggle, advantage mode, error) and the three roll entry points.
+// `handleRoll`/`rollCheck` are handed to <CharacterSheet> so ability checks and
+// attacks route through the same path as the die grid. The history is *derived*
+// from the socket's diceLog (our own rolls, by clientId) — both public and
+// private rolls arrive there as broadcast echoes, so there's nothing to
+// accumulate locally.
 export function usePlayerDice({
   playerName,
   diceColor,
   myClientId,
-  diceResult,
+  diceLog,
   send,
 }: {
   playerName: string | undefined;
   diceColor: string | undefined;
   myClientId: string | null;
-  diceResult: DiceRollResult | null;
+  diceLog: DiceRollResult[];
   send: (payload: OutgoingPayload) => void;
 }) {
   const [expr, setExpr] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [advMode, setAdvMode] = useState<AdvState>("normal");
   const [error, setError] = useState("");
-  const [history, setHistory] = useState<DiceRollResult[]>([]);
   const historyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Our own rolls, in arrival order. Every roll we make — public (resolved and
+  // rebroadcast by the viewer) or private (we broadcast the result directly) —
+  // echoes back carrying our clientId, so filtering the shared log is all we need.
+  const history = useMemo(
+    () => diceLog.filter((r) => r.clientId === myClientId),
+    [diceLog, myClientId],
+  );
 
   // Keep the history view pinned to the newest roll.
   useEffect(() => {
     const el = historyRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [history]);
-
-  // Append each of our own public broadcast results as they arrive. Private
-  // rolls are added synchronously in handleRoll instead (they never round-trip).
-  useEffect(() => {
-    if (
-      diceResult &&
-      diceResult.clientId === myClientId &&
-      !diceResult.private
-    ) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- accumulating each new broadcast result; reacting to an external changing value is the intended use of an effect
-      setHistory((prev) => [...prev, diceResult]);
-    }
-  }, [diceResult, myClientId]);
 
   function handleRoll(expression: string, label?: string) {
     if (!playerName) return;
@@ -67,6 +64,9 @@ export function usePlayerDice({
     if (isPrivate) {
       const { sides, modifier } = parsed;
       const { rolls, total } = rollLocally(parsed, advMode);
+      // Resolved locally, but still broadcast so the DM sees the tower roll. It
+      // echoes back with our clientId, landing in diceLog → history like any
+      // other roll — no separate local append needed.
       send({
         case: "diceRollResult",
         value: {
@@ -82,10 +82,6 @@ export function usePlayerDice({
           label,
         },
       });
-      setHistory((prev) => [
-        ...prev,
-        { expression: trimmed, sides, rolls, modifier, total, private: true, label },
-      ]);
     } else {
       send({
         case: "diceRollRequest",

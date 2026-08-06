@@ -9,7 +9,7 @@ import PlayerDiceTab from "../components/PlayerDiceTab";
 import "../App.css";
 
 export default function Player() {
-  const { diceResult, myClientId, connected, send } = useGameSocket();
+  const { diceLog, myClientId, connected, send } = useGameSocket();
   const [tab, setTab] = useState<"sheet" | "dice">("sheet");
   // The folder id the onboarding token picker is confined to (from /api/config);
   // undefined until loaded, meaning "whole library" until we know otherwise.
@@ -52,7 +52,7 @@ export default function Player() {
     playerName: profile?.name,
     diceColor: profile?.color,
     myClientId,
-    diceResult,
+    diceLog,
     send,
   });
 

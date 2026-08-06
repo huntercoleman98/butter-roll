@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { uuid } from "../utils/uuid";
 import type {
   DiceRollResult,
@@ -6,36 +6,29 @@ import type {
   OutgoingPayload,
 } from "./useGameSocket";
 
-// Owns the dice log and roll dispatch: the broadcast history, the queue of
-// private rolls handed to <DiceOverlay>, and the three "roll" entry points.
-// The incoming `diceResult` (a broadcast from the server) is appended here;
-// initiative-roll resolution reacts to the same result separately in
-// useInitiative.
+// Owns dice-roll dispatch for the DM: the queue of private rolls handed to
+// <DiceOverlay> and the three "roll" entry points. The history itself is the
+// socket's diceLog (accumulated at the source), shown in full; the DM's own
+// private rolls are pushed into that same log via appendDiceResult so they
+// interleave with broadcasts in arrival order. Initiative-roll resolution
+// reacts to the latest diceResult separately in useInitiative.
 export function useDiceHistory({
-  diceResult,
+  diceLog,
+  appendDiceResult,
   send,
 }: {
-  diceResult: DiceRollResult | null;
+  diceLog: DiceRollResult[];
+  appendDiceResult: (result: DiceRollResult) => void;
   send: (payload: OutgoingPayload) => void;
 }) {
-  const [history, setHistory] = useState<DiceRollResult[]>([]);
   const [privateRollRequests, setPrivateRollRequests] = useState<DiceRequest[]>(
     [],
   );
 
-  // Append each broadcast roll result to the history log.
-  useEffect(() => {
-    if (!diceResult) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- accumulating each new broadcast result; reacting to an external changing value is the intended use of an effect
-    setHistory((prev) => [...prev, diceResult]);
-  }, [diceResult]);
-
-  // A private roll resolved locally by <DiceOverlay>; log it as the DM's.
+  // A private roll resolved locally by <DiceOverlay> (never broadcast); record
+  // it as the DM's in the shared log.
   function handleDiceResult(result: DiceRollResult) {
-    setHistory((prev) => [
-      ...prev,
-      { ...result, private: true, playerName: "DM" },
-    ]);
+    appendDiceResult({ ...result, private: true, playerName: "DM" });
   }
 
   function handleRoll(
@@ -72,7 +65,7 @@ export function useDiceHistory({
   }
 
   return {
-    history,
+    history: diceLog,
     privateRollRequests,
     handleRoll,
     handleDiceResult,
