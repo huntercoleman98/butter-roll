@@ -80,6 +80,12 @@ export default function DM() {
   const [retiredMenu, setRetiredMenu] = useState<{ x: number; y: number } | null>(
     null,
   );
+  // Right-click menu for a pinned (DM/NPC) token chip in the top bar.
+  const [pinnedMenu, setPinnedMenu] = useState<{
+    token: TokenData;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const mapAreaRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
@@ -300,6 +306,7 @@ export default function DM() {
       monster?: string;
       hp?: number;
       wounds?: number;
+      pinned?: boolean;
     },
   ) {
     if (!activeId) return;
@@ -574,7 +581,15 @@ export default function DM() {
             else activeByPlayer.set(c.ownerPlayerId, c);
           }
           const players = [...activeByPlayer.entries()];
-          if (players.length === 0 && retiredCount === 0) return null;
+          // DM/NPC tokens pinned from their right-click menu get a quick-access
+          // chip too, after a divider that separates them from player chips.
+          const pinnedTokens = (activePage?.tokens ?? []).filter((t) => t.pinned);
+          if (
+            players.length === 0 &&
+            retiredCount === 0 &&
+            pinnedTokens.length === 0
+          )
+            return null;
           // Index this page's player tokens by the character they represent, so
           // a chip is "present" only when its active character's own token is
           // here (a retired character's leftover token has a different id).
@@ -623,6 +638,37 @@ export default function DM() {
                   </button>
                 );
               })}
+              {pinnedTokens.length > 0 && (
+                <>
+                  <div className="player-token-divider" />
+                  {pinnedTokens.map((token) => (
+                    <button
+                      key={token.id}
+                      className="player-token-chip"
+                      title={token.name || "Pinned token"}
+                      onClick={() => centerViewOnToken(token)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setPinnedMenu({ token, x: e.clientX, y: e.clientY });
+                      }}
+                    >
+                      <img
+                        className="player-token-chip-img"
+                        src={token.url}
+                        alt={token.name || "Pinned token"}
+                        style={
+                          token.color
+                            ? { borderColor: token.color }
+                            : undefined
+                        }
+                      />
+                      <span className="player-token-chip-name">
+                        {token.name || "Token"}
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
               {retiredCount > 0 && (
                 <button
                   className="player-token-graveyard"
@@ -726,6 +772,47 @@ export default function DM() {
               </ContextMenu>
             );
           })()}
+
+        {/* ── Pinned token context menu ── */}
+        {pinnedMenu && (
+          <ContextMenu
+            x={pinnedMenu.x}
+            y={pinnedMenu.y}
+            title={pinnedMenu.token.name || "Pinned token"}
+            onClose={() => setPinnedMenu(null)}
+          >
+            <li
+              onClick={() => {
+                handleUpdateToken(new Set([pinnedMenu.token.id]), {
+                  pinned: false,
+                });
+                setPinnedMenu(null);
+              }}
+            >
+              Unpin
+            </li>
+            <li
+              onClick={() => {
+                handleBringPlayersHere(
+                  pinnedMenu.token.x,
+                  pinnedMenu.token.y,
+                  INITIATIVE_FOCUS_SCALE,
+                );
+                setPinnedMenu(null);
+              }}
+            >
+              Bring player view here
+            </li>
+            <li
+              onClick={() => {
+                handleDeleteTokens(new Set([pinnedMenu.token.id]));
+                setPinnedMenu(null);
+              }}
+            >
+              Delete
+            </li>
+          </ContextMenu>
+        )}
 
         {/* ── Page context menu ── */}
         {pageContextMenu &&

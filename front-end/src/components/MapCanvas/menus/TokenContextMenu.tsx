@@ -4,6 +4,7 @@ import {
   GiSheikahEye,
   GiSightDisabled,
   GiSwordClash,
+  GiPin,
 } from "react-icons/gi";
 import type { TokenData } from "../../../hooks/useGameSocket";
 import {
@@ -33,6 +34,7 @@ interface TokenContextMenuProps {
       monster?: string;
       hp?: number;
       wounds?: number;
+      pinned?: boolean;
     },
   ) => void;
   onUpdateTokenStatus?: (
@@ -122,6 +124,11 @@ export function TokenContextMenu({
   const [menuName, setMenuName] = useState(seed.name);
   const [menuShowName, setMenuShowName] = useState(seed.showName);
   const [menuPublic, setMenuPublic] = useState(seed.public);
+  // Whether the clicked token is pinned to the DM top bar. Only meaningful for a
+  // single non-player token (see the pin control in the title bar).
+  const [menuPinned, setMenuPinned] = useState(
+    () => tokens.find((t) => t.id === tokenId)?.pinned ?? false,
+  );
   const [menuSharedStatuses, setMenuSharedStatuses] = useState<Set<string>>(
     seed.statuses,
   );
@@ -225,6 +232,24 @@ export function TokenContextMenu({
       >
         <div className="title-bar-text">Token</div>
         <div className="title-bar-controls">
+          {/* Pin to the DM top bar. Only a single non-player (DM/NPC) token can
+              be pinned; the icon never changes — a pinned button just renders
+              pressed-in. */}
+          {!multiSelected && !isPlayerToken && (
+            <button
+              className={`title-bar-pin${menuPinned ? " pinned" : ""}`}
+              title={menuPinned ? "Unpin from top bar" : "Pin to top bar"}
+              aria-pressed={menuPinned}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => {
+                const next = !menuPinned;
+                setMenuPinned(next);
+                onUpdateToken?.(new Set([tokenId]), { pinned: next });
+              }}
+            >
+              <GiPin />
+            </button>
+          )}
           <button aria-label="Close" onClick={onClose} />
         </div>
       </div>

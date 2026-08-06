@@ -290,6 +290,7 @@ export function useGameSocket() {
               if (m.monster !== undefined) next.monster = m.monster;
               if (m.hp !== undefined) next.hp = m.hp;
               if (m.wounds !== undefined) next.wounds = m.wounds;
+              if (m.pinned !== undefined) next.pinned = m.pinned;
               // Unlinking clears the HP tracker (mirrors the server).
               if (m.monster === "") {
                 next.monster = "";

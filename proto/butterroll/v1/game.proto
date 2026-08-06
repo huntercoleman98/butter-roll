@@ -36,6 +36,9 @@ message Token {
   // character's token from a retired one's leftover token. Empty on non-player
   // (DM/NPC/monster) tokens.
   string character_id = 16;
+  // pinned surfaces a DM/NPC token as a quick-access chip in the DM top bar,
+  // alongside the player token chips. Set from the token's right-click menu.
+  bool pinned = 17;
 }
 
 // FogPoly is one revealed polygon cut out of the fog overlay. points is a flat
@@ -143,6 +146,7 @@ message TokenUpdate {
   optional string monster = 8;
   optional int32 hp = 9;
   optional int32 wounds = 10;
+  optional bool pinned = 11;
 }
 
 message TokenStatus {

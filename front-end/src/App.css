@@ -141,6 +141,16 @@
   white-space: nowrap;
 }
 
+/* Separates the player chips from pinned DM/NPC token chips in the top bar. */
+.player-token-divider {
+  flex-shrink: 0;
+  align-self: stretch;
+  width: 2px;
+  margin: 2px 4px;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #fff;
+}
+
 /* Shared graveyard button: opens the list of retired (unassociated) characters.
    Sits at the end of the bar, visually separated from the player chips. */
 .player-token-graveyard {
@@ -1010,6 +1020,34 @@ button.icon-btn {
   justify-content: center;
   color: var(--text-color);
   flex-shrink: 0;
+}
+
+/* Pin control in the Token context-menu title bar. Sits beside the Close
+   button; sized to match the window controls. A pinned token keeps the same
+   icon but renders pressed-in (inset shadow) to read as toggled-on. */
+.title-bar-controls button.title-bar-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  width: 16px;
+  height: 14px;
+  padding: 0;
+  font-size: 11px;
+  color: #000;
+}
+
+.title-bar-controls button.title-bar-pin.pinned {
+  box-shadow:
+    inset -1px -1px #fff,
+    inset 1px 1px #808080,
+    inset -2px -2px #dfdfdf,
+    inset 2px 2px #0a0a0a;
+}
+
+/* Nudge the icon down-right while pressed, matching Win98 button behavior. */
+.title-bar-controls button.title-bar-pin.pinned svg {
+  transform: translate(1px, 1px);
 }
 
 .player-error {

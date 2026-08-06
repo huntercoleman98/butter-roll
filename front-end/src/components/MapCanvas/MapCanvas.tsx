@@ -55,6 +55,7 @@ interface MapCanvasProps {
       monster?: string;
       hp?: number;
       wounds?: number;
+      pinned?: boolean;
     },
   ) => void;
   onUpdateTokenStatus?: (

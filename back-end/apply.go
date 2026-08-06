@@ -483,6 +483,9 @@ func (p *Page) applyTokenUpdate(m *pb.TokenUpdate) bool {
 			t.Wounds = nil
 		}
 	}
+	if m.Pinned != nil {
+		t.Pinned = *m.Pinned
+	}
 	return true
 }
 
