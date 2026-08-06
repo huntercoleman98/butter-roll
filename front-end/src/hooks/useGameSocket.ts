@@ -135,18 +135,22 @@ export function useGameSocket() {
 
   useEffect(() => {
     const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${proto}//${window.location.host}/api/ws`);
-    wsRef.current = ws;
-
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
-    ws.onerror = (e) => console.error("WebSocket error", e);
+    const url = `${proto}//${window.location.host}/api/ws`;
+    // Auto-reconnect with capped exponential backoff. A dropped socket (a phone
+    // sleeping, a wifi blip mid-session) would otherwise strand that client on a
+    // dead connection until a manual reload. On reopen the server replays a fresh
+    // snapshot and usePlayerProfile re-announces off the connected false→true
+    // edge, so re-syncing is automatic and identity survives (anchored on the
+    // durable playerId, not the per-connection clientId).
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+    let unmounted = false;
 
     function updatePage(pageId: string, updater: (p: Page) => Page) {
       setPages((prev) => prev.map((p) => (p.id === pageId ? updater(p) : p)));
     }
 
-    ws.onmessage = (e: MessageEvent) => {
+    function handleMessage(e: MessageEvent) {
       let env: Envelope;
       try {
         env = fromJsonString(EnvelopeSchema, e.data as string);
@@ -496,9 +500,34 @@ export function useGameSocket() {
         default:
           console.warn("unknown message case", payload.case);
       }
-    };
+    }
 
-    return () => ws.close();
+    function connect() {
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+      ws.onopen = () => {
+        attempts = 0;
+        setConnected(true);
+      };
+      ws.onclose = () => {
+        setConnected(false);
+        if (unmounted) return;
+        // 1s, 2s, 4s … capped at 15s.
+        const delay = Math.min(1000 * 2 ** attempts, 15000);
+        attempts += 1;
+        reconnectTimer = setTimeout(connect, delay);
+      };
+      ws.onerror = (e) => console.error("WebSocket error", e);
+      ws.onmessage = handleMessage;
+    }
+
+    connect();
+
+    return () => {
+      unmounted = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      wsRef.current?.close();
+    };
   }, []);
 
   function send(payload: OutgoingPayload) {
