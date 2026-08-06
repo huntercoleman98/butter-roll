@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { GiTombstone } from "react-icons/gi";
 import { uuid } from "../utils/uuid";
 import Konva from "konva";
 import MapCanvas, { type ActiveTool } from "../components/MapCanvas";
@@ -11,6 +10,7 @@ import MonstersPanel from "../components/MonstersPanel";
 import TokenMonsterWindow from "../components/TokenMonsterWindow";
 import TokenCharacterWindow from "../components/TokenCharacterWindow";
 import AssetLibrary from "../components/AssetLibrary";
+import TokenBar from "../components/TokenBar";
 import { ContextMenu } from "../components/ContextMenu";
 import { useOutsideClick } from "../hooks/useOutsideClick";
 import type { Monster } from "../types/monster";
@@ -59,30 +59,11 @@ export default function DM() {
     y: number;
   } | null>(null);
   const [tokenMenuOpen, setTokenMenuOpen] = useState(false);
-  const [playerMenu, setPlayerMenu] = useState<{
-    playerId: string;
-    name: string;
-    // The player's token on the active page, or null when they have none here
-    // (a grayed chip) — the token-centric actions are hidden in that case.
-    token: TokenData | null;
-    x: number;
-    y: number;
-  } | null>(null);
   // A read-only character sheet opened from the player bar (a retired character
   // has no map token, so it can't reuse the token-driven sheet window).
   const [sheetWindow, setSheetWindow] = useState<{
     name: string;
     data: string | undefined;
-    x: number;
-    y: number;
-  } | null>(null);
-  // The shared graveyard menu (all retired characters), opened from the bar.
-  const [retiredMenu, setRetiredMenu] = useState<{ x: number; y: number } | null>(
-    null,
-  );
-  // Right-click menu for a pinned (DM/NPC) token chip in the top bar.
-  const [pinnedMenu, setPinnedMenu] = useState<{
-    token: TokenData;
     x: number;
     y: number;
   } | null>(null);
@@ -569,250 +550,25 @@ export default function DM() {
           </div>
         </div>
 
-        {/* ── Player token bar ── */}
-        {(() => {
-          // Group the roster by owning player; each chip shows that player's
-          // active character. Retired characters are unassociated and reached
-          // from the shared graveyard button instead.
-          const activeByPlayer = new Map<string, CharacterRecord>();
-          let retiredCount = 0;
-          for (const c of Object.values(characters)) {
-            if (c.archived) retiredCount++;
-            else activeByPlayer.set(c.ownerPlayerId, c);
+        {/* ── Token bar (player + pinned + retired chips and their menus) ── */}
+        <TokenBar
+          characters={characters}
+          tokens={activePage?.tokens ?? []}
+          onCenterToken={centerViewOnToken}
+          onPlacePlayerToken={placePlayerToken}
+          onBringViewHere={(x, y) =>
+            handleBringPlayersHere(x, y, INITIATIVE_FOCUS_SCALE)
           }
-          const players = [...activeByPlayer.entries()];
-          // DM/NPC tokens pinned from their right-click menu get a quick-access
-          // chip too, after a divider that separates them from player chips.
-          const pinnedTokens = (activePage?.tokens ?? []).filter((t) => t.pinned);
-          if (
-            players.length === 0 &&
-            retiredCount === 0 &&
-            pinnedTokens.length === 0
-          )
-            return null;
-          // Index this page's player tokens by the character they represent, so
-          // a chip is "present" only when its active character's own token is
-          // here (a retired character's leftover token has a different id).
-          const tokenByCharacter = new Map<string, TokenData>();
-          for (const t of activePage?.tokens ?? [])
-            if (t.player && t.characterId)
-              tokenByCharacter.set(t.characterId, t);
-          return (
-            <div className="player-token-bar">
-              {players.map(([playerId, ch]) => {
-                const token = tokenByCharacter.get(ch.characterId) ?? null;
-                const name = ch.name || token?.name || "Player";
-                const url = ch.tokenUrl || token?.url || "";
-                return (
-                  <button
-                    key={playerId}
-                    className={`player-token-chip${token ? "" : " player-token-chip-absent"}`}
-                    title={
-                      token ? name : `${name} (click to add to this page)`
-                    }
-                    onClick={() =>
-                      token
-                        ? centerViewOnToken(token)
-                        : placePlayerToken(playerId, ch)
-                    }
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setPlayerMenu({
-                        playerId,
-                        name,
-                        token,
-                        x: e.clientX,
-                        y: e.clientY,
-                      });
-                    }}
-                  >
-                    <img
-                      className="player-token-chip-img"
-                      src={url}
-                      alt={name}
-                      style={
-                        token?.color ? { borderColor: token.color } : undefined
-                      }
-                    />
-                    <span className="player-token-chip-name">{name}</span>
-                  </button>
-                );
-              })}
-              {pinnedTokens.length > 0 && (
-                <>
-                  <div className="player-token-divider" />
-                  {pinnedTokens.map((token) => (
-                    <button
-                      key={token.id}
-                      className="player-token-chip"
-                      title={token.name || "Pinned token"}
-                      onClick={() => centerViewOnToken(token)}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setPinnedMenu({ token, x: e.clientX, y: e.clientY });
-                      }}
-                    >
-                      <img
-                        className="player-token-chip-img"
-                        src={token.url}
-                        alt={token.name || "Pinned token"}
-                        style={
-                          token.color
-                            ? { borderColor: token.color }
-                            : undefined
-                        }
-                      />
-                      <span className="player-token-chip-name">
-                        {token.name || "Token"}
-                      </span>
-                    </button>
-                  ))}
-                </>
-              )}
-              {retiredCount > 0 && (
-                <button
-                  className="player-token-graveyard"
-                  title={`Retired characters (${retiredCount})`}
-                  onClick={(e) =>
-                    setRetiredMenu({ x: e.clientX, y: e.clientY })
-                  }
-                >
-                  <GiTombstone />
-                  <span className="player-token-chip-name">Retired</span>
-                </button>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* ── Shared graveyard menu (all retired characters) ── */}
-        {retiredMenu &&
-          (() => {
-            const retired = Object.values(characters).filter((c) => c.archived);
-            return (
-              <ContextMenu
-                x={retiredMenu.x}
-                y={retiredMenu.y}
-                title="Retired characters"
-                onClose={() => setRetiredMenu(null)}
-              >
-                {retired.length === 0 ? (
-                  <li className="context-menu-heading">None yet</li>
-                ) : (
-                  retired.map((c) => (
-                    <li
-                      key={c.characterId}
-                      onClick={() => {
-                        setSheetWindow({
-                          name: c.name || "Retired character",
-                          data: c.data,
-                          x: retiredMenu.x,
-                          y: retiredMenu.y,
-                        });
-                        setRetiredMenu(null);
-                      }}
-                    >
-                      View {c.name || "retired character"}
-                    </li>
-                  ))
-                )}
-              </ContextMenu>
-            );
-          })()}
-
-        {/* ── Player token context menu ── */}
-        {playerMenu &&
-          (() => {
-            // Captured for narrowing: the focus/sheet actions only exist when the
-            // player has a token on this page; absent players get Delete only.
-            const { token } = playerMenu;
-            return (
-              <ContextMenu
-                x={playerMenu.x}
-                y={playerMenu.y}
-                title={playerMenu.name}
-                onClose={() => setPlayerMenu(null)}
-              >
-                {token && (
-                  <li
-                    onClick={() => {
-                      setMonsterWindow({
-                        tokenId: token.id,
-                        x: playerMenu.x,
-                        y: playerMenu.y,
-                      });
-                      setPlayerMenu(null);
-                    }}
-                  >
-                    Character sheet
-                  </li>
-                )}
-                {token && (
-                  <li
-                    onClick={() => {
-                      handleBringPlayersHere(
-                        token.x,
-                        token.y,
-                        INITIATIVE_FOCUS_SCALE,
-                      );
-                      setPlayerMenu(null);
-                    }}
-                  >
-                    Bring player view here
-                  </li>
-                )}
-                <li
-                  onClick={() => {
-                    handleDeletePlayer(playerMenu.playerId);
-                    setPlayerMenu(null);
-                  }}
-                >
-                  Delete
-                </li>
-              </ContextMenu>
-            );
-          })()}
-
-        {/* ── Pinned token context menu ── */}
-        {pinnedMenu && (
-          <ContextMenu
-            x={pinnedMenu.x}
-            y={pinnedMenu.y}
-            title={pinnedMenu.token.name || "Pinned token"}
-            onClose={() => setPinnedMenu(null)}
-          >
-            <li
-              onClick={() => {
-                handleUpdateToken(new Set([pinnedMenu.token.id]), {
-                  pinned: false,
-                });
-                setPinnedMenu(null);
-              }}
-            >
-              Unpin
-            </li>
-            <li
-              onClick={() => {
-                handleBringPlayersHere(
-                  pinnedMenu.token.x,
-                  pinnedMenu.token.y,
-                  INITIATIVE_FOCUS_SCALE,
-                );
-                setPinnedMenu(null);
-              }}
-            >
-              Bring player view here
-            </li>
-            <li
-              onClick={() => {
-                handleDeleteTokens(new Set([pinnedMenu.token.id]));
-                setPinnedMenu(null);
-              }}
-            >
-              Delete
-            </li>
-          </ContextMenu>
-        )}
+          onDeleteTokens={handleDeleteTokens}
+          onUpdateToken={handleUpdateToken}
+          onDeletePlayer={handleDeletePlayer}
+          onOpenCharacterSheet={(tokenId, x, y) =>
+            setMonsterWindow({ tokenId, x, y })
+          }
+          onViewRetired={(name, data, x, y) =>
+            setSheetWindow({ name, data, x, y })
+          }
+        />
 
         {/* ── Page context menu ── */}
         {pageContextMenu &&
