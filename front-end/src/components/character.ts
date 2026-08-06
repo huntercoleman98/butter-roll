@@ -47,7 +47,8 @@ export interface Character {
   maxHp: number;
   tempHp: number;
   ac: number;
-  luck: boolean;
+  // Count of luck tokens the player currently holds (0 to many), spent during play.
+  luck: number;
   attacks: Attack[];
   talents: Talent[];
   // Player-controlled toggle (see the /player settings screen). When false, the
@@ -80,7 +81,7 @@ export function emptyCharacter(): Character {
     maxHp: 0,
     tempHp: 0,
     ac: 0,
-    luck: false,
+    luck: 0,
     attacks: [],
     talents: [],
     spellcastingEnabled: true,

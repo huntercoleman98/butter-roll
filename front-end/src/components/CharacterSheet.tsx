@@ -264,16 +264,15 @@ export default function CharacterSheet({
               onChange={(e) => set({ ac: num(e.target.value) })}
             />
           </Field>
-          <div className="sheet-luck field-row">
+          <Field label="Luck">
             <input
-              type="checkbox"
-              id="luck-token"
+              type="number"
+              min={0}
               disabled={readOnly}
-              checked={c.luck}
-              onChange={(e) => set({ luck: e.target.checked })}
+              value={c.luck}
+              onChange={(e) => set({ luck: num(e.target.value) })}
             />
-            <label htmlFor="luck-token">Luck token</label>
-          </div>
+          </Field>
         </div>
       </fieldset>
 

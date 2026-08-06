@@ -1261,11 +1261,6 @@ button.icon-btn {
   text-align: center;
 }
 
-.sheet-luck {
-  margin-left: auto;
-  white-space: nowrap;
-}
-
 /* Generic editable lists ------------------------------------------- */
 .sheet-list {
   display: flex;
