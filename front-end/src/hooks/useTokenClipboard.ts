@@ -94,9 +94,11 @@ export function useTokenClipboard({
                 // Carry the player association through as-is. The server drops it
                 // if it would duplicate an owner already on the target page (one
                 // player token per player per page), rewriting the broadcast so
-                // clients render the corrected token.
+                // clients render the corrected token. characterId must ride along
+                // for that de-dup check to match — the server keys it on character.
                 player: t.player,
                 ownerPlayerId: t.ownerPlayerId,
+                characterId: t.characterId,
               },
             },
           });
