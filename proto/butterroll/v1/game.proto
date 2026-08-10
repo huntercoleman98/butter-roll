@@ -39,6 +39,9 @@ message Token {
   // pinned surfaces a DM/NPC token as a quick-access chip in the DM top bar,
   // alongside the player token chips. Set from the token's right-click menu.
   bool pinned = 17;
+  // tags are free-form labels a rule condition can match with hasTag('goblin').
+  // Authored by the DM; carry no built-in meaning to the client.
+  repeated string tags = 18;
 }
 
 // FogPoly is one revealed polygon cut out of the fog overlay. points is a flat
@@ -57,6 +60,9 @@ message Page {
   int32 map_height = 5;
   repeated Token tokens = 6;
   repeated FogPoly fog_polys = 7;
+  // tags are free-form labels a rule condition can match with hasTag('forest')
+  // on a pagePresent event. Authored by the DM.
+  repeated string tags = 8;
 }
 
 // ── Server → client messages ─────────────────────────────────────────────────
@@ -155,6 +161,12 @@ message TokenStatus {
   repeated string status_effects = 3;
 }
 
+message TokenTags {
+  string page_id = 1;
+  string id = 2;
+  repeated string tags = 3;
+}
+
 message FogAdd {
   string page_id = 1;
   string id = 2;
@@ -186,6 +198,11 @@ message PageRename {
 
 message PagePresent {
   string id = 1;
+}
+
+message PageTags {
+  string id = 1;
+  repeated string tags = 2;
 }
 
 message ArrowUpdate {
@@ -302,5 +319,7 @@ message Envelope {
     PlayerJoin player_join = 26;
     Character character_update = 27;
     PlayerRemove player_remove = 28;
+    PageTags page_tags = 29;
+    TokenTags token_tags = 30;
   }
 }

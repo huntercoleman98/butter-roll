@@ -40,6 +40,8 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo // flat me
 		return nil, s.applyPageRename(p.PageRename)
 	case *pb.Envelope_PagePresent:
 		return nil, s.applyPagePresent(p.PagePresent)
+	case *pb.Envelope_PageTags:
+		return nil, s.applyPageTags(p.PageTags)
 	case *pb.Envelope_ArrowUpdate:
 		return nil, validateArrowUpdate(p.ArrowUpdate)
 	case *pb.Envelope_ArrowClear:
@@ -102,6 +104,8 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo // flat me
 		return nil, ok
 	case *pb.Envelope_TokenStatus:
 		return nil, page.applyTokenStatus(p.TokenStatus)
+	case *pb.Envelope_TokenTags:
+		return nil, page.applyTokenTags(p.TokenTags)
 	case *pb.Envelope_FogAdd:
 		return nil, page.applyFogAdd(p.FogAdd)
 	case *pb.Envelope_FogRemove:
@@ -305,6 +309,20 @@ func (s *Session) applyPagePresent(m *pb.PagePresent) bool {
 		return false
 	}
 	s.PresentedPageID = m.Id
+	return true
+}
+
+func (s *Session) applyPageTags(m *pb.PageTags) bool {
+	if m.Id == "" {
+		log.Printf("session.Apply page_tags: empty id")
+		return false
+	}
+	page, ok := s.Pages[m.Id]
+	if !ok {
+		log.Printf("session.Apply page_tags: unknown page %q", m.Id)
+		return false
+	}
+	page.Tags = m.Tags
 	return true
 }
 
@@ -517,6 +535,20 @@ func (p *Page) applyTokenStatus(m *pb.TokenStatus) bool {
 	return true
 }
 
+func (p *Page) applyTokenTags(m *pb.TokenTags) bool {
+	if m.Id == "" {
+		log.Printf("session.Apply token_tags: empty id")
+		return false
+	}
+	t, ok := p.Tokens[m.Id]
+	if !ok {
+		log.Printf("session.Apply token_tags: unknown token %q", m.Id)
+		return false
+	}
+	t.Tags = m.Tags
+	return true
+}
+
 func (p *Page) applyFogAdd(m *pb.FogAdd) bool {
 	if m.Id == "" || len(m.Points) < 6 || len(m.Points)%2 != 0 {
 		log.Printf("session.Apply fog_add: invalid payload (id=%q npts=%d)", m.Id, len(m.Points))
@@ -577,6 +609,8 @@ func pageIDOf(env *pb.Envelope) (string, bool) {
 		return p.TokenUpdate.PageId, true
 	case *pb.Envelope_TokenStatus:
 		return p.TokenStatus.PageId, true
+	case *pb.Envelope_TokenTags:
+		return p.TokenTags.PageId, true
 	case *pb.Envelope_FogAdd:
 		return p.FogAdd.PageId, true
 	case *pb.Envelope_FogRemove:

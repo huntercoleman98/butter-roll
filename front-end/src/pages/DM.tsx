@@ -790,9 +790,6 @@ export default function DM() {
               x={monsterWindow.x}
               y={monsterWindow.y}
               onUpdate={(update) => {
-                // The `dead` status is kept in sync with HP by the backend rules
-                // engine (see docs/config.md), inside this same tokenUpdate — no
-                // client-side status handling needed.
                 send({
                   case: "tokenUpdate",
                   value: { pageId: activeId, id: token.id, ...update },

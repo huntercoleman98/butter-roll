@@ -19,6 +19,7 @@ type Page struct {
 	MapURL    string
 	MapWidth  int32
 	MapHeight int32
+	Tags      []string
 	Tokens    map[string]*pb.Token
 	FogPolys  map[string]*pb.FogPoly
 }
@@ -90,6 +91,7 @@ func (s *Session) snapshotEnvelope() *pb.Envelope {
 			MapUrl:    p.MapURL,
 			MapWidth:  p.MapWidth,
 			MapHeight: p.MapHeight,
+			Tags:      p.Tags,
 			Tokens:    tokens,
 			FogPolys:  fogPolys,
 		})
@@ -184,6 +186,7 @@ func LoadSession(path string) (*Session, error) {
 			MapURL:    pd.MapUrl,
 			MapWidth:  pd.MapWidth,
 			MapHeight: pd.MapHeight,
+			Tags:      pd.Tags,
 			Tokens:    make(map[string]*pb.Token, len(pd.Tokens)),
 			FogPolys:  make(map[string]*pb.FogPoly, len(pd.FogPolys)),
 		}
