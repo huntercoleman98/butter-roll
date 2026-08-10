@@ -50,7 +50,7 @@ func TestRunRulesEmitsPerAffectedToken(t *testing.T) {
 	}}
 	s.followups = s.followups[:0]
 
-	s.runRules(page, "tokenUpdate", page.Tokens["a"])
+	s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["a"]})
 
 	if len(s.followups) != 2 {
 		t.Fatalf("expected a followup per affected token (2), got %d", len(s.followups))
@@ -84,10 +84,11 @@ func applyWounds(t *testing.T, cfg *Config, hp, wounds int32, initial ...string)
 	page.Tokens["tok"] = &pb.Token{
 		Id: "tok", Url: "u", Hp: proto.Int32(hp), StatusEffects: append([]string(nil), initial...),
 	}
+	prev := proto.Clone(page.Tokens["tok"]).(*pb.Token) // pre-merge snapshot for prev(...)
 	if ok := page.applyTokenUpdate(&pb.TokenUpdate{Id: "tok", Wounds: proto.Int32(wounds)}); !ok {
 		t.Fatal("applyTokenUpdate returned false")
 	}
-	s.runRules(page, "tokenUpdate", page.Tokens["tok"])
+	s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["tok"], prev: prev})
 	return page.Tokens["tok"].StatusEffects
 }
 
@@ -111,7 +112,7 @@ func TestDefaultConfigAutoDead(t *testing.T) {
 	page := s.Pages[s.PresentedPageID]
 	page.Tokens["t2"] = &pb.Token{Id: "t2", Url: "u"}
 	page.applyTokenUpdate(&pb.TokenUpdate{Id: "t2", Wounds: proto.Int32(0)})
-	s.runRules(page, "tokenUpdate", page.Tokens["t2"])
+	s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["t2"]})
 	if len(page.Tokens["t2"].StatusEffects) != 0 {
 		t.Errorf("unlinked token gained status: %v", page.Tokens["t2"].StatusEffects)
 	}
@@ -155,6 +156,87 @@ func TestApplyEmitsTokenStatusFollowup(t *testing.T) {
 	}
 	if len(s.followups) != 0 {
 		t.Fatalf("expected no followup when status unchanged, got %d", len(s.followups))
+	}
+}
+
+// TestPrevAndTagRuleFires exercises the generalized comparison: a rule that
+// fires only when a goblin-tagged token takes damage (wounds rose vs prev).
+func TestPrevAndTagRuleFires(t *testing.T) {
+	cfg := &Config{Rules: []Rule{
+		{On: "tokenUpdate", When: "hasTag('goblin') && wounds > prev(wounds)", Do: []string{"addStatus('hurt')"}},
+	}}
+	if err := cfg.compile(); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	run := func(tags []string, from, to int32) []string {
+		s := NewSession()
+		s.cfg = cfg
+		page := s.Pages[s.PresentedPageID]
+		page.Tokens["g"] = &pb.Token{Id: "g", Url: "u", Hp: proto.Int32(10), Wounds: proto.Int32(from), Tags: tags}
+		prev := proto.Clone(page.Tokens["g"]).(*pb.Token)
+		page.applyTokenUpdate(&pb.TokenUpdate{Id: "g", Wounds: proto.Int32(to)})
+		s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["g"], prev: prev})
+		return page.Tokens["g"].StatusEffects
+	}
+	if got := run([]string{"goblin"}, 3, 6); len(got) != 1 || got[0] != "hurt" {
+		t.Errorf("goblin took damage: got %v, want [hurt]", got)
+	}
+	if got := run([]string{"orc"}, 3, 6); len(got) != 0 {
+		t.Errorf("non-goblin damaged: got %v, want []", got)
+	}
+	if got := run([]string{"goblin"}, 6, 3); len(got) != 0 {
+		t.Errorf("goblin healed (not damaged): got %v, want []", got)
+	}
+}
+
+func TestPageEnvHasTag(t *testing.T) {
+	p := &Page{Name: "Darkwood", Tags: []string{"forest", "night"}}
+	cases := []struct {
+		src  string
+		want bool
+	}{
+		{"hasTag('forest')", true},
+		{"hasTag('desert')", false},
+		{"pageName == 'Darkwood'", true},
+	}
+	for _, c := range cases {
+		expr, err := Compile(c.src)
+		if err != nil {
+			t.Fatalf("Compile(%q): %v", c.src, err)
+		}
+		if got := expr.Eval(pageEnv(p)).Bool(); got != c.want {
+			t.Errorf("Eval(%q) on page env = %v, want %v", c.src, got, c.want)
+		}
+	}
+}
+
+// recordAction records that it ran, for asserting non-token event wiring.
+type recordAction struct{ hits *int }
+
+func (a recordAction) Apply(_ *pb.Token, _ *ruleCtx) { *a.hits++ }
+
+// TestPagePresentRunsRules proves the pagePresent event is wired through Apply to
+// runRules against the presented page (a page subject, no token).
+func TestPagePresentRunsRules(t *testing.T) {
+	s := NewSession()
+	page := s.Pages[s.PresentedPageID]
+	page.Tags = []string{"forest"}
+	hits := 0
+	forest, err := Compile("hasTag('forest')")
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	s.cfg = &Config{byEvent: map[string][]Rule{
+		"pagePresent": {{when: forest, do: []Action{recordAction{hits: &hits}}}},
+	}}
+	msg, _ := marshalOpts.Marshal(&pb.Envelope{Payload: &pb.Envelope_PagePresent{
+		PagePresent: &pb.PagePresent{Id: page.ID},
+	}})
+	if _, ok := s.Apply(msg); !ok {
+		t.Fatal("Apply(pagePresent) returned false")
+	}
+	if hits != 1 {
+		t.Fatalf("expected pagePresent rule to fire once, got %d", hits)
 	}
 }
 

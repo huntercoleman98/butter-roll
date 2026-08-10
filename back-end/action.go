@@ -82,7 +82,7 @@ func parseCall(src string) (name string, args []string, err error) {
 type addStatusAction struct{ id string }
 
 func (a addStatusAction) Apply(t *pb.Token, ctx *ruleCtx) {
-	if hasStatus(t, a.id) {
+	if t == nil || hasStatus(t, a.id) {
 		return
 	}
 	t.StatusEffects = append(t.StatusEffects, a.id)
@@ -92,7 +92,7 @@ func (a addStatusAction) Apply(t *pb.Token, ctx *ruleCtx) {
 type removeStatusAction struct{ id string }
 
 func (a removeStatusAction) Apply(t *pb.Token, ctx *ruleCtx) {
-	if !hasStatus(t, a.id) {
+	if t == nil || !hasStatus(t, a.id) {
 		return
 	}
 	removeStatus(t, a.id)
@@ -114,6 +114,17 @@ func removeStatus(t *pb.Token, id string) {
 func hasStatus(t *pb.Token, id string) bool {
 	for _, s := range t.StatusEffects {
 		if s == id {
+			return true
+		}
+	}
+	return false
+}
+
+// hasTag reports whether a tag list contains id. Shared by the token and page
+// env builders so hasTag('…') works for both.
+func hasTag(tags []string, id string) bool {
+	for _, t := range tags {
+		if t == id {
 			return true
 		}
 	}

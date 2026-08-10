@@ -102,8 +102,39 @@ func (c *Config) RulesFor(event string) []Rule {
 	return c.byEvent[event]
 }
 
+// ruleSubject is the entity an event fires against. env() builds its evaluator
+// bindings (including a prev snapshot for events with before/after state, read by
+// the prev(...) operator); token() is the token an action mutates, or nil for
+// events with no token subject (e.g. pagePresent).
+type ruleSubject interface {
+	env() *ruleEnv
+	token() *pb.Token
+}
+
+// tokenSubject is a token-scoped event's subject. prev is the token's pre-merge
+// snapshot (nil when there is none).
+type tokenSubject struct{ cur, prev *pb.Token }
+
+func (s tokenSubject) env() *ruleEnv {
+	e := tokenEnv(s.cur)
+	if s.prev != nil {
+		e.prev = tokenEnv(s.prev)
+	}
+	return e
+}
+func (s tokenSubject) token() *pb.Token { return s.cur }
+
+// pageSubject is a page-scoped event's subject (e.g. pagePresent). It has no
+// token to mutate and no before/after state.
+type pageSubject struct{ page *Page }
+
+func (s pageSubject) env() *ruleEnv    { return pageEnv(s.page) }
+func (s pageSubject) token() *pb.Token { return nil }
+
 // tokenEnv exposes a token's fields to the expression evaluator. Unset numeric
 // fields read as 0 (via the proto getters), so `hp > 0` skips unlinked tokens.
+// The same builder is used for the current and prev(...) snapshots, so a new
+// comparable field added here is instantly available in both forms.
 func tokenEnv(t *pb.Token) *ruleEnv {
 	return &ruleEnv{
 		vars: map[string]value{
@@ -111,9 +142,20 @@ func tokenEnv(t *pb.Token) *ruleEnv {
 			"wounds": num(float64(t.GetWounds())),
 		},
 		funcs: map[string]func([]value) value{
-			"hasStatus": func(args []value) value {
-				return boolean(hasStatus(t, args[0].s))
-			},
+			"hasStatus": func(args []value) value { return boolean(hasStatus(t, args[0].s)) },
+			"hasTag":    func(args []value) value { return boolean(hasTag(t.Tags, args[0].s)) },
+		},
+	}
+}
+
+// pageEnv exposes a page's fields for page-scoped events (e.g. pagePresent).
+func pageEnv(p *Page) *ruleEnv {
+	return &ruleEnv{
+		vars: map[string]value{
+			"pageName": str(p.Name),
+		},
+		funcs: map[string]func([]value) value{
+			"hasTag": func(args []value) value { return boolean(hasTag(p.Tags, args[0].s)) },
 		},
 	}
 }
@@ -130,22 +172,20 @@ type ruleCtx struct {
 // markDirty records that a rule changed t, so its new state gets broadcast.
 func (c *ruleCtx) markDirty(t *pb.Token) { c.dirty[t.Id] = t }
 
-// runRules evaluates the rules registered for event against target, then queues
-// a followup broadcast for every token the rules changed. Nothing is emitted if
-// no rule fires or no token is actually modified (actions are idempotent).
-func (s *Session) runRules(page *Page, event string, target *pb.Token) {
-	if target == nil {
-		return
-	}
+// runRules evaluates the rules registered for event against subj, then queues a
+// followup broadcast for every token the rules changed. Nothing is emitted if no
+// rule fires or no token is actually modified (mutation actions are idempotent).
+func (s *Session) runRules(page *Page, event string, subj ruleSubject) {
 	rules := s.cfg.RulesFor(event)
 	if len(rules) == 0 {
 		return
 	}
+	env := subj.env()
 	ctx := &ruleCtx{page: page, dirty: make(map[string]*pb.Token)}
 	for _, rule := range rules {
-		if rule.when.Eval(tokenEnv(target)).Bool() {
+		if rule.when.Eval(env).Bool() {
 			for _, act := range rule.do {
-				act.Apply(target, ctx)
+				act.Apply(subj.token(), ctx)
 			}
 		}
 	}

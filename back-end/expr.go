@@ -27,15 +27,19 @@ import (
 //	prim := number | string | 'true' | 'false' | ident | ident '(' args ')' | '(' or ')'
 
 // knownVars are the identifiers an expression may reference. Extend as rules
-// need more of the token (x, y, public, monster, name, …).
+// need more of the entity (x, y, public, monster, name, …). A var absent from
+// the current event's env reads as 0/"" at eval time, so the set can be a union
+// across event types.
 var knownVars = map[string]bool{
-	"hp":     true,
-	"wounds": true,
+	"hp":       true,
+	"wounds":   true,
+	"pageName": true,
 }
 
 // knownFuncs maps a callable name to its arity.
 var knownFuncs = map[string]int{
 	"hasStatus": 1,
+	"hasTag":    1,
 }
 
 // Expr is a compiled expression. Eval is pure: it reads from env and returns a
@@ -46,9 +50,15 @@ type Expr interface {
 
 // ruleEnv supplies variable and function bindings at evaluation time. Missing
 // variables read as 0 so an unset token field (e.g. wounds) behaves as zero.
+//
+// prev, if set, is the same env valued at the entity's pre-event state; the
+// prev(...) operator evaluates its subexpression against it. When prev is nil
+// (events with no before/after, e.g. pagePresent) prev(x) reads the current
+// env, so it degrades to x rather than erroring.
 type ruleEnv struct {
 	vars  map[string]value
 	funcs map[string]func(args []value) value
+	prev  *ruleEnv
 }
 
 func (e *ruleEnv) lookup(name string) value {
@@ -146,6 +156,19 @@ func (e *callExpr) Eval(env *ruleEnv) value {
 type notExpr struct{ x Expr }
 
 func (e *notExpr) Eval(env *ruleEnv) value { return boolean(!e.x.Eval(env).Bool()) }
+
+// prevExpr evaluates its subexpression against the pre-event snapshot, so a rule
+// can compare old vs new without any per-notion variables: `wounds > prev(wounds)`
+// is "took damage". Falls back to the current env when there is no prior state.
+type prevExpr struct{ x Expr }
+
+func (e *prevExpr) Eval(env *ruleEnv) value {
+	p := env.prev
+	if p == nil {
+		p = env
+	}
+	return e.x.Eval(p)
+}
 
 type negExpr struct{ x Expr }
 
@@ -437,6 +460,8 @@ func (p *parser) parsePrimary() (Expr, error) {
 			return &litExpr{v: boolean(true)}, nil
 		case "false":
 			return &litExpr{v: boolean(false)}, nil
+		case "prev":
+			return p.parsePrev()
 		}
 		if p.isOp("(") {
 			return p.parseCall(t.text)
@@ -460,6 +485,25 @@ func (p *parser) parsePrimary() (Expr, error) {
 		}
 	}
 	return nil, fmt.Errorf("unexpected token %q", t.text)
+}
+
+// parsePrev parses `prev(<expr>)`. The inner expression is parsed and validated
+// like any other (unknown identifiers/functions still fail at compile time); at
+// eval time it runs against the pre-event snapshot instead of the current state.
+func (p *parser) parsePrev() (Expr, error) {
+	if !p.isOp("(") {
+		return nil, fmt.Errorf("prev expects '(expression)'")
+	}
+	p.advance() // consume '('
+	inner, err := p.parseOr()
+	if err != nil {
+		return nil, err
+	}
+	if !p.isOp(")") {
+		return nil, fmt.Errorf("expected ')' after prev(...)")
+	}
+	p.advance()
+	return &prevExpr{x: inner}, nil
 }
 
 func (p *parser) parseCall(name string) (Expr, error) {

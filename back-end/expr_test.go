@@ -46,6 +46,44 @@ func TestCompileAndEval(t *testing.T) {
 	}
 }
 
+// withPrev returns env with a prev snapshot attached, for testing prev(...).
+func withPrev(env, prev *ruleEnv) *ruleEnv {
+	env.prev = prev
+	return env
+}
+
+func TestPrevComparesOldVsNew(t *testing.T) {
+	cases := []struct {
+		src  string
+		env  *ruleEnv
+		want bool
+	}{
+		// took damage: wounds went up vs the snapshot
+		{"wounds > prev(wounds)", withPrev(evalEnv(10, 6), evalEnv(10, 3)), true},
+		{"wounds > prev(wounds)", withPrev(evalEnv(10, 3), evalEnv(10, 3)), false},
+		// healed: wounds went down
+		{"wounds < prev(wounds)", withPrev(evalEnv(10, 2), evalEnv(10, 5)), true},
+		// just died this update: now dead, wasn't before
+		{"wounds >= hp && prev(wounds) < hp", withPrev(evalEnv(10, 10), evalEnv(10, 9)), true},
+		{"wounds >= hp && prev(wounds) < hp", withPrev(evalEnv(10, 10), evalEnv(10, 10)), false},
+		// just crossed the bloodied threshold
+		{"wounds > hp*0.5 && prev(wounds) <= hp*0.5", withPrev(evalEnv(10, 6), evalEnv(10, 5)), true},
+		// prev of a function: just gained the 'dead' status
+		{"hasStatus('dead') && !prev(hasStatus('dead'))", withPrev(evalEnv(10, 10, "dead"), evalEnv(10, 9)), true},
+		// no prev attached: prev(x) degrades to x, so a delta test is never true
+		{"wounds > prev(wounds)", evalEnv(10, 5), false},
+	}
+	for _, c := range cases {
+		expr, err := Compile(c.src)
+		if err != nil {
+			t.Fatalf("Compile(%q) error: %v", c.src, err)
+		}
+		if got := expr.Eval(c.env).Bool(); got != c.want {
+			t.Errorf("Eval(%q) = %v, want %v", c.src, got, c.want)
+		}
+	}
+}
+
 func TestCompileRejectsBadExpressions(t *testing.T) {
 	bad := []string{
 		"wonds >= hp",       // unknown identifier (typo)
@@ -56,6 +94,10 @@ func TestCompileRejectsBadExpressions(t *testing.T) {
 		"(hp > 0",           // unbalanced paren
 		"",                  // empty
 		"hp @ 3",            // unexpected character
+		"prev(wonds)",       // unknown identifier inside prev (still validated)
+		"prev()",            // prev needs an expression
+		"prev wounds",       // prev needs parentheses
+		"prev(hp",           // unbalanced paren in prev
 	}
 	for _, src := range bad {
 		if _, err := Compile(src); err == nil {

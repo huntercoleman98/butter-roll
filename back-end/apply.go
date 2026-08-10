@@ -7,6 +7,7 @@ import (
 	pb "butter-roll/server/gen/butterroll/v1"
 
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 func finiteFloat(f float64) bool {
@@ -92,16 +93,7 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo // flat me
 	case *pb.Envelope_TokenRemove:
 		return nil, page.applyTokenRemove(p.TokenRemove)
 	case *pb.Envelope_TokenUpdate:
-		tu := p.TokenUpdate
-		ok := page.applyTokenUpdate(tu)
-		if ok {
-			// Rules run after the field merges so `when` sees updated state.
-			// runRules broadcasts a followup for every token they change (a
-			// plain tokenUpdate echo can't carry status changes), so clients
-			// see the effect live instead of only after a refresh.
-			s.runRules(page, "tokenUpdate", page.Tokens[tu.Id])
-		}
-		return nil, ok
+		return nil, s.applyTokenUpdateWithRules(page, p.TokenUpdate)
 	case *pb.Envelope_TokenStatus:
 		return nil, page.applyTokenStatus(p.TokenStatus)
 	case *pb.Envelope_TokenTags:
@@ -304,12 +296,31 @@ func (s *Session) applyPagePresent(m *pb.PagePresent) bool {
 		log.Printf("session.Apply page_present: empty id")
 		return false
 	}
-	if _, ok := s.Pages[m.Id]; !ok {
+	page, ok := s.Pages[m.Id]
+	if !ok {
 		log.Printf("session.Apply page_present: unknown page %q", m.Id)
 		return false
 	}
 	s.PresentedPageID = m.Id
+	s.runRules(page, "pagePresent", pageSubject{page: page})
 	return true
+}
+
+// applyTokenUpdateWithRules merges the partial update, then runs tokenUpdate
+// rules against the merged token with its pre-merge snapshot, so `when` sees the
+// updated state and prev(...) can compare old vs new. runRules broadcasts a
+// followup for every token the rules change (a plain tokenUpdate echo can't carry
+// status changes), so clients see the effect live instead of only after refresh.
+func (s *Session) applyTokenUpdateWithRules(page *Page, tu *pb.TokenUpdate) bool {
+	var prev *pb.Token
+	if t, ok := page.Tokens[tu.Id]; ok {
+		prev = proto.Clone(t).(*pb.Token)
+	}
+	ok := page.applyTokenUpdate(tu)
+	if ok {
+		s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens[tu.Id], prev: prev})
+	}
+	return ok
 }
 
 func (s *Session) applyPageTags(m *pb.PageTags) bool {
