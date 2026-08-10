@@ -7,6 +7,7 @@ import {
   type RetiredMenuState,
 } from "../hooks/useTokenBar";
 import type { CharacterRecord, TokenData } from "../hooks/useGameSocket";
+import { tokenDisplayName } from "../utils/tokenName";
 
 interface TokenUpdate {
   color?: string;
@@ -260,7 +261,7 @@ export default function TokenBar({
                 <button
                   key={token.id}
                   className="player-token-chip"
-                  title={token.name || "Pinned token"}
+                  title={tokenDisplayName(token, "Pinned token")}
                   onClick={() => onCenterToken(token)}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -270,11 +271,11 @@ export default function TokenBar({
                   <img
                     className="player-token-chip-img"
                     src={token.url}
-                    alt={token.name || "Pinned token"}
+                    alt={tokenDisplayName(token, "Pinned token")}
                     style={token.color ? { borderColor: token.color } : undefined}
                   />
                   <span className="player-token-chip-name">
-                    {token.name || "Token"}
+                    {tokenDisplayName(token, "--")}
                   </span>
                 </button>
               ))}

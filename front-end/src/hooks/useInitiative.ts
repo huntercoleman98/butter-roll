@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { uuid } from "../utils/uuid";
+import { tokenDisplayName } from "../utils/tokenName";
 import type { InitiativeEntry } from "../components/InitiativePanel";
 import type { Monster } from "../types/monster";
 import type {
@@ -73,7 +74,7 @@ export function useInitiative({
     const toAdd = affected.map((t) => ({
       entryId: uuid(),
       tokenId: t.id,
-      name: t.name || t.monster || "",
+      name: tokenDisplayName(t),
       url: t.url,
       value: 0,
     }));
