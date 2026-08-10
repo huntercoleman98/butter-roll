@@ -47,6 +47,11 @@ type Session struct {
 	// The hub broadcasts these right after the triggering message. Reset at the
 	// start of every Apply; only touched from the single-threaded hub loop.
 	followups [][]byte
+
+	// outbound holds webhook requests a webhook() action fired during the current
+	// Apply. The hub hands them to the dispatcher (async HTTP) after broadcasting.
+	// Reset at the start of every Apply; only touched from the hub loop.
+	outbound []outboundRequest
 }
 
 func NewSession() *Session {

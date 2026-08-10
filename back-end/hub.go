@@ -13,6 +13,7 @@ type Hub struct {
 	unregister  chan *Client
 	session     *Session
 	sessionPath string
+	dispatcher  *dispatcher // sends rule-fired webhooks off the hub loop
 }
 
 func NewHub(session *Session, sessionPath string) *Hub {
@@ -23,6 +24,7 @@ func NewHub(session *Session, sessionPath string) *Hub {
 		unregister:  make(chan *Client),
 		session:     session,
 		sessionPath: sessionPath,
+		dispatcher:  newDispatcher(),
 	}
 }
 
@@ -85,6 +87,11 @@ func (h *Hub) Run() {
 			// an auto-status rule) go out in the same tick as their trigger.
 			for _, extra := range h.session.followups {
 				h.broadcastToClients(extra)
+			}
+			// Rule-fired webhooks are handed to the dispatcher, which sends them
+			// asynchronously so a slow/absent target never blocks the hub loop.
+			for _, req := range h.session.outbound {
+				h.dispatcher.enqueue(req)
 			}
 		}
 	}

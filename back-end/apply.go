@@ -24,6 +24,7 @@ func finiteFloat(f float64) bool {
 // for page-scoped mutations.
 func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo // flat message-type dispatch
 	s.followups = s.followups[:0]
+	s.outbound = s.outbound[:0]
 
 	var env pb.Envelope
 	if err := protojson.Unmarshal(msg, &env); err != nil {

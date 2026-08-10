@@ -35,6 +35,11 @@ func parseAction(src string) (Action, error) {
 			return nil, fmt.Errorf("removeStatus expects 1 argument, got %d", len(args))
 		}
 		return removeStatusAction{id: args[0]}, nil
+	case "webhook":
+		if len(args) != 1 {
+			return nil, fmt.Errorf("webhook expects 1 argument, got %d", len(args))
+		}
+		return webhookAction{name: args[0]}, nil
 	default:
 		return nil, fmt.Errorf("unknown action %q", name)
 	}
@@ -97,6 +102,27 @@ func (a removeStatusAction) Apply(t *pb.Token, ctx *ruleCtx) {
 	}
 	removeStatus(t, a.id)
 	ctx.markDirty(t)
+}
+
+// webhookAction fires a config-defined outbound request (Config.Webhooks[name]).
+// It knows nothing about what the request means — the URL and payload live in
+// config. It renders the body template against the event's context and enqueues
+// the request; the dispatcher does the actual (async) send, never the hub loop.
+type webhookAction struct{ name string }
+
+func (a webhookAction) Apply(_ *pb.Token, ctx *ruleCtx) {
+	wh := ctx.cfg.Webhooks[a.name]
+	if wh == nil {
+		return
+	}
+	tc := ctx.subj.tmpl()
+	tc["event"] = ctx.event
+	ctx.emit(outboundRequest{
+		Method:  wh.Method,
+		URL:     wh.URL,
+		Headers: wh.Headers,
+		Body:    renderBody(wh.Body, tc),
+	})
 }
 
 // removeStatus drops id from the token's status effects if present.

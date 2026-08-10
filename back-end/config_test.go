@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
@@ -237,6 +238,97 @@ func TestPagePresentRunsRules(t *testing.T) {
 	}
 	if hits != 1 {
 		t.Fatalf("expected pagePresent rule to fire once, got %d", hits)
+	}
+}
+
+// TestWebhookActionRendersAndQueues fires a webhook rule and inspects the
+// rendered request queued on Session.outbound (no network).
+func TestWebhookActionRendersAndQueues(t *testing.T) {
+	cfg := &Config{
+		Webhooks: map[string]*Webhook{
+			"goblin-hurt": {
+				URL:  "http://localhost:8090/api/sfx",
+				Body: json.RawMessage(`{"cue":"goblin-hurt","token":{{name}},"wounds":{{wounds}}}`),
+			},
+		},
+		Rules: []Rule{
+			{On: "tokenUpdate", When: "hasTag('goblin') && wounds > prev(wounds)", Do: []string{"webhook('goblin-hurt')"}},
+		},
+	}
+	if err := cfg.compile(); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	s := NewSession()
+	s.cfg = cfg
+	page := s.Pages[s.PresentedPageID]
+	page.Tokens["g"] = &pb.Token{Id: "g", Url: "u", Name: "Goblin Archer", Hp: proto.Int32(10), Wounds: proto.Int32(2), Tags: []string{"goblin"}}
+	prev := proto.Clone(page.Tokens["g"]).(*pb.Token)
+	page.applyTokenUpdate(&pb.TokenUpdate{Id: "g", Wounds: proto.Int32(5)})
+	s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["g"], prev: prev})
+
+	if len(s.outbound) != 1 {
+		t.Fatalf("expected 1 outbound request, got %d", len(s.outbound))
+	}
+	req := s.outbound[0]
+	if req.Method != "POST" || req.URL != "http://localhost:8090/api/sfx" {
+		t.Errorf("unexpected method/url: %s %s", req.Method, req.URL)
+	}
+	// Body must be valid JSON with the templated values substituted by type.
+	var got map[string]any
+	if err := json.Unmarshal(req.Body, &got); err != nil {
+		t.Fatalf("rendered body is not valid JSON (%q): %v", req.Body, err)
+	}
+	if got["cue"] != "goblin-hurt" || got["token"] != "Goblin Archer" || got["wounds"].(float64) != 5 {
+		t.Errorf("unexpected rendered body: %v", got)
+	}
+}
+
+// TestWebhookNotFiredWithoutMatch confirms a non-matching condition queues nothing.
+func TestWebhookNotFiredWithoutMatch(t *testing.T) {
+	cfg := &Config{
+		Webhooks: map[string]*Webhook{"x": {URL: "http://localhost/x"}},
+		Rules:    []Rule{{On: "tokenUpdate", When: "hasTag('goblin')", Do: []string{"webhook('x')"}}},
+	}
+	if err := cfg.compile(); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	s := NewSession()
+	s.cfg = cfg
+	page := s.Pages[s.PresentedPageID]
+	page.Tokens["t"] = &pb.Token{Id: "t", Url: "u", Tags: []string{"orc"}}
+	s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["t"]})
+	if len(s.outbound) != 0 {
+		t.Fatalf("expected no outbound for non-matching rule, got %d", len(s.outbound))
+	}
+}
+
+func TestCompileRejectsUnknownWebhookAndBadURL(t *testing.T) {
+	// rule references a webhook that isn't defined
+	c1 := &Config{Rules: []Rule{{On: "pagePresent", When: "true", Do: []string{"webhook('nope')"}}}}
+	if err := c1.compile(); err == nil {
+		t.Error("compile accepted a rule referencing an undefined webhook")
+	}
+	// webhook with a non-absolute URL
+	c2 := &Config{Webhooks: map[string]*Webhook{"bad": {URL: "not-a-url"}}}
+	if err := c2.compile(); err == nil {
+		t.Error("compile accepted a webhook with an invalid url")
+	}
+}
+
+func TestClientJSONStripsWebhooks(t *testing.T) {
+	cfg := &Config{
+		Rules:    []Rule{{On: "tokenUpdate", When: "true", Do: []string{"webhook('x')"}}},
+		Webhooks: map[string]*Webhook{"x": {URL: "http://secret.local/x"}},
+	}
+	body, err := cfg.clientJSON()
+	if err != nil {
+		t.Fatalf("clientJSON: %v", err)
+	}
+	if strings.Contains(string(body), "webhooks") || strings.Contains(string(body), "secret.local") {
+		t.Fatalf("client config leaked webhooks: %s", body)
+	}
+	if !strings.Contains(string(body), "\"rules\"") {
+		t.Fatalf("client config missing rules: %s", body)
 	}
 }
 

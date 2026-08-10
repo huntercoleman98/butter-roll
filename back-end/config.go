@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"regexp"
 
 	pb "butter-roll/server/gen/butterroll/v1"
 )
@@ -18,8 +20,34 @@ type Config struct {
 	Rules               []Rule `json:"rules"`
 	PlayerTokenFolderID string `json:"playerTokenFolderId"`
 
+	// Webhooks are named outbound HTTP requests a webhook('name') action fires.
+	// This is the entire coupling surface to external apps (e.g. the soundboard):
+	// the URL and payload shape live here, never in Go. Server-only — stripped
+	// from GET /api/config (see clientJSON).
+	Webhooks map[string]*Webhook `json:"webhooks"`
+
 	// byEvent indexes compiled rules by their On event, populated by compile().
 	byEvent map[string][]Rule
+}
+
+// Webhook is a named, fully-specified outbound request. Body is a JSON template:
+// each {{var}} placeholder is replaced by the JSON encoding of a context value
+// (token/page fields plus event) at fire time — so write `{"n": {{name}}}`, not
+// `{"n": "{{name}}"}`. A body with no placeholders is a static payload.
+type Webhook struct {
+	URL     string            `json:"url"`
+	Method  string            `json:"method"` // default POST
+	Headers map[string]string `json:"headers"`
+	Body    json.RawMessage   `json:"body"`
+}
+
+// outboundRequest is a rendered webhook ready for the dispatcher to send. Queued
+// on Session.outbound during Apply; no network happens inside the hub loop.
+type outboundRequest struct {
+	Method  string
+	URL     string
+	Headers map[string]string
+	Body    []byte
 }
 
 // Rule fires its actions when its condition holds for a triggering message.
@@ -69,6 +97,9 @@ func LoadConfig(path string) (*Config, error) {
 // unknown identifier, function, or action is a hard error so a bad config never
 // reaches a live session.
 func (c *Config) compile() error {
+	if err := c.compileWebhooks(); err != nil {
+		return err
+	}
 	c.byEvent = make(map[string][]Rule)
 	for i := range c.Rules {
 		r := &c.Rules[i]
@@ -86,9 +117,31 @@ func (c *Config) compile() error {
 			if err != nil {
 				return fmt.Errorf("rule %d do %q: %w", i, ds, err)
 			}
+			if wa, ok := act.(webhookAction); ok {
+				if _, defined := c.Webhooks[wa.name]; !defined {
+					return fmt.Errorf("rule %d do %q: webhook %q is not defined in \"webhooks\"", i, ds, wa.name)
+				}
+			}
 			r.do = append(r.do, act)
 		}
 		c.byEvent[r.On] = append(c.byEvent[r.On], *r)
+	}
+	return nil
+}
+
+// compileWebhooks validates each webhook definition (absolute URL, default
+// method) so a bad target fails at launch rather than mid-session.
+func (c *Config) compileWebhooks() error {
+	for name, wh := range c.Webhooks {
+		if wh == nil || wh.URL == "" {
+			return fmt.Errorf("webhook %q: missing url", name)
+		}
+		if _, err := url.ParseRequestURI(wh.URL); err != nil {
+			return fmt.Errorf("webhook %q: invalid url %q: %w", name, wh.URL, err)
+		}
+		if wh.Method == "" {
+			wh.Method = http.MethodPost
+		}
 	}
 	return nil
 }
@@ -109,6 +162,8 @@ func (c *Config) RulesFor(event string) []Rule {
 type ruleSubject interface {
 	env() *ruleEnv
 	token() *pb.Token
+	// tmpl is the substitution context for webhook body templates ({{var}}).
+	tmpl() map[string]any
 }
 
 // tokenSubject is a token-scoped event's subject. prev is the token's pre-merge
@@ -123,6 +178,16 @@ func (s tokenSubject) env() *ruleEnv {
 	return e
 }
 func (s tokenSubject) token() *pb.Token { return s.cur }
+func (s tokenSubject) tmpl() map[string]any {
+	return map[string]any{
+		"id":      s.cur.Id,
+		"name":    s.cur.Name,
+		"hp":      s.cur.GetHp(),
+		"wounds":  s.cur.GetWounds(),
+		"monster": s.cur.Monster,
+		"tags":    s.cur.Tags,
+	}
+}
 
 // pageSubject is a page-scoped event's subject (e.g. pagePresent). It has no
 // token to mutate and no before/after state.
@@ -130,6 +195,13 @@ type pageSubject struct{ page *Page }
 
 func (s pageSubject) env() *ruleEnv    { return pageEnv(s.page) }
 func (s pageSubject) token() *pb.Token { return nil }
+func (s pageSubject) tmpl() map[string]any {
+	return map[string]any{
+		"id":       s.page.ID,
+		"pageName": s.page.Name,
+		"tags":     s.page.Tags,
+	}
+}
 
 // tokenEnv exposes a token's fields to the expression evaluator. Unset numeric
 // fields read as 0 (via the proto getters), so `hp > 0` skips unlinked tokens.
@@ -167,21 +239,31 @@ func pageEnv(p *Page) *ruleEnv {
 type ruleCtx struct {
 	page  *Page
 	dirty map[string]*pb.Token
+
+	// subj/event/cfg let a webhook action render its request; outbound collects
+	// the rendered requests the caller drains onto Session.outbound.
+	subj     ruleSubject
+	event    string
+	cfg      *Config
+	outbound []outboundRequest
 }
 
 // markDirty records that a rule changed t, so its new state gets broadcast.
 func (c *ruleCtx) markDirty(t *pb.Token) { c.dirty[t.Id] = t }
 
+// emit queues a rendered outbound request for the dispatcher.
+func (c *ruleCtx) emit(r outboundRequest) { c.outbound = append(c.outbound, r) }
+
 // runRules evaluates the rules registered for event against subj, then queues a
-// followup broadcast for every token the rules changed. Nothing is emitted if no
-// rule fires or no token is actually modified (mutation actions are idempotent).
+// followup broadcast for every token the rules changed and every outbound webhook
+// they fired. Nothing is emitted if no rule fires.
 func (s *Session) runRules(page *Page, event string, subj ruleSubject) {
 	rules := s.cfg.RulesFor(event)
 	if len(rules) == 0 {
 		return
 	}
 	env := subj.env()
-	ctx := &ruleCtx{page: page, dirty: make(map[string]*pb.Token)}
+	ctx := &ruleCtx{page: page, dirty: make(map[string]*pb.Token), subj: subj, event: event, cfg: s.cfg}
 	for _, rule := range rules {
 		if rule.when.Eval(env).Bool() {
 			for _, act := range rule.do {
@@ -192,6 +274,7 @@ func (s *Session) runRules(page *Page, event string, subj ruleSubject) {
 	for id, tok := range ctx.dirty {
 		s.queueTokenStatus(page.ID, id, tok.StatusEffects)
 	}
+	s.outbound = append(s.outbound, ctx.outbound...)
 }
 
 // queueTokenStatus appends a tokenStatus message to the current Apply's
@@ -207,10 +290,42 @@ func (s *Session) queueTokenStatus(pageID, id string, statuses []string) {
 	s.followups = append(s.followups, b)
 }
 
-// serveConfig serves the client-facing config (the rules) as JSON. The body is
-// marshaled once since config is immutable for the process lifetime.
+// tmplVar matches a {{ var }} placeholder in a webhook body template.
+var tmplVar = regexp.MustCompile(`{{\s*(\w+)\s*}}`)
+
+// renderBody substitutes {{var}} placeholders in a webhook body template with the
+// JSON encoding of the matching context value (so the result stays valid JSON and
+// preserves types). Unknown vars render as null. An empty template yields nil.
+func renderBody(tmpl []byte, ctx map[string]any) []byte {
+	if len(tmpl) == 0 {
+		return nil
+	}
+	return tmplVar.ReplaceAllFunc(tmpl, func(m []byte) []byte {
+		v, ok := ctx[string(tmplVar.FindSubmatch(m)[1])]
+		if !ok {
+			return []byte("null")
+		}
+		b, err := json.Marshal(v)
+		if err != nil {
+			return []byte("null")
+		}
+		return b
+	})
+}
+
+// clientJSON is the client-facing projection of the config: rules and the token
+// folder, but NOT webhooks (backend-only plumbing, possibly internal URLs).
+func (c *Config) clientJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Rules               []Rule `json:"rules"`
+		PlayerTokenFolderID string `json:"playerTokenFolderId,omitempty"`
+	}{Rules: c.Rules, PlayerTokenFolderID: c.PlayerTokenFolderID})
+}
+
+// serveConfig serves the client-facing config as JSON. The body is marshaled once
+// since config is immutable for the process lifetime.
 func serveConfig(cfg *Config) http.HandlerFunc {
-	body, err := json.Marshal(cfg)
+	body, err := cfg.clientJSON()
 	if err != nil {
 		body = []byte(`{"rules":[]}`)
 	}
