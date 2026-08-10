@@ -321,9 +321,25 @@ export default function DM() {
     }
   }
 
-  function handleUpdateTokenTags(id: string, tags: string[]) {
+  function handleUpdateTokenTags(
+    ids: Set<string>,
+    action: "add" | "remove",
+    tag: string,
+  ) {
     if (!activeId) return;
-    send({ case: "tokenTags", value: { pageId: activeId, id, tags } });
+    const page = pages.find((p) => p.id === activeId);
+    if (!page) return;
+    for (const id of ids) {
+      const token = page.tokens.find((t) => t.id === id);
+      if (!token) continue;
+      const current = token.tags ?? [];
+      const has = current.includes(tag);
+      if (action === "add" && has) continue;
+      if (action === "remove" && !has) continue;
+      const next =
+        action === "add" ? [...current, tag] : current.filter((t) => t !== tag);
+      send({ case: "tokenTags", value: { pageId: activeId, id, tags: next } });
+    }
   }
 
   function handleArrowUpdate(arrow: ArrowOverlay) {
@@ -481,8 +497,20 @@ export default function DM() {
                       <label className="map-dropdown-label">Page tags</label>
                       <TagEditor
                         tags={activePage.tags}
-                        onChange={(tags) =>
-                          send({ case: "pageTags", value: { id: activeId, tags } })
+                        onAdd={(tag) =>
+                          send({
+                            case: "pageTags",
+                            value: { id: activeId, tags: [...activePage.tags, tag] },
+                          })
+                        }
+                        onRemove={(tag) =>
+                          send({
+                            case: "pageTags",
+                            value: {
+                              id: activeId,
+                              tags: activePage.tags.filter((t) => t !== tag),
+                            },
+                          })
                         }
                       />
                       <hr className="map-dropdown-sep" />

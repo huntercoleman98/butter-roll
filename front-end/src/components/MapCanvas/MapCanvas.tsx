@@ -63,7 +63,11 @@ interface MapCanvasProps {
     action: "add" | "remove",
     effectId: string,
   ) => void;
-  onUpdateTokenTags?: (id: string, tags: string[]) => void;
+  onUpdateTokenTags?: (
+    ids: Set<string>,
+    action: "add" | "remove",
+    tag: string,
+  ) => void;
   arrowOverlay?: ArrowOverlay | null;
   onArrowUpdate?: (arrow: ArrowOverlay) => void;
   onArrowClear?: () => void;

@@ -43,9 +43,13 @@ interface TokenContextMenuProps {
     action: "add" | "remove",
     effectId: string,
   ) => void;
-  // Tags are edited on the single right-clicked token (whole-list replace), not
-  // the multi-selection — merging tag sets across a selection is ambiguous.
-  onUpdateTokenTags?: (id: string, tags: string[]) => void;
+  // Add/remove a tag across the affected selection (mirrors onUpdateTokenStatus).
+  // The menu shows only tags shared by every selected token.
+  onUpdateTokenTags?: (
+    ids: Set<string>,
+    action: "add" | "remove",
+    tag: string,
+  ) => void;
   onDeleteTokens?: (ids: Set<string>) => void;
   onAddToInitiative?: (tokenIds: Set<string>) => void;
 }
@@ -93,6 +97,17 @@ function computeSeed(
     showName: clickedToken?.showName ?? false,
     public: clickedToken?.public ?? false,
   };
+}
+
+// sharedTagsOf returns the tags common to every token in ids (their intersection),
+// so a multi-selection shows only tags all of them have. Derived from the live
+// tokens prop each render, so it reflects add/remove echoes.
+function sharedTagsOf(tokens: TokenData[], ids: Set<string>): string[] {
+  const affected = tokens.filter((t) => ids.has(t.id));
+  if (affected.length === 0) return [];
+  return (affected[0].tags ?? []).filter((tag) =>
+    affected.every((t) => t.tags?.includes(tag)),
+  );
 }
 
 // Self-contained token panel: name, visibility, color/border, status effects,
@@ -428,8 +443,9 @@ export function TokenContextMenu({
             <>
               <label style={{ marginTop: 6 }}>Tags</label>
               <TagEditor
-                tags={tokens.find((t) => t.id === tokenId)?.tags ?? []}
-                onChange={(tags) => onUpdateTokenTags(tokenId, tags)}
+                tags={sharedTagsOf(tokens, affectedIds())}
+                onAdd={(tag) => onUpdateTokenTags(affectedIds(), "add", tag)}
+                onRemove={(tag) => onUpdateTokenTags(affectedIds(), "remove", tag)}
               />
             </>
           )}
