@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 
 	pb "butter-roll/server/gen/butterroll/v1"
 )
@@ -30,10 +29,9 @@ type Config struct {
 	byEvent map[string][]Rule
 }
 
-// Webhook is a named, fully-specified outbound request. Body is a JSON template:
-// each {{var}} placeholder is replaced by the JSON encoding of a context value
-// (token/page fields plus event) at fire time — so write `{"n": {{name}}}`, not
-// `{"n": "{{name}}"}`. A body with no placeholders is a static payload.
+// Webhook is a named, fully-specified outbound request. Body is static JSON sent
+// as-is (context templating may be added later). Authored in config.json, so it
+// must be valid JSON.
 type Webhook struct {
 	URL     string            `json:"url"`
 	Method  string            `json:"method"` // default POST
@@ -162,8 +160,6 @@ func (c *Config) RulesFor(event string) []Rule {
 type ruleSubject interface {
 	env() *ruleEnv
 	token() *pb.Token
-	// tmpl is the substitution context for webhook body templates ({{var}}).
-	tmpl() map[string]any
 }
 
 // tokenSubject is a token-scoped event's subject. prev is the token's pre-merge
@@ -178,16 +174,6 @@ func (s tokenSubject) env() *ruleEnv {
 	return e
 }
 func (s tokenSubject) token() *pb.Token { return s.cur }
-func (s tokenSubject) tmpl() map[string]any {
-	return map[string]any{
-		"id":      s.cur.Id,
-		"name":    s.cur.Name,
-		"hp":      s.cur.GetHp(),
-		"wounds":  s.cur.GetWounds(),
-		"monster": s.cur.Monster,
-		"tags":    s.cur.Tags,
-	}
-}
 
 // pageSubject is a page-scoped event's subject (e.g. pagePresent). It has no
 // token to mutate and no before/after state.
@@ -195,13 +181,6 @@ type pageSubject struct{ page *Page }
 
 func (s pageSubject) env() *ruleEnv    { return pageEnv(s.page) }
 func (s pageSubject) token() *pb.Token { return nil }
-func (s pageSubject) tmpl() map[string]any {
-	return map[string]any{
-		"id":       s.page.ID,
-		"pageName": s.page.Name,
-		"tags":     s.page.Tags,
-	}
-}
 
 // tokenEnv exposes a token's fields to the expression evaluator. Unset numeric
 // fields read as 0 (via the proto getters), so `hp > 0` skips unlinked tokens.
@@ -240,10 +219,8 @@ type ruleCtx struct {
 	page  *Page
 	dirty map[string]*pb.Token
 
-	// subj/event/cfg let a webhook action render its request; outbound collects
-	// the rendered requests the caller drains onto Session.outbound.
-	subj     ruleSubject
-	event    string
+	// cfg resolves a webhook action's definition; outbound collects the requests
+	// it fires, which the caller drains onto Session.outbound.
 	cfg      *Config
 	outbound []outboundRequest
 }
@@ -263,7 +240,7 @@ func (s *Session) runRules(page *Page, event string, subj ruleSubject) {
 		return
 	}
 	env := subj.env()
-	ctx := &ruleCtx{page: page, dirty: make(map[string]*pb.Token), subj: subj, event: event, cfg: s.cfg}
+	ctx := &ruleCtx{page: page, dirty: make(map[string]*pb.Token), cfg: s.cfg}
 	for _, rule := range rules {
 		if rule.when.Eval(env).Bool() {
 			for _, act := range rule.do {
@@ -288,29 +265,6 @@ func (s *Session) queueTokenStatus(pageID, id string, statuses []string) {
 		return
 	}
 	s.followups = append(s.followups, b)
-}
-
-// tmplVar matches a {{ var }} placeholder in a webhook body template.
-var tmplVar = regexp.MustCompile(`{{\s*(\w+)\s*}}`)
-
-// renderBody substitutes {{var}} placeholders in a webhook body template with the
-// JSON encoding of the matching context value (so the result stays valid JSON and
-// preserves types). Unknown vars render as null. An empty template yields nil.
-func renderBody(tmpl []byte, ctx map[string]any) []byte {
-	if len(tmpl) == 0 {
-		return nil
-	}
-	return tmplVar.ReplaceAllFunc(tmpl, func(m []byte) []byte {
-		v, ok := ctx[string(tmplVar.FindSubmatch(m)[1])]
-		if !ok {
-			return []byte("null")
-		}
-		b, err := json.Marshal(v)
-		if err != nil {
-			return []byte("null")
-		}
-		return b
-	})
 }
 
 // clientJSON is the client-facing projection of the config: rules and the token

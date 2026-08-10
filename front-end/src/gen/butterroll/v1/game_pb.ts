@@ -608,10 +608,6 @@ export const TokenStatusSchema: GenMessage<TokenStatus> = /*@__PURE__*/
   messageDesc(file_butterroll_v1_game, 14);
 
 /**
- * TokenTags replaces a token's whole tag list. Kept out of the partial
- * TokenUpdate (a bare repeated field can't distinguish "clear" from "omitted");
- * mirrors TokenStatus, the other repeated-string-replacing message.
- *
  * @generated from message butterroll.v1.TokenTags
  */
 export type TokenTags = Message<"butterroll.v1.TokenTags"> & {
@@ -783,9 +779,6 @@ export const PagePresentSchema: GenMessage<PagePresent> = /*@__PURE__*/
   messageDesc(file_butterroll_v1_game, 22);
 
 /**
- * PageTags replaces a page's whole tag list. Pages have no other partial-update
- * message; reuse this for future page metadata rather than minting one per field.
- *
  * @generated from message butterroll.v1.PageTags
  */
 export type PageTags = Message<"butterroll.v1.PageTags"> & {

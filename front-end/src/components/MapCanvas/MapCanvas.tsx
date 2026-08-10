@@ -63,6 +63,7 @@ interface MapCanvasProps {
     action: "add" | "remove",
     effectId: string,
   ) => void;
+  onUpdateTokenTags?: (id: string, tags: string[]) => void;
   arrowOverlay?: ArrowOverlay | null;
   onArrowUpdate?: (arrow: ArrowOverlay) => void;
   onArrowClear?: () => void;
@@ -106,6 +107,7 @@ export default function MapCanvas({
   onDeleteTokens,
   onUpdateToken,
   onUpdateTokenStatus,
+  onUpdateTokenTags,
   arrowOverlay = null,
   onArrowUpdate,
   onArrowClear,
@@ -334,6 +336,7 @@ export default function MapCanvas({
           onClose={() => setContextMenu(null)}
           onUpdateToken={onUpdateToken}
           onUpdateTokenStatus={onUpdateTokenStatus}
+          onUpdateTokenTags={onUpdateTokenTags}
           onDeleteTokens={onDeleteTokens}
           onAddToInitiative={onAddToInitiative}
         />

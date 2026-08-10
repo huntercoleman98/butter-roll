@@ -241,14 +241,14 @@ func TestPagePresentRunsRules(t *testing.T) {
 	}
 }
 
-// TestWebhookActionRendersAndQueues fires a webhook rule and inspects the
-// rendered request queued on Session.outbound (no network).
-func TestWebhookActionRendersAndQueues(t *testing.T) {
+// TestWebhookActionQueues fires a webhook rule and inspects the request queued on
+// Session.outbound (no network). The static body is passed through as authored.
+func TestWebhookActionQueues(t *testing.T) {
 	cfg := &Config{
 		Webhooks: map[string]*Webhook{
 			"goblin-hurt": {
 				URL:  "http://localhost:8090/api/sfx",
-				Body: json.RawMessage(`{"cue":"goblin-hurt","token":{{name}},"wounds":{{wounds}}}`),
+				Body: json.RawMessage(`{"cue":"goblin-hurt"}`),
 			},
 		},
 		Rules: []Rule{
@@ -261,7 +261,7 @@ func TestWebhookActionRendersAndQueues(t *testing.T) {
 	s := NewSession()
 	s.cfg = cfg
 	page := s.Pages[s.PresentedPageID]
-	page.Tokens["g"] = &pb.Token{Id: "g", Url: "u", Name: "Goblin Archer", Hp: proto.Int32(10), Wounds: proto.Int32(2), Tags: []string{"goblin"}}
+	page.Tokens["g"] = &pb.Token{Id: "g", Url: "u", Hp: proto.Int32(10), Wounds: proto.Int32(2), Tags: []string{"goblin"}}
 	prev := proto.Clone(page.Tokens["g"]).(*pb.Token)
 	page.applyTokenUpdate(&pb.TokenUpdate{Id: "g", Wounds: proto.Int32(5)})
 	s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["g"], prev: prev})
@@ -273,13 +273,8 @@ func TestWebhookActionRendersAndQueues(t *testing.T) {
 	if req.Method != "POST" || req.URL != "http://localhost:8090/api/sfx" {
 		t.Errorf("unexpected method/url: %s %s", req.Method, req.URL)
 	}
-	// Body must be valid JSON with the templated values substituted by type.
-	var got map[string]any
-	if err := json.Unmarshal(req.Body, &got); err != nil {
-		t.Fatalf("rendered body is not valid JSON (%q): %v", req.Body, err)
-	}
-	if got["cue"] != "goblin-hurt" || got["token"] != "Goblin Archer" || got["wounds"].(float64) != 5 {
-		t.Errorf("unexpected rendered body: %v", got)
+	if string(req.Body) != `{"cue":"goblin-hurt"}` {
+		t.Errorf("body not passed through as authored: %s", req.Body)
 	}
 }
 

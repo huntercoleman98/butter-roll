@@ -1178,9 +1178,6 @@ func (x *TokenStatus) GetStatusEffects() []string {
 	return nil
 }
 
-// TokenTags replaces a token's whole tag list. Kept out of the partial
-// TokenUpdate (a bare repeated field can't distinguish "clear" from "omitted");
-// mirrors TokenStatus, the other repeated-string-replacing message.
 type TokenTags struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PageId        string                 `protobuf:"bytes,1,opt,name=page_id,json=pageId,proto3" json:"page_id,omitempty"`
@@ -1589,8 +1586,6 @@ func (x *PagePresent) GetId() string {
 	return ""
 }
 
-// PageTags replaces a page's whole tag list. Pages have no other partial-update
-// message; reuse this for future page metadata rather than minting one per field.
 type PageTags struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`

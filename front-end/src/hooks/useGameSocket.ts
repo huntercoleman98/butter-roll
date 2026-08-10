@@ -89,6 +89,7 @@ export interface Page {
   mapSize: { width: number; height: number } | null;
   tokens: TokenData[];
   fogPolys: FogPoly[];
+  tags: string[];
 }
 
 const API_BASE = "";
@@ -174,6 +175,7 @@ export function useGameSocket() {
                   : null,
               tokens: p.tokens,
               fogPolys: p.fogPolys,
+              tags: p.tags,
             })),
           );
           presentedPageIdRef.current = s.presentedPageId;
@@ -314,6 +316,17 @@ export function useGameSocket() {
           break;
         }
 
+        case "tokenTags": {
+          const m = payload.value;
+          updatePage(m.pageId, (p) => ({
+            ...p,
+            tokens: p.tokens.map((t) =>
+              t.id !== m.id ? t : { ...t, tags: m.tags },
+            ),
+          }));
+          break;
+        }
+
         case "fogAdd": {
           const m = payload.value;
           updatePage(m.pageId, (p) => ({
@@ -349,6 +362,7 @@ export function useGameSocket() {
               mapSize: null,
               tokens: [],
               fogPolys: [],
+              tags: [],
             },
           ]);
           break;
@@ -361,6 +375,12 @@ export function useGameSocket() {
         case "pageRename": {
           const m = payload.value;
           updatePage(m.id, (p) => ({ ...p, name: m.name }));
+          break;
+        }
+
+        case "pageTags": {
+          const m = payload.value;
+          updatePage(m.id, (p) => ({ ...p, tags: m.tags }));
           break;
         }
 

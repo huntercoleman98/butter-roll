@@ -106,8 +106,8 @@ func (a removeStatusAction) Apply(t *pb.Token, ctx *ruleCtx) {
 
 // webhookAction fires a config-defined outbound request (Config.Webhooks[name]).
 // It knows nothing about what the request means — the URL and payload live in
-// config. It renders the body template against the event's context and enqueues
-// the request; the dispatcher does the actual (async) send, never the hub loop.
+// config. It enqueues the request; the dispatcher does the actual (async) send,
+// never the hub loop. The body is sent as authored (static; no templating yet).
 type webhookAction struct{ name string }
 
 func (a webhookAction) Apply(_ *pb.Token, ctx *ruleCtx) {
@@ -115,13 +115,11 @@ func (a webhookAction) Apply(_ *pb.Token, ctx *ruleCtx) {
 	if wh == nil {
 		return
 	}
-	tc := ctx.subj.tmpl()
-	tc["event"] = ctx.event
 	ctx.emit(outboundRequest{
 		Method:  wh.Method,
 		URL:     wh.URL,
 		Headers: wh.Headers,
-		Body:    renderBody(wh.Body, tc),
+		Body:    wh.Body,
 	})
 }
 

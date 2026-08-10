@@ -14,6 +14,7 @@ import {
 import { filterMonsters, parseMaxHp, type Monster } from "../../../types/monster";
 import { startDrag } from "../canvasMath";
 import { useOutsideClick } from "../../../hooks/useOutsideClick";
+import TagEditor from "../../TagEditor";
 
 interface TokenContextMenuProps {
   x: number;
@@ -42,6 +43,9 @@ interface TokenContextMenuProps {
     action: "add" | "remove",
     effectId: string,
   ) => void;
+  // Tags are edited on the single right-clicked token (whole-list replace), not
+  // the multi-selection — merging tag sets across a selection is ambiguous.
+  onUpdateTokenTags?: (id: string, tags: string[]) => void;
   onDeleteTokens?: (ids: Set<string>) => void;
   onAddToInitiative?: (tokenIds: Set<string>) => void;
 }
@@ -104,6 +108,7 @@ export function TokenContextMenu({
   onClose,
   onUpdateToken,
   onUpdateTokenStatus,
+  onUpdateTokenTags,
   onDeleteTokens,
   onAddToInitiative,
 }: TokenContextMenuProps) {
@@ -419,6 +424,15 @@ export function TokenContextMenu({
               </div>
             )}
           </div>
+          {onUpdateTokenTags && (
+            <>
+              <label style={{ marginTop: 6 }}>Tags</label>
+              <TagEditor
+                tags={tokens.find((t) => t.id === tokenId)?.tags ?? []}
+                onChange={(tags) => onUpdateTokenTags(tokenId, tags)}
+              />
+            </>
+          )}
           <label style={{ marginTop: 6 }}>Monster</label>
           {isPlayerToken ? (
             <button

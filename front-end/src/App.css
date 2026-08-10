@@ -86,6 +86,46 @@
   margin: 2px 0 0;
 }
 
+.map-dropdown-label {
+  display: block;
+  padding: 4px 4px 2px;
+}
+
+/* ── Tag editor (token right-click menu + Map dropdown) ── */
+
+.tag-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+  padding: 0 4px;
+  min-width: 150px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 2px 0 4px;
+  background: silver;
+  border: 1px solid grey;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.tag-chip-remove {
+  min-width: 0;
+  min-height: 0;
+  padding: 0 3px;
+  line-height: 1.2;
+  font-size: 11px;
+}
+
+.tag-input {
+  flex: 1 1 60px;
+  min-width: 60px;
+}
+
 /* ── Player token bar ── */
 
 .player-token-bar {

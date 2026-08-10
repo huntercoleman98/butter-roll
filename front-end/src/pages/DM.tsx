@@ -9,6 +9,7 @@ import InitiativePanel from "../components/InitiativePanel";
 import MonstersPanel from "../components/MonstersPanel";
 import TokenMonsterWindow from "../components/TokenMonsterWindow";
 import TokenCharacterWindow from "../components/TokenCharacterWindow";
+import TagEditor from "../components/TagEditor";
 import AssetLibrary from "../components/AssetLibrary";
 import TokenBar from "../components/TokenBar";
 import { ContextMenu } from "../components/ContextMenu";
@@ -320,6 +321,11 @@ export default function DM() {
     }
   }
 
+  function handleUpdateTokenTags(id: string, tags: string[]) {
+    if (!activeId) return;
+    send({ case: "tokenTags", value: { pageId: activeId, id, tags } });
+  }
+
   function handleArrowUpdate(arrow: ArrowOverlay) {
     setLocalArrow(arrow);
     send({ case: "arrowUpdate", value: { pageId: activeId, ...arrow } });
@@ -470,6 +476,18 @@ export default function DM() {
             {mapMenuOpen && (
               <div className="window map-dropdown">
                 <div className="window-body token-dropdown-body">
+                  {activePage && (
+                    <>
+                      <label className="map-dropdown-label">Page tags</label>
+                      <TagEditor
+                        tags={activePage.tags}
+                        onChange={(tags) =>
+                          send({ case: "pageTags", value: { id: activeId, tags } })
+                        }
+                      />
+                      <hr className="map-dropdown-sep" />
+                    </>
+                  )}
                   {activePage?.mapSize && (
                     <>
                       <div className="map-dropdown-row">
@@ -690,6 +708,7 @@ export default function DM() {
             onDeleteTokens={handleDeleteTokens}
             onUpdateToken={handleUpdateToken}
             onUpdateTokenStatus={handleUpdateTokenStatus}
+            onUpdateTokenTags={handleUpdateTokenTags}
             arrowOverlay={localArrow}
             onArrowUpdate={handleArrowUpdate}
             onArrowClear={handleArrowClear}
