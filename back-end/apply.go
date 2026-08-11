@@ -59,7 +59,11 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo // flat me
 	case *pb.Envelope_DiceRollRequest:
 		return nil, validateDiceRollRequest(p.DiceRollRequest)
 	case *pb.Envelope_DiceRollResult:
-		return nil, validateDiceRollResult(p.DiceRollResult)
+		if !validateDiceRollResult(p.DiceRollResult) {
+			return nil, false
+		}
+		s.runRules(nil, "diceRollResult", diceSubject{res: p.DiceRollResult})
+		return nil, true
 	case *pb.Envelope_CharacterUpdate:
 		return nil, s.applyCharacterUpdate(p.CharacterUpdate)
 	case *pb.Envelope_PlayerRemove:

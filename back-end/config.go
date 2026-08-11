@@ -182,6 +182,13 @@ type pageSubject struct{ page *Page }
 func (s pageSubject) env() *ruleEnv    { return pageEnv(s.page) }
 func (s pageSubject) token() *pb.Token { return nil }
 
+// diceSubject is a diceRollResult event's subject. It has no token or page and no
+// before/after state, so it only ever drives webhook actions.
+type diceSubject struct{ res *pb.DiceRollResult }
+
+func (s diceSubject) env() *ruleEnv    { return diceEnv(s.res) }
+func (s diceSubject) token() *pb.Token { return nil }
+
 // tokenEnv exposes a token's fields to the expression evaluator. Unset numeric
 // fields read as 0 (via the proto getters), so `hp > 0` skips unlinked tokens.
 // The same builder is used for the current and prev(...) snapshots, so a new
@@ -207,6 +214,22 @@ func pageEnv(p *Page) *ruleEnv {
 		},
 		funcs: map[string]func([]value) value{
 			"hasTag": func(args []value) value { return boolean(hasTag(p.Tags, args[0].s)) },
+		},
+	}
+}
+
+// diceEnv exposes a dice roll's fields for diceRollResult events. natural is the
+// resolved single-die value (total minus modifier), so a crit-fail rule is
+// `sides == 20 && natural == 1` regardless of any modifier; private lets a rule
+// skip the DM's secret rolls (e.g. `... && !private`).
+func diceEnv(r *pb.DiceRollResult) *ruleEnv {
+	return &ruleEnv{
+		vars: map[string]value{
+			"sides":    num(float64(r.GetSides())),
+			"total":    num(float64(r.GetTotal())),
+			"modifier": num(float64(r.GetModifier())),
+			"natural":  num(float64(r.GetTotal() - r.GetModifier())),
+			"private":  boolean(r.GetPrivate()),
 		},
 	}
 }

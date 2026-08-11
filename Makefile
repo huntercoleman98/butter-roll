@@ -48,10 +48,12 @@ docker-run:
 docker-save:
 	docker save $(IMAGE_NAME):$(IMAGE_TAG) | gzip > $(IMAGE_NAME).tar.gz
 
-# Run the Vite dev server (frontend only, port 5173)
+# Run the Vite dev server on port 5173. --strictPort makes it fail if 5173 is
+# already in use instead of silently moving to 5174, which would change the
+# browser origin and break the backend's WebSocket allowed-origin check.
 dev-frontend: proto
-	cd front-end && npm run dev
+	cd front-end && npm run dev -- --port 5173 --strictPort
 
-# Run the Go server in dev mode (opens CORS to the Vite dev server)
+# Run the Go server in dev mode (opens CORS to the Vite dev server on 5173)
 dev-backend: proto
 	cd back-end && ALLOWED_ORIGIN=http://localhost:5173 go run -tags dev .

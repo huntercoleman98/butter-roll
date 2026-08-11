@@ -34,6 +34,11 @@ var knownVars = map[string]bool{
 	"hp":       true,
 	"wounds":   true,
 	"pageName": true,
+	"sides":    true,
+	"total":    true,
+	"modifier": true,
+	"natural":  true,
+	"private":  true,
 }
 
 // knownFuncs maps a callable name to its arity.

@@ -327,6 +327,47 @@ func TestClientJSONStripsWebhooks(t *testing.T) {
 	}
 }
 
+// TestDiceRollResultRules exercises a crit-fail rule: fire on a natural 1 on a d20
+// (regardless of modifier), but not on other rolls, non-d20s, or private rolls.
+func TestDiceRollResultRules(t *testing.T) {
+	cfg := &Config{
+		Webhooks: map[string]*Webhook{
+			"crit-fail": {URL: "http://localhost/x", Body: json.RawMessage(`{"cue":"crit-fail"}`)},
+		},
+		Rules: []Rule{
+			{On: "diceRollResult", When: "sides == 20 && natural == 1 && !private", Do: []string{"webhook('crit-fail')"}},
+		},
+	}
+	if err := cfg.compile(); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	fire := func(sides, modifier, total int32, private bool) int {
+		s := NewSession()
+		s.cfg = cfg
+		s.runRules(nil, "diceRollResult", diceSubject{res: &pb.DiceRollResult{
+			Sides: sides, Modifier: modifier, Total: total, Private: private,
+			Rolls: []int32{total - modifier},
+		}})
+		return len(s.outbound)
+	}
+	// natural 1 on a d20+5 (total 6): natural = 6-5 = 1 → fires
+	if n := fire(20, 5, 6, false); n != 1 {
+		t.Errorf("nat 1 on d20+5: expected 1 webhook, got %d", n)
+	}
+	// natural 2: no fire
+	if n := fire(20, 0, 2, false); n != 0 {
+		t.Errorf("nat 2: expected 0, got %d", n)
+	}
+	// natural 1 but private: skipped by !private
+	if n := fire(20, 0, 1, true); n != 0 {
+		t.Errorf("private nat 1: expected 0, got %d", n)
+	}
+	// natural 1 on a d6: not a d20 → no fire
+	if n := fire(6, 0, 1, false); n != 0 {
+		t.Errorf("d6 nat 1: expected 0, got %d", n)
+	}
+}
+
 func TestLoadConfigMissingFileUsesDefaults(t *testing.T) {
 	cfg, err := LoadConfig(filepath.Join(t.TempDir(), "nope.json"))
 	if err != nil {
