@@ -5,16 +5,16 @@ interface Props {
   monster: Monster;
   /** Name used in roll labels (e.g. the token's name); defaults to the monster name. */
   labelName?: string;
-  onRoll: (expression: string, label?: string) => void;
+  onRoll: (expression: string, label?: string, metadata?: string) => void;
 }
 
-const STAT_LABELS: [keyof MonsterStats, string][] = [
-  ["strength", "STR"],
-  ["dexterity", "DEX"],
-  ["constitution", "CON"],
-  ["intelligence", "INT"],
-  ["wisdom", "WIS"],
-  ["charisma", "CHA"],
+const STAT_LABELS: [keyof MonsterStats, string, string][] = [
+  ["strength", "STR", "str_check"],
+  ["dexterity", "DEX", "dex_check"],
+  ["constitution", "CON", "con_check"],
+  ["intelligence", "INT", "int_check"],
+  ["wisdom", "WIS", "wis_check"],
+  ["charisma", "CHA", "cha_check"],
 ];
 
 function bonusToString(n: number): string {
@@ -44,7 +44,7 @@ export default function MonsterStatBlock({ monster, labelName, onRoll }: Props) 
       </div>
       <div className="monster-columns">
         <div className="monster-stats-col">
-          {STAT_LABELS.map(([key, label]) => {
+          {STAT_LABELS.map(([key, label, metadata]) => {
             const bonus = monster.stats[key];
             const expr = `1d20${bonusToString(bonus)}`;
             return (
@@ -52,7 +52,7 @@ export default function MonsterStatBlock({ monster, labelName, onRoll }: Props) 
                 key={key}
                 className="monster-stat-btn"
                 title={expr}
-                onClick={() => onRoll(expr, `${rollName} — ${label} check`)}
+                onClick={() => onRoll(expr, `${rollName} — ${label} check`, metadata)}
               >
                 <strong>{label}</strong> {bonusToString(bonus)}
               </button>
@@ -79,6 +79,7 @@ export default function MonsterStatBlock({ monster, labelName, onRoll }: Props) 
                           onRoll(
                             toHitExpr,
                             `${rollName} — ${a.name} (to hit)`,
+                            "to_hit",
                           )
                         }
                       >
@@ -91,6 +92,7 @@ export default function MonsterStatBlock({ monster, labelName, onRoll }: Props) 
                       <DiceText
                         text={a.damage}
                         label={`${rollName} — ${a.name} (damage)`}
+                        metadata="damage"
                         onRoll={onRoll}
                       />
                     </div>

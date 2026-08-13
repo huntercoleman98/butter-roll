@@ -104,7 +104,11 @@ func (c *Config) compile() error {
 		if r.On == "" {
 			return fmt.Errorf("rule %d: missing \"on\"", i)
 		}
-		expr, err := Compile(r.When)
+		schema, ok := eventSchemas[r.On]
+		if !ok {
+			return fmt.Errorf("rule %d: unknown event %q", i, r.On)
+		}
+		expr, err := Compile(r.When, schema)
 		if err != nil {
 			return fmt.Errorf("rule %d when %q: %w", i, r.When, err)
 		}
@@ -189,6 +193,31 @@ type diceSubject struct{ res *pb.DiceRollResult }
 func (s diceSubject) env() *ruleEnv    { return diceEnv(s.res) }
 func (s diceSubject) token() *pb.Token { return nil }
 
+// diceRequestSubject is a diceRollRequest event's subject. tok is the resolved
+// token that initiated the roll (nil when token_id is absent or not found).
+// Token mutation actions are suppressed (token() returns nil) because the page
+// context needed to broadcast status changes isn't available here.
+type diceRequestSubject struct {
+	req *pb.DiceRollRequest
+	tok *pb.Token
+}
+
+func (s diceRequestSubject) env() *ruleEnv    { return diceRequestEnv(s.req, s.tok) }
+func (s diceRequestSubject) token() *pb.Token { return nil }
+
+// eventSchemas maps each supported event to the identifiers its `when`
+// expressions may reference, derived from that event's env builder run on a
+// zero-valued entity. The env builder is thus the single source of truth: add a
+// var or func there and rules for that event can use it, with no parallel list
+// to keep in sync. compile() rejects a rule whose `on` is absent here, so a
+// typo'd event name fails at load rather than silently never firing.
+var eventSchemas = map[string]eventSchema{
+	"tokenUpdate":     schemaOf(tokenEnv(&pb.Token{})),
+	"pagePresent":     schemaOf(pageEnv(&Page{})),
+	"diceRollResult":  schemaOf(diceEnv(&pb.DiceRollResult{})),
+	"diceRollRequest": schemaOf(diceRequestEnv(&pb.DiceRollRequest{}, nil)),
+}
+
 // tokenEnv exposes a token's fields to the expression evaluator. Unset numeric
 // fields read as 0 (via the proto getters), so `hp > 0` skips unlinked tokens.
 // The same builder is used for the current and prev(...) snapshots, so a new
@@ -199,9 +228,9 @@ func tokenEnv(t *pb.Token) *ruleEnv {
 			"hp":     num(float64(t.GetHp())),
 			"wounds": num(float64(t.GetWounds())),
 		},
-		funcs: map[string]func([]value) value{
-			"hasStatus": func(args []value) value { return boolean(hasStatus(t, args[0].s)) },
-			"hasTag":    func(args []value) value { return boolean(hasTag(t.Tags, args[0].s)) },
+		funcs: map[string]ruleFunc{
+			"hasStatus": {arity: 1, fn: func(args []value) value { return boolean(hasStatus(t, args[0].s)) }},
+			"hasTag":    {arity: 1, fn: func(args []value) value { return boolean(hasTag(t.Tags, args[0].s)) }},
 		},
 	}
 }
@@ -212,8 +241,8 @@ func pageEnv(p *Page) *ruleEnv {
 		vars: map[string]value{
 			"pageName": str(p.Name),
 		},
-		funcs: map[string]func([]value) value{
-			"hasTag": func(args []value) value { return boolean(hasTag(p.Tags, args[0].s)) },
+		funcs: map[string]ruleFunc{
+			"hasTag": {arity: 1, fn: func(args []value) value { return boolean(hasTag(p.Tags, args[0].s)) }},
 		},
 	}
 }
@@ -230,6 +259,35 @@ func diceEnv(r *pb.DiceRollResult) *ruleEnv {
 			"modifier": num(float64(r.GetModifier())),
 			"natural":  num(float64(r.GetTotal() - r.GetModifier())),
 			"private":  boolean(r.GetPrivate()),
+		},
+	}
+}
+
+// diceRequestEnv exposes a dice roll request's fields for diceRollRequest events.
+// tok is the token that initiated the roll (nil when none). Token fields read as
+// zero/empty when tok is nil so rules like `token.hp > 0` safely skip tokenless
+// rolls. tokenHasTag(tag) checks tok's tags and returns false when tok is nil.
+func diceRequestEnv(req *pb.DiceRollRequest, tok *pb.Token) *ruleEnv {
+	var hp, wounds float64
+	var name, monster string
+	var tags []string
+	if tok != nil {
+		hp = float64(tok.GetHp())
+		wounds = float64(tok.GetWounds())
+		name = tok.GetName()
+		monster = tok.GetMonster()
+		tags = tok.Tags
+	}
+	return &ruleEnv{
+		vars: map[string]value{
+			"metadata":      str(req.GetMetadata()),
+			"token.hp":      num(hp),
+			"token.wounds":  num(wounds),
+			"token.name":    str(name),
+			"token.monster": str(monster),
+		},
+		funcs: map[string]ruleFunc{
+			"tokenHasTag": {arity: 1, fn: func(args []value) value { return boolean(hasTag(tags, args[0].s)) }},
 		},
 	}
 }

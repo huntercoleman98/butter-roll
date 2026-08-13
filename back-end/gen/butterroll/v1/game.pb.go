@@ -2015,6 +2015,8 @@ type DiceRollRequest struct {
 	DiceColor     string                 `protobuf:"bytes,5,opt,name=dice_color,json=diceColor,proto3" json:"dice_color,omitempty"`
 	AdvMode       *string                `protobuf:"bytes,6,opt,name=adv_mode,json=advMode,proto3,oneof" json:"adv_mode,omitempty"` // "advantage" | "disadvantage"
 	Label         string                 `protobuf:"bytes,7,opt,name=label,proto3" json:"label,omitempty"`
+	TokenId       *string                `protobuf:"bytes,8,opt,name=token_id,json=tokenId,proto3,oneof" json:"token_id,omitempty"` // token that initiated the roll, if any
+	Metadata      string                 `protobuf:"bytes,9,opt,name=metadata,proto3" json:"metadata,omitempty"`                    // roll kind: "to_hit", "damage", "str_check", etc.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2094,6 +2096,20 @@ func (x *DiceRollRequest) GetAdvMode() string {
 func (x *DiceRollRequest) GetLabel() string {
 	if x != nil {
 		return x.Label
+	}
+	return ""
+}
+
+func (x *DiceRollRequest) GetTokenId() string {
+	if x != nil && x.TokenId != nil {
+		return *x.TokenId
+	}
+	return ""
+}
+
+func (x *DiceRollRequest) GetMetadata() string {
+	if x != nil {
+		return x.Metadata
 	}
 	return ""
 }
@@ -3050,7 +3066,7 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\apage_id\x18\x01 \x01(\tR\x06pageId\x12$\n" +
 	"\x0eworld_center_x\x18\x02 \x01(\x01R\fworldCenterX\x12$\n" +
 	"\x0eworld_center_y\x18\x03 \x01(\x01R\fworldCenterY\x12\x14\n" +
-	"\x05scale\x18\x04 \x01(\x01R\x05scale\"\xeb\x01\n" +
+	"\x05scale\x18\x04 \x01(\x01R\x05scale\"\xb4\x02\n" +
 	"\x0fDiceRollRequest\x12\x1e\n" +
 	"\n" +
 	"expression\x18\x01 \x01(\tR\n" +
@@ -3062,8 +3078,11 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\n" +
 	"dice_color\x18\x05 \x01(\tR\tdiceColor\x12\x1e\n" +
 	"\badv_mode\x18\x06 \x01(\tH\x00R\aadvMode\x88\x01\x01\x12\x14\n" +
-	"\x05label\x18\a \x01(\tR\x05labelB\v\n" +
-	"\t_adv_mode\"\x9b\x02\n" +
+	"\x05label\x18\a \x01(\tR\x05label\x12\x1e\n" +
+	"\btoken_id\x18\b \x01(\tH\x01R\atokenId\x88\x01\x01\x12\x1a\n" +
+	"\bmetadata\x18\t \x01(\tR\bmetadataB\v\n" +
+	"\t_adv_modeB\v\n" +
+	"\t_token_id\"\x9b\x02\n" +
 	"\x0eDiceRollResult\x12\x1e\n" +
 	"\n" +
 	"expression\x18\x01 \x01(\tR\n" +

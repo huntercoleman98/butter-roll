@@ -842,7 +842,9 @@ export default function DM() {
                   value: { pageId: activeId, id: token.id, ...update },
                 });
               }}
-              onRoll={handleMonsterRoll}
+              onRoll={(expr, label, metadata) =>
+                handleMonsterRoll(expr, label, "DM", token.id, metadata)
+              }
               onClose={() => setMonsterWindow(null)}
             />
           );

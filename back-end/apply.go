@@ -57,7 +57,7 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo // flat me
 	case *pb.Envelope_ViewportSync:
 		return nil, validateViewportSync(p.ViewportSync)
 	case *pb.Envelope_DiceRollRequest:
-		return nil, validateDiceRollRequest(p.DiceRollRequest)
+		return nil, s.applyDiceRollRequest(p.DiceRollRequest)
 	case *pb.Envelope_DiceRollResult:
 		if !validateDiceRollResult(p.DiceRollResult) {
 			return nil, false
@@ -376,8 +376,30 @@ func validateViewportSync(m *pb.ViewportSync) bool {
 	return true
 }
 
-func validateDiceRollRequest(m *pb.DiceRollRequest) bool {
-	return m.Expression != ""
+// applyDiceRollRequest validates the request, resolves the initiating token (if
+// any), runs diceRollRequest rules against the combined context, then broadcasts
+// the original message so the dice overlay can animate the roll.
+func (s *Session) applyDiceRollRequest(req *pb.DiceRollRequest) bool {
+	if req.Expression == "" {
+		return false
+	}
+	var tok *pb.Token
+	if id := req.GetTokenId(); id != "" {
+		tok = s.findToken(id)
+	}
+	s.runRules(nil, "diceRollRequest", diceRequestSubject{req: req, tok: tok})
+	return true
+}
+
+// findToken searches every page for the token with the given id. Returns nil if
+// not found (token may have been deleted between the roll and its arrival).
+func (s *Session) findToken(id string) *pb.Token {
+	for _, page := range s.Pages {
+		if t, ok := page.Tokens[id]; ok {
+			return t
+		}
+	}
+	return nil
 }
 
 func validateDiceRollResult(m *pb.DiceRollResult) bool {

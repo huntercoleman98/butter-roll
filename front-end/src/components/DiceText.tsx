@@ -4,13 +4,14 @@ interface Props {
   text: string;
   /** Roll label, e.g. "Aboleth — Curse". */
   label?: string;
-  onRoll: (expression: string, label?: string) => void;
+  metadata?: string;
+  onRoll: (expression: string, label?: string, metadata?: string) => void;
 }
 
 const DICE_RE = /\[(\d*d\d+(?:[+-]\d+)?)\]/gi;
 
 /** Renders text with [NdN] dice notation replaced by roll buttons. */
-export default function DiceText({ text, label, onRoll }: Props) {
+export default function DiceText({ text, label, metadata, onRoll }: Props) {
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   for (const match of text.matchAll(DICE_RE)) {
@@ -21,7 +22,7 @@ export default function DiceText({ text, label, onRoll }: Props) {
       <button
         key={index}
         className="dice-text-btn"
-        onClick={() => onRoll(notation, label)}
+        onClick={() => onRoll(notation, label, metadata)}
       >
         {notation}
       </button>,

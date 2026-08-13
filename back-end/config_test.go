@@ -201,7 +201,7 @@ func TestPageEnvHasTag(t *testing.T) {
 		{"pageName == 'Darkwood'", true},
 	}
 	for _, c := range cases {
-		expr, err := Compile(c.src)
+		expr, err := Compile(c.src, eventSchemas["pagePresent"])
 		if err != nil {
 			t.Fatalf("Compile(%q): %v", c.src, err)
 		}
@@ -223,7 +223,7 @@ func TestPagePresentRunsRules(t *testing.T) {
 	page := s.Pages[s.PresentedPageID]
 	page.Tags = []string{"forest"}
 	hits := 0
-	forest, err := Compile("hasTag('forest')")
+	forest, err := Compile("hasTag('forest')", eventSchemas["pagePresent"])
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}
@@ -307,6 +307,28 @@ func TestCompileRejectsUnknownWebhookAndBadURL(t *testing.T) {
 	c2 := &Config{Webhooks: map[string]*Webhook{"bad": {URL: "not-a-url"}}}
 	if err := c2.compile(); err == nil {
 		t.Error("compile accepted a webhook with an invalid url")
+	}
+}
+
+// TestCompileScopesIdentifiersToEvent proves a rule is validated against only its
+// event's schema: `hp` is valid for tokenUpdate but rejected for diceRollResult
+// (which never binds it), and an unknown event name fails at load rather than
+// silently never firing.
+func TestCompileScopesIdentifiersToEvent(t *testing.T) {
+	// hp is a token var; a dice rule referencing it must not compile.
+	wrongEvent := &Config{Rules: []Rule{{On: "diceRollResult", When: "hp > 0", Do: nil}}}
+	if err := wrongEvent.compile(); err == nil {
+		t.Error("compile accepted `hp` in a diceRollResult rule")
+	}
+	// The same var is fine for the event that does bind it.
+	rightEvent := &Config{Rules: []Rule{{On: "tokenUpdate", When: "hp > 0", Do: nil}}}
+	if err := rightEvent.compile(); err != nil {
+		t.Errorf("compile rejected `hp` in a tokenUpdate rule: %v", err)
+	}
+	// An event with no schema is a config error, not a silent no-op.
+	badEvent := &Config{Rules: []Rule{{On: "tokenUpdat", When: "true", Do: nil}}}
+	if err := badEvent.compile(); err == nil {
+		t.Error("compile accepted a rule with an unknown event")
 	}
 }
 

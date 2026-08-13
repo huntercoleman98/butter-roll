@@ -46,7 +46,7 @@ interface Props {
   x: number;
   y: number;
   onUpdate: (update: { monster?: string; hp?: number; wounds?: number }) => void;
-  onRoll: (expression: string, label?: string) => void;
+  onRoll: (expression: string, label?: string, metadata?: string) => void;
   onClose: () => void;
 }
 

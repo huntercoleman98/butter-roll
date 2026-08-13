@@ -10,11 +10,15 @@ func evalEnv(hp, wounds float64, statuses ...string) *ruleEnv {
 	}
 	return &ruleEnv{
 		vars: map[string]value{"hp": num(hp), "wounds": num(wounds)},
-		funcs: map[string]func([]value) value{
-			"hasStatus": func(a []value) value { return boolean(set[a[0].s]) },
+		funcs: map[string]ruleFunc{
+			"hasStatus": {arity: 1, fn: func(a []value) value { return boolean(set[a[0].s]) }},
 		},
 	}
 }
+
+// tokenTestSchema is the schema for the token-style envs evalEnv builds, so
+// Compile in these tests validates against hp/wounds/hasStatus.
+var tokenTestSchema = schemaOf(evalEnv(0, 0))
 
 func TestCompileAndEval(t *testing.T) {
 	cases := []struct {
@@ -36,7 +40,7 @@ func TestCompileAndEval(t *testing.T) {
 		{"false || hp == 10", evalEnv(10, 0), true},
 	}
 	for _, c := range cases {
-		expr, err := Compile(c.src)
+		expr, err := Compile(c.src, tokenTestSchema)
 		if err != nil {
 			t.Fatalf("Compile(%q) error: %v", c.src, err)
 		}
@@ -74,7 +78,7 @@ func TestPrevComparesOldVsNew(t *testing.T) {
 		{"wounds > prev(wounds)", evalEnv(10, 5), false},
 	}
 	for _, c := range cases {
-		expr, err := Compile(c.src)
+		expr, err := Compile(c.src, tokenTestSchema)
 		if err != nil {
 			t.Fatalf("Compile(%q) error: %v", c.src, err)
 		}
@@ -100,7 +104,7 @@ func TestCompileRejectsBadExpressions(t *testing.T) {
 		"prev(hp",           // unbalanced paren in prev
 	}
 	for _, src := range bad {
-		if _, err := Compile(src); err == nil {
+		if _, err := Compile(src, tokenTestSchema); err == nil {
 			t.Errorf("Compile(%q) = nil error, want error", src)
 		}
 	}
