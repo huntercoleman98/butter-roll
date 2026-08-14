@@ -64,6 +64,8 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo // flat me
 		}
 		s.runRules(nil, "diceRollResult", diceSubject{res: p.DiceRollResult})
 		return nil, true
+	case *pb.Envelope_InitiativeStart:
+		return nil, s.applyInitiativeStart()
 	case *pb.Envelope_CharacterUpdate:
 		return nil, s.applyCharacterUpdate(p.CharacterUpdate)
 	case *pb.Envelope_PlayerRemove:
@@ -388,6 +390,14 @@ func (s *Session) applyDiceRollRequest(req *pb.DiceRollRequest) bool {
 		tok = s.findToken(id)
 	}
 	s.runRules(nil, "diceRollRequest", diceRequestSubject{req: req, tok: tok})
+	return true
+}
+
+// applyInitiativeStart fires the initiativeStart rules (the DM began an encounter)
+// so their webhook side effects queue. It carries no state; returning true lets
+// the hub drain those side effects and rebroadcast the bare signal.
+func (s *Session) applyInitiativeStart() bool {
+	s.runRules(nil, "initiativeStart", initiativeSubject{})
 	return true
 }
 

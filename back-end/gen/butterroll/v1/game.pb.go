@@ -2368,6 +2368,46 @@ func (x *PlayerRemove) GetPlayerId() string {
 
 // ── Envelope ─────────────────────────────────────────────────────────────────
 // Every message on the wire is an Envelope with exactly one payload set.
+// InitiativeStart signals the DM began an encounter (added the first token(s) to
+// an otherwise-empty initiative order). It carries no data — initiative itself is
+// tracked client-side; this exists only to drive server-side rules (e.g. a
+// combat-start webhook). See the "initiativeStart" event in config rules.
+type InitiativeStart struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitiativeStart) Reset() {
+	*x = InitiativeStart{}
+	mi := &file_butterroll_v1_game_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitiativeStart) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitiativeStart) ProtoMessage() {}
+
+func (x *InitiativeStart) ProtoReflect() protoreflect.Message {
+	mi := &file_butterroll_v1_game_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitiativeStart.ProtoReflect.Descriptor instead.
+func (*InitiativeStart) Descriptor() ([]byte, []int) {
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{34}
+}
+
 // The oneof field name (e.g. "tokenMove") is the discriminator in protojson.
 type Envelope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2403,6 +2443,7 @@ type Envelope struct {
 	//	*Envelope_PlayerRemove
 	//	*Envelope_PageTags
 	//	*Envelope_TokenTags
+	//	*Envelope_InitiativeStart
 	Payload       isEnvelope_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2410,7 +2451,7 @@ type Envelope struct {
 
 func (x *Envelope) Reset() {
 	*x = Envelope{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[34]
+	mi := &file_butterroll_v1_game_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2422,7 +2463,7 @@ func (x *Envelope) String() string {
 func (*Envelope) ProtoMessage() {}
 
 func (x *Envelope) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[34]
+	mi := &file_butterroll_v1_game_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2435,7 +2476,7 @@ func (x *Envelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Envelope.ProtoReflect.Descriptor instead.
 func (*Envelope) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{34}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *Envelope) GetPayload() isEnvelope_Payload {
@@ -2715,6 +2756,15 @@ func (x *Envelope) GetTokenTags() *TokenTags {
 	return nil
 }
 
+func (x *Envelope) GetInitiativeStart() *InitiativeStart {
+	if x != nil {
+		if x, ok := x.Payload.(*Envelope_InitiativeStart); ok {
+			return x.InitiativeStart
+		}
+	}
+	return nil
+}
+
 type isEnvelope_Payload interface {
 	isEnvelope_Payload()
 }
@@ -2839,6 +2889,10 @@ type Envelope_TokenTags struct {
 	TokenTags *TokenTags `protobuf:"bytes,30,opt,name=token_tags,json=tokenTags,proto3,oneof"`
 }
 
+type Envelope_InitiativeStart struct {
+	InitiativeStart *InitiativeStart `protobuf:"bytes,31,opt,name=initiative_start,json=initiativeStart,proto3,oneof"`
+}
+
 func (*Envelope_Hello) isEnvelope_Payload() {}
 
 func (*Envelope_Snapshot) isEnvelope_Payload() {}
@@ -2898,6 +2952,8 @@ func (*Envelope_PlayerRemove) isEnvelope_Payload() {}
 func (*Envelope_PageTags) isEnvelope_Payload() {}
 
 func (*Envelope_TokenTags) isEnvelope_Payload() {}
+
+func (*Envelope_InitiativeStart) isEnvelope_Payload() {}
 
 var File_butterroll_v1_game_proto protoreflect.FileDescriptor
 
@@ -3108,7 +3164,8 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\apage_id\x18\x05 \x01(\tR\x06pageId\x12!\n" +
 	"\fcharacter_id\x18\x06 \x01(\tR\vcharacterId\"+\n" +
 	"\fPlayerRemove\x12\x1b\n" +
-	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\"\xc7\x0e\n" +
+	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\"\x11\n" +
+	"\x0fInitiativeStart\"\x94\x0f\n" +
 	"\bEnvelope\x12,\n" +
 	"\x05hello\x18\x01 \x01(\v2\x14.butterroll.v1.HelloH\x00R\x05hello\x125\n" +
 	"\bsnapshot\x18\x02 \x01(\v2\x17.butterroll.v1.SnapshotH\x00R\bsnapshot\x120\n" +
@@ -3148,7 +3205,8 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\rplayer_remove\x18\x1c \x01(\v2\x1b.butterroll.v1.PlayerRemoveH\x00R\fplayerRemove\x126\n" +
 	"\tpage_tags\x18\x1d \x01(\v2\x17.butterroll.v1.PageTagsH\x00R\bpageTags\x129\n" +
 	"\n" +
-	"token_tags\x18\x1e \x01(\v2\x18.butterroll.v1.TokenTagsH\x00R\ttokenTagsB\t\n" +
+	"token_tags\x18\x1e \x01(\v2\x18.butterroll.v1.TokenTagsH\x00R\ttokenTags\x12K\n" +
+	"\x10initiative_start\x18\x1f \x01(\v2\x1e.butterroll.v1.InitiativeStartH\x00R\x0finitiativeStartB\t\n" +
 	"\apayloadB3Z1butter-roll/server/gen/butterroll/v1;butterrollv1b\x06proto3"
 
 var (
@@ -3163,7 +3221,7 @@ func file_butterroll_v1_game_proto_rawDescGZIP() []byte {
 	return file_butterroll_v1_game_proto_rawDescData
 }
 
-var file_butterroll_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_butterroll_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_butterroll_v1_game_proto_goTypes = []any{
 	(*Token)(nil),           // 0: butterroll.v1.Token
 	(*FogPoly)(nil),         // 1: butterroll.v1.FogPoly
@@ -3199,7 +3257,8 @@ var file_butterroll_v1_game_proto_goTypes = []any{
 	(*DiceRollResult)(nil),  // 31: butterroll.v1.DiceRollResult
 	(*PlayerJoin)(nil),      // 32: butterroll.v1.PlayerJoin
 	(*PlayerRemove)(nil),    // 33: butterroll.v1.PlayerRemove
-	(*Envelope)(nil),        // 34: butterroll.v1.Envelope
+	(*InitiativeStart)(nil), // 34: butterroll.v1.InitiativeStart
+	(*Envelope)(nil),        // 35: butterroll.v1.Envelope
 }
 var file_butterroll_v1_game_proto_depIdxs = []int32{
 	0,  // 0: butterroll.v1.Page.tokens:type_name -> butterroll.v1.Token
@@ -3238,11 +3297,12 @@ var file_butterroll_v1_game_proto_depIdxs = []int32{
 	33, // 33: butterroll.v1.Envelope.player_remove:type_name -> butterroll.v1.PlayerRemove
 	23, // 34: butterroll.v1.Envelope.page_tags:type_name -> butterroll.v1.PageTags
 	15, // 35: butterroll.v1.Envelope.token_tags:type_name -> butterroll.v1.TokenTags
-	36, // [36:36] is the sub-list for method output_type
-	36, // [36:36] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	34, // 36: butterroll.v1.Envelope.initiative_start:type_name -> butterroll.v1.InitiativeStart
+	37, // [37:37] is the sub-list for method output_type
+	37, // [37:37] is the sub-list for method input_type
+	37, // [37:37] is the sub-list for extension type_name
+	37, // [37:37] is the sub-list for extension extendee
+	0,  // [0:37] is the sub-list for field type_name
 }
 
 func init() { file_butterroll_v1_game_proto_init() }
@@ -3253,7 +3313,7 @@ func file_butterroll_v1_game_proto_init() {
 	file_butterroll_v1_game_proto_msgTypes[0].OneofWrappers = []any{}
 	file_butterroll_v1_game_proto_msgTypes[13].OneofWrappers = []any{}
 	file_butterroll_v1_game_proto_msgTypes[30].OneofWrappers = []any{}
-	file_butterroll_v1_game_proto_msgTypes[34].OneofWrappers = []any{
+	file_butterroll_v1_game_proto_msgTypes[35].OneofWrappers = []any{
 		(*Envelope_Hello)(nil),
 		(*Envelope_Snapshot)(nil),
 		(*Envelope_MapSet)(nil),
@@ -3284,6 +3344,7 @@ func file_butterroll_v1_game_proto_init() {
 		(*Envelope_PlayerRemove)(nil),
 		(*Envelope_PageTags)(nil),
 		(*Envelope_TokenTags)(nil),
+		(*Envelope_InitiativeStart)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -3291,7 +3352,7 @@ func file_butterroll_v1_game_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_butterroll_v1_game_proto_rawDesc), len(file_butterroll_v1_game_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   35,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

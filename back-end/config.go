@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
+	"strconv"
 
 	pb "butter-roll/server/gen/butterroll/v1"
 )
@@ -29,9 +31,10 @@ type Config struct {
 	byEvent map[string][]Rule
 }
 
-// Webhook is a named, fully-specified outbound request. Body is static JSON sent
-// as-is (context templating may be added later). Authored in config.json, so it
-// must be valid JSON.
+// Webhook is a named, fully-specified outbound request. Body is a JSON template
+// authored in config.json: {{var}} / {{tags[0]}} placeholders are substituted from
+// the firing subject at send time (see renderBody). With no placeholders it is
+// sent verbatim, so it must be valid JSON either way.
 type Webhook struct {
 	URL     string            `json:"url"`
 	Method  string            `json:"method"` // default POST
@@ -160,10 +163,12 @@ func (c *Config) RulesFor(event string) []Rule {
 // ruleSubject is the entity an event fires against. env() builds its evaluator
 // bindings (including a prev snapshot for events with before/after state, read by
 // the prev(...) operator); token() is the token an action mutates, or nil for
-// events with no token subject (e.g. pagePresent).
+// events with no token subject (e.g. pagePresent); tmpl() is the substitution
+// context for webhook body templates ({{var}} / {{tags[0]}}, see renderBody).
 type ruleSubject interface {
 	env() *ruleEnv
 	token() *pb.Token
+	tmpl() map[string]any
 }
 
 // tokenSubject is a token-scoped event's subject. prev is the token's pre-merge
@@ -178,6 +183,16 @@ func (s tokenSubject) env() *ruleEnv {
 	return e
 }
 func (s tokenSubject) token() *pb.Token { return s.cur }
+func (s tokenSubject) tmpl() map[string]any {
+	return map[string]any{
+		"id":      s.cur.GetId(),
+		"name":    s.cur.GetName(),
+		"monster": s.cur.GetMonster(),
+		"hp":      int(s.cur.GetHp()),
+		"wounds":  int(s.cur.GetWounds()),
+		"tags":    s.cur.Tags,
+	}
+}
 
 // pageSubject is a page-scoped event's subject (e.g. pagePresent). It has no
 // token to mutate and no before/after state.
@@ -185,6 +200,12 @@ type pageSubject struct{ page *Page }
 
 func (s pageSubject) env() *ruleEnv    { return pageEnv(s.page) }
 func (s pageSubject) token() *pb.Token { return nil }
+func (s pageSubject) tmpl() map[string]any {
+	return map[string]any{
+		"pageName": s.page.Name,
+		"tags":     s.page.Tags,
+	}
+}
 
 // diceSubject is a diceRollResult event's subject. It has no token or page and no
 // before/after state, so it only ever drives webhook actions.
@@ -192,6 +213,15 @@ type diceSubject struct{ res *pb.DiceRollResult }
 
 func (s diceSubject) env() *ruleEnv    { return diceEnv(s.res) }
 func (s diceSubject) token() *pb.Token { return nil }
+func (s diceSubject) tmpl() map[string]any {
+	return map[string]any{
+		"sides":    int(s.res.GetSides()),
+		"total":    int(s.res.GetTotal()),
+		"modifier": int(s.res.GetModifier()),
+		"natural":  int(s.res.GetTotal() - s.res.GetModifier()),
+		"private":  s.res.GetPrivate(),
+	}
+}
 
 // diceRequestSubject is a diceRollRequest event's subject. tok is the resolved
 // token that initiated the roll (nil when token_id is absent or not found).
@@ -204,6 +234,26 @@ type diceRequestSubject struct {
 
 func (s diceRequestSubject) env() *ruleEnv    { return diceRequestEnv(s.req, s.tok) }
 func (s diceRequestSubject) token() *pb.Token { return nil }
+func (s diceRequestSubject) tmpl() map[string]any {
+	m := map[string]any{
+		"metadata":      s.req.GetMetadata(),
+		"token.name":    s.tok.GetName(),
+		"token.monster": s.tok.GetMonster(),
+		"token.hp":      int(s.tok.GetHp()),
+		"token.wounds":  int(s.tok.GetWounds()),
+		"token.tags":    s.tok.GetTags(),
+	}
+	return m
+}
+
+// initiativeSubject is an initiativeStart event's subject. It carries no state:
+// the event only signals that combat began, so its rules bind no variables or
+// functions and it drives webhook actions with empty template context.
+type initiativeSubject struct{}
+
+func (initiativeSubject) env() *ruleEnv        { return &ruleEnv{} }
+func (initiativeSubject) token() *pb.Token     { return nil }
+func (initiativeSubject) tmpl() map[string]any { return nil }
 
 // eventSchemas maps each supported event to the identifiers its `when`
 // expressions may reference, derived from that event's env builder run on a
@@ -216,6 +266,7 @@ var eventSchemas = map[string]eventSchema{
 	"pagePresent":     schemaOf(pageEnv(&Page{})),
 	"diceRollResult":  schemaOf(diceEnv(&pb.DiceRollResult{})),
 	"diceRollRequest": schemaOf(diceRequestEnv(&pb.DiceRollRequest{}, nil)),
+	"initiativeStart": schemaOf(initiativeSubject{}.env()),
 }
 
 // tokenEnv exposes a token's fields to the expression evaluator. Unset numeric
@@ -301,8 +352,10 @@ type ruleCtx struct {
 	dirty map[string]*pb.Token
 
 	// cfg resolves a webhook action's definition; outbound collects the requests
-	// it fires, which the caller drains onto Session.outbound.
+	// it fires, which the caller drains onto Session.outbound. subj is the firing
+	// entity, used to render webhook body templates (may be nil).
 	cfg      *Config
+	subj     ruleSubject
 	outbound []outboundRequest
 }
 
@@ -321,7 +374,7 @@ func (s *Session) runRules(page *Page, event string, subj ruleSubject) {
 		return
 	}
 	env := subj.env()
-	ctx := &ruleCtx{page: page, dirty: make(map[string]*pb.Token), cfg: s.cfg}
+	ctx := &ruleCtx{page: page, dirty: make(map[string]*pb.Token), cfg: s.cfg, subj: subj}
 	for _, rule := range rules {
 		if rule.when.Eval(env).Bool() {
 			for _, act := range rule.do {
@@ -355,6 +408,60 @@ func (c *Config) clientJSON() ([]byte, error) {
 		Rules               []Rule `json:"rules"`
 		PlayerTokenFolderID string `json:"playerTokenFolderId,omitempty"`
 	}{Rules: c.Rules, PlayerTokenFolderID: c.PlayerTokenFolderID})
+}
+
+// tmplVar matches a webhook body placeholder: {{ name }} or {{ name[0] }}. The
+// name may contain dots (e.g. token.name); the optional [n] indexes a string list.
+var tmplVar = regexp.MustCompile(`{{\s*([\w.]+)\s*(?:\[\s*(\d+)\s*\])?\s*}}`)
+
+// renderBody substitutes {{var}} / {{var[n]}} placeholders in a webhook body
+// template with values from ctx, JSON-escaping each substitution so the result
+// stays valid whether the placeholder sits inside a JSON string ("a/{{tags[0]}}/b")
+// or is a whole value ({"n": {{sides}}}). Missing vars and out-of-range indexes
+// render as empty. A placeholder-free template passes through unchanged; an empty
+// template yields nil.
+func renderBody(tmpl []byte, ctx map[string]any) []byte {
+	if len(tmpl) == 0 {
+		return nil
+	}
+	return tmplVar.ReplaceAllFunc(tmpl, func(m []byte) []byte {
+		sub := tmplVar.FindSubmatch(m)
+		return jsonEscape(tmplValue(ctx[string(sub[1])], sub[2]))
+	})
+}
+
+// tmplValue resolves a single placeholder to its raw string form. idx is the
+// bracketed index bytes ("" when absent); when present, v must be a []string and
+// is indexed, yielding "" if out of range or not a list.
+func tmplValue(v any, idx []byte) string {
+	if len(idx) > 0 {
+		list, _ := v.([]string)
+		i, _ := strconv.Atoi(string(idx))
+		if i < 0 || i >= len(list) {
+			return ""
+		}
+		return list[i]
+	}
+	switch x := v.(type) {
+	case string:
+		return x
+	case int:
+		return strconv.Itoa(x)
+	case bool:
+		return strconv.FormatBool(x)
+	default:
+		return ""
+	}
+}
+
+// jsonEscape encodes s as JSON and strips the surrounding quotes, so the escaped
+// content can be spliced into a body template without breaking its JSON.
+func jsonEscape(s string) []byte {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return nil
+	}
+	return b[1 : len(b)-1]
 }
 
 // serveConfig serves the client-facing config as JSON. The body is marshaled once

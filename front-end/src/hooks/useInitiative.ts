@@ -92,6 +92,11 @@ export function useInitiative({
         value: { expression, playerName: "DM", label },
       });
     });
+    // Signal the server that combat is starting the first time tokens enter an
+    // empty order, so initiativeStart rules (e.g. a combat-start cue) fire once.
+    if (entries.length === 0 && toAdd.length > 0) {
+      send({ case: "initiativeStart", value: {} });
+    }
     if (toAdd.length > 0) setEntries((prev) => [...prev, ...toAdd]);
   }
 

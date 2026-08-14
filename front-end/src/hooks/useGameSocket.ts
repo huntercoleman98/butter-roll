@@ -518,6 +518,9 @@ export function useGameSocket() {
           break;
         }
 
+        case "initiativeStart":
+          // Server-side rule trigger only; nothing for clients to render.
+          break;
         default:
           console.warn("unknown message case", payload.case);
       }

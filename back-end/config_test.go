@@ -242,17 +242,18 @@ func TestPagePresentRunsRules(t *testing.T) {
 }
 
 // TestWebhookActionQueues fires a webhook rule and inspects the request queued on
-// Session.outbound (no network). The static body is passed through as authored.
+// Session.outbound (no network). The body is rendered from the firing token, so
+// {{tags[0]}} resolves to the token's first tag.
 func TestWebhookActionQueues(t *testing.T) {
 	cfg := &Config{
 		Webhooks: map[string]*Webhook{
-			"goblin-hurt": {
+			"hurt": {
 				URL:  "http://localhost:8090/api/sfx",
-				Body: json.RawMessage(`{"cue":"goblin-hurt"}`),
+				Body: json.RawMessage(`{"cue":"sfx/monsters/{{tags[0]}}/wound"}`),
 			},
 		},
 		Rules: []Rule{
-			{On: "tokenUpdate", When: "hasTag('goblin') && wounds > prev(wounds)", Do: []string{"webhook('goblin-hurt')"}},
+			{On: "tokenUpdate", When: "hasTag('goblin') && wounds > prev(wounds)", Do: []string{"webhook('hurt')"}},
 		},
 	}
 	if err := cfg.compile(); err != nil {
@@ -273,8 +274,73 @@ func TestWebhookActionQueues(t *testing.T) {
 	if req.Method != "POST" || req.URL != "http://localhost:8090/api/sfx" {
 		t.Errorf("unexpected method/url: %s %s", req.Method, req.URL)
 	}
-	if string(req.Body) != `{"cue":"goblin-hurt"}` {
-		t.Errorf("body not passed through as authored: %s", req.Body)
+	if string(req.Body) != `{"cue":"sfx/monsters/goblin/wound"}` {
+		t.Errorf("body not rendered from token: %s", req.Body)
+	}
+}
+
+// TestRenderBody covers the webhook body template substitution directly: bare
+// scalars, tag indexing, out-of-range and unknown references (empty), and that
+// the result stays valid JSON.
+func TestRenderBody(t *testing.T) {
+	ctx := map[string]any{
+		"name":  "Gr+ax \"the\" Bold",
+		"hp":    12,
+		"tags":  []string{"goblin", "boss"},
+		"sides": 20,
+	}
+	cases := []struct {
+		name, tmpl, want string
+	}{
+		{"scalar in string", `{"n":"{{name}}"}`, `{"n":"Gr+ax \"the\" Bold"}`},
+		{"int as whole value", `{"hp":{{hp}}}`, `{"hp":12}`},
+		{"tag index", `{"c":"m/{{tags[0]}}/x"}`, `{"c":"m/goblin/x"}`},
+		{"tag second index", `{"c":"{{tags[1]}}"}`, `{"c":"boss"}`},
+		{"index out of range", `{"c":"{{tags[5]}}"}`, `{"c":""}`},
+		{"unknown var", `{"c":"{{nope}}"}`, `{"c":""}`},
+		{"no placeholders", `{"c":"static"}`, `{"c":"static"}`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := renderBody(json.RawMessage(c.tmpl), ctx)
+			if string(got) != c.want {
+				t.Fatalf("renderBody = %s, want %s", got, c.want)
+			}
+			if !json.Valid(got) {
+				t.Errorf("rendered body is not valid JSON: %s", got)
+			}
+		})
+	}
+	if renderBody(nil, ctx) != nil {
+		t.Errorf("empty template should render nil")
+	}
+}
+
+// TestRenderBodyDiceSubject renders a body from a dice subject (no token), so a
+// non-token subject's tmpl() values substitute correctly.
+func TestRenderBodyDiceSubject(t *testing.T) {
+	subj := diceSubject{res: &pb.DiceRollResult{Sides: 20, Total: 18, Modifier: 3}}
+	got := renderBody(json.RawMessage(`{"nat":{{natural}},"sides":{{sides}}}`), subj.tmpl())
+	if string(got) != `{"nat":15,"sides":20}` {
+		t.Fatalf("dice render = %s", got)
+	}
+}
+
+// TestInitiativeStartFiresRules confirms an initiativeStart event (which binds no
+// variables) runs its rules and queues the webhook they fire.
+func TestInitiativeStartFiresRules(t *testing.T) {
+	cfg := &Config{
+		Webhooks: map[string]*Webhook{"combat": {URL: "http://localhost/combat"}},
+		Rules:    []Rule{{On: "initiativeStart", When: "true", Do: []string{"webhook('combat')"}}},
+	}
+	if err := cfg.compile(); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	s := NewSession()
+	s.cfg = cfg
+	s.runRules(nil, "initiativeStart", initiativeSubject{})
+	if len(s.outbound) != 1 || s.outbound[0].URL != "http://localhost/combat" {
+		t.Fatalf("expected combat webhook queued, got %#v", s.outbound)
 	}
 }
 
