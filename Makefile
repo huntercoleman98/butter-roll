@@ -45,7 +45,7 @@ docker-run:
 		$(IMAGE_NAME):$(IMAGE_TAG)
 
 # Export the image as a gzip tarball for import on Synology Container Manager
-docker-save:
+docker-save: docker-build
 	docker save $(IMAGE_NAME):$(IMAGE_TAG) | gzip > $(IMAGE_NAME).tar.gz
 
 # Run the Vite dev server on port 5173. --strictPort makes it fail if 5173 is

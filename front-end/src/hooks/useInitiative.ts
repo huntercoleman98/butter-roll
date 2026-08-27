@@ -100,15 +100,28 @@ export function useInitiative({
     if (toAdd.length > 0) setEntries((prev) => [...prev, ...toAdd]);
   }
 
-  // Drop any entries whose token was deleted, clearing "current" if it was one.
+  // Apply a filter to the entries, clearing "current" if it was dropped. When the
+  // last entry leaves a non-empty order, signal the server so initiativeEnd rules
+  // (e.g. a combat-end cue) fire once — the mirror of initiativeStart.
+  function removeWhere(keep: (e: InitiativeEntry) => boolean) {
+    const next = entries.filter(keep);
+    if (currentId && !next.some((e) => e.entryId === currentId)) {
+      setCurrentId(null);
+    }
+    if (entries.length > 0 && next.length === 0) {
+      send({ case: "initiativeEnd", value: {} });
+    }
+    setEntries(next);
+  }
+
+  // Drop any entries whose token was deleted.
   function removeByTokenIds(ids: Set<string>) {
-    setEntries((prev) => {
-      const removedCurrent = prev.some(
-        (e) => ids.has(e.tokenId) && e.entryId === currentId,
-      );
-      if (removedCurrent) setCurrentId(null);
-      return prev.filter((e) => !ids.has(e.tokenId));
-    });
+    removeWhere((e) => !ids.has(e.tokenId));
+  }
+
+  // Drop a single entry (the DM removed it from the initiative panel).
+  function removeByEntryId(entryId: string) {
+    removeWhere((e) => e.entryId !== entryId);
   }
 
   return {
@@ -120,5 +133,6 @@ export function useInitiative({
     setFocusView,
     handleAddToInitiative,
     removeByTokenIds,
+    removeByEntryId,
   };
 }

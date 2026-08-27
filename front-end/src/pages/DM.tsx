@@ -772,11 +772,7 @@ export default function DM() {
               prev.map((e) => (e.entryId === entryId ? { ...e, value } : e)),
             )
           }
-          onRemove={(entryId) =>
-            initiative.setEntries((prev) =>
-              prev.filter((e) => e.entryId !== entryId),
-            )
-          }
+          onRemove={initiative.removeByEntryId}
           onClose={panels.initiative.close}
           zIndex={panels.initiative.zIndex}
           onFocus={panels.initiative.focus}

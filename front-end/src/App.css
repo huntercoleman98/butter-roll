@@ -1132,7 +1132,10 @@ button.icon-btn {
 
 .player-history {
   flex: 1;
-  overflow-y: auto;
+  min-width: 0;
+  /* Vertical-only scroll; see .player-sheet-scroll for why overflow-x is pinned. */
+  overflow: hidden auto;
+  overflow-wrap: anywhere;
   font-size: 13px;
   display: flex;
   flex-direction: column;
@@ -1153,8 +1156,15 @@ button.icon-btn {
 
 .player-sheet-scroll {
   flex: 1;
+  min-width: 0;
   min-height: 0;
-  overflow-y: auto;
+  /* Scroll vertically only. Leaving overflow-x at its default `visible` makes
+     the browser compute it to `auto` (the spec's visible→auto promotion when
+     the other axis scrolls), which surfaces a phantom horizontal scrollbar on
+     narrow screens. Pinning it to `hidden` keeps the column at the phone width;
+     the overflow-wrap below makes long tokens reflow rather than get clipped. */
+  overflow: hidden auto;
+  overflow-wrap: anywhere;
   padding: 8px;
 }
 

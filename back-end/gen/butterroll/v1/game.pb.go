@@ -2408,6 +2408,46 @@ func (*InitiativeStart) Descriptor() ([]byte, []int) {
 	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{34}
 }
 
+// InitiativeEnd signals the DM ended an encounter (removed the last token from the
+// initiative order). Like InitiativeStart it carries no data and exists only to
+// drive server-side rules (e.g. a combat-end webhook). See the "initiativeEnd"
+// event in config rules.
+type InitiativeEnd struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitiativeEnd) Reset() {
+	*x = InitiativeEnd{}
+	mi := &file_butterroll_v1_game_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitiativeEnd) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitiativeEnd) ProtoMessage() {}
+
+func (x *InitiativeEnd) ProtoReflect() protoreflect.Message {
+	mi := &file_butterroll_v1_game_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitiativeEnd.ProtoReflect.Descriptor instead.
+func (*InitiativeEnd) Descriptor() ([]byte, []int) {
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{35}
+}
+
 // The oneof field name (e.g. "tokenMove") is the discriminator in protojson.
 type Envelope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2444,6 +2484,7 @@ type Envelope struct {
 	//	*Envelope_PageTags
 	//	*Envelope_TokenTags
 	//	*Envelope_InitiativeStart
+	//	*Envelope_InitiativeEnd
 	Payload       isEnvelope_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2451,7 +2492,7 @@ type Envelope struct {
 
 func (x *Envelope) Reset() {
 	*x = Envelope{}
-	mi := &file_butterroll_v1_game_proto_msgTypes[35]
+	mi := &file_butterroll_v1_game_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2463,7 +2504,7 @@ func (x *Envelope) String() string {
 func (*Envelope) ProtoMessage() {}
 
 func (x *Envelope) ProtoReflect() protoreflect.Message {
-	mi := &file_butterroll_v1_game_proto_msgTypes[35]
+	mi := &file_butterroll_v1_game_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2476,7 +2517,7 @@ func (x *Envelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Envelope.ProtoReflect.Descriptor instead.
 func (*Envelope) Descriptor() ([]byte, []int) {
-	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{35}
+	return file_butterroll_v1_game_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *Envelope) GetPayload() isEnvelope_Payload {
@@ -2765,6 +2806,15 @@ func (x *Envelope) GetInitiativeStart() *InitiativeStart {
 	return nil
 }
 
+func (x *Envelope) GetInitiativeEnd() *InitiativeEnd {
+	if x != nil {
+		if x, ok := x.Payload.(*Envelope_InitiativeEnd); ok {
+			return x.InitiativeEnd
+		}
+	}
+	return nil
+}
+
 type isEnvelope_Payload interface {
 	isEnvelope_Payload()
 }
@@ -2893,6 +2943,10 @@ type Envelope_InitiativeStart struct {
 	InitiativeStart *InitiativeStart `protobuf:"bytes,31,opt,name=initiative_start,json=initiativeStart,proto3,oneof"`
 }
 
+type Envelope_InitiativeEnd struct {
+	InitiativeEnd *InitiativeEnd `protobuf:"bytes,32,opt,name=initiative_end,json=initiativeEnd,proto3,oneof"`
+}
+
 func (*Envelope_Hello) isEnvelope_Payload() {}
 
 func (*Envelope_Snapshot) isEnvelope_Payload() {}
@@ -2954,6 +3008,8 @@ func (*Envelope_PageTags) isEnvelope_Payload() {}
 func (*Envelope_TokenTags) isEnvelope_Payload() {}
 
 func (*Envelope_InitiativeStart) isEnvelope_Payload() {}
+
+func (*Envelope_InitiativeEnd) isEnvelope_Payload() {}
 
 var File_butterroll_v1_game_proto protoreflect.FileDescriptor
 
@@ -3165,7 +3221,8 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\fcharacter_id\x18\x06 \x01(\tR\vcharacterId\"+\n" +
 	"\fPlayerRemove\x12\x1b\n" +
 	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\"\x11\n" +
-	"\x0fInitiativeStart\"\x94\x0f\n" +
+	"\x0fInitiativeStart\"\x0f\n" +
+	"\rInitiativeEnd\"\xdb\x0f\n" +
 	"\bEnvelope\x12,\n" +
 	"\x05hello\x18\x01 \x01(\v2\x14.butterroll.v1.HelloH\x00R\x05hello\x125\n" +
 	"\bsnapshot\x18\x02 \x01(\v2\x17.butterroll.v1.SnapshotH\x00R\bsnapshot\x120\n" +
@@ -3206,7 +3263,8 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\tpage_tags\x18\x1d \x01(\v2\x17.butterroll.v1.PageTagsH\x00R\bpageTags\x129\n" +
 	"\n" +
 	"token_tags\x18\x1e \x01(\v2\x18.butterroll.v1.TokenTagsH\x00R\ttokenTags\x12K\n" +
-	"\x10initiative_start\x18\x1f \x01(\v2\x1e.butterroll.v1.InitiativeStartH\x00R\x0finitiativeStartB\t\n" +
+	"\x10initiative_start\x18\x1f \x01(\v2\x1e.butterroll.v1.InitiativeStartH\x00R\x0finitiativeStart\x12E\n" +
+	"\x0einitiative_end\x18  \x01(\v2\x1c.butterroll.v1.InitiativeEndH\x00R\rinitiativeEndB\t\n" +
 	"\apayloadB3Z1butter-roll/server/gen/butterroll/v1;butterrollv1b\x06proto3"
 
 var (
@@ -3221,7 +3279,7 @@ func file_butterroll_v1_game_proto_rawDescGZIP() []byte {
 	return file_butterroll_v1_game_proto_rawDescData
 }
 
-var file_butterroll_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_butterroll_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_butterroll_v1_game_proto_goTypes = []any{
 	(*Token)(nil),           // 0: butterroll.v1.Token
 	(*FogPoly)(nil),         // 1: butterroll.v1.FogPoly
@@ -3258,7 +3316,8 @@ var file_butterroll_v1_game_proto_goTypes = []any{
 	(*PlayerJoin)(nil),      // 32: butterroll.v1.PlayerJoin
 	(*PlayerRemove)(nil),    // 33: butterroll.v1.PlayerRemove
 	(*InitiativeStart)(nil), // 34: butterroll.v1.InitiativeStart
-	(*Envelope)(nil),        // 35: butterroll.v1.Envelope
+	(*InitiativeEnd)(nil),   // 35: butterroll.v1.InitiativeEnd
+	(*Envelope)(nil),        // 36: butterroll.v1.Envelope
 }
 var file_butterroll_v1_game_proto_depIdxs = []int32{
 	0,  // 0: butterroll.v1.Page.tokens:type_name -> butterroll.v1.Token
@@ -3298,11 +3357,12 @@ var file_butterroll_v1_game_proto_depIdxs = []int32{
 	23, // 34: butterroll.v1.Envelope.page_tags:type_name -> butterroll.v1.PageTags
 	15, // 35: butterroll.v1.Envelope.token_tags:type_name -> butterroll.v1.TokenTags
 	34, // 36: butterroll.v1.Envelope.initiative_start:type_name -> butterroll.v1.InitiativeStart
-	37, // [37:37] is the sub-list for method output_type
-	37, // [37:37] is the sub-list for method input_type
-	37, // [37:37] is the sub-list for extension type_name
-	37, // [37:37] is the sub-list for extension extendee
-	0,  // [0:37] is the sub-list for field type_name
+	35, // 37: butterroll.v1.Envelope.initiative_end:type_name -> butterroll.v1.InitiativeEnd
+	38, // [38:38] is the sub-list for method output_type
+	38, // [38:38] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_butterroll_v1_game_proto_init() }
@@ -3313,7 +3373,7 @@ func file_butterroll_v1_game_proto_init() {
 	file_butterroll_v1_game_proto_msgTypes[0].OneofWrappers = []any{}
 	file_butterroll_v1_game_proto_msgTypes[13].OneofWrappers = []any{}
 	file_butterroll_v1_game_proto_msgTypes[30].OneofWrappers = []any{}
-	file_butterroll_v1_game_proto_msgTypes[35].OneofWrappers = []any{
+	file_butterroll_v1_game_proto_msgTypes[36].OneofWrappers = []any{
 		(*Envelope_Hello)(nil),
 		(*Envelope_Snapshot)(nil),
 		(*Envelope_MapSet)(nil),
@@ -3345,6 +3405,7 @@ func file_butterroll_v1_game_proto_init() {
 		(*Envelope_PageTags)(nil),
 		(*Envelope_TokenTags)(nil),
 		(*Envelope_InitiativeStart)(nil),
+		(*Envelope_InitiativeEnd)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -3352,7 +3413,7 @@ func file_butterroll_v1_game_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_butterroll_v1_game_proto_rawDesc), len(file_butterroll_v1_game_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   36,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

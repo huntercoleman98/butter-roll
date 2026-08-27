@@ -519,6 +519,7 @@ export function useGameSocket() {
         }
 
         case "initiativeStart":
+        case "initiativeEnd":
           // Server-side rule trigger only; nothing for clients to render.
           break;
         default:

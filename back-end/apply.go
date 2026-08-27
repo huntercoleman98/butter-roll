@@ -22,7 +22,7 @@ func finiteFloat(f float64) bool {
 // Handlers fall into three groups: pure validators for ephemeral messages
 // (which mutate nothing), Session methods for page-management, and Page methods
 // for page-scoped mutations.
-func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo // flat message-type dispatch
+func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo,funlen // flat message-type dispatch
 	s.followups = s.followups[:0]
 	s.outbound = s.outbound[:0]
 
@@ -66,6 +66,8 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo // flat me
 		return nil, true
 	case *pb.Envelope_InitiativeStart:
 		return nil, s.applyInitiativeStart()
+	case *pb.Envelope_InitiativeEnd:
+		return nil, s.applyInitiativeEnd()
 	case *pb.Envelope_CharacterUpdate:
 		return nil, s.applyCharacterUpdate(p.CharacterUpdate)
 	case *pb.Envelope_PlayerRemove:
@@ -398,6 +400,15 @@ func (s *Session) applyDiceRollRequest(req *pb.DiceRollRequest) bool {
 // the hub drain those side effects and rebroadcast the bare signal.
 func (s *Session) applyInitiativeStart() bool {
 	s.runRules(nil, "initiativeStart", initiativeSubject{})
+	return true
+}
+
+// applyInitiativeEnd fires the initiativeEnd rules (the DM ended an encounter)
+// so their webhook side effects queue. Like applyInitiativeStart it carries no
+// state; returning true lets the hub drain those side effects and rebroadcast
+// the bare signal.
+func (s *Session) applyInitiativeEnd() bool {
+	s.runRules(nil, "initiativeEnd", initiativeSubject{})
 	return true
 }
 

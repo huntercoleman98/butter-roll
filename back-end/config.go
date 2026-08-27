@@ -246,9 +246,10 @@ func (s diceRequestSubject) tmpl() map[string]any {
 	return m
 }
 
-// initiativeSubject is an initiativeStart event's subject. It carries no state:
-// the event only signals that combat began, so its rules bind no variables or
-// functions and it drives webhook actions with empty template context.
+// initiativeSubject is the subject for the initiativeStart and initiativeEnd
+// events. It carries no state: the events only signal that combat began or
+// ended, so their rules bind no variables or functions and they drive webhook
+// actions with empty template context.
 type initiativeSubject struct{}
 
 func (initiativeSubject) env() *ruleEnv        { return &ruleEnv{} }
@@ -267,6 +268,7 @@ var eventSchemas = map[string]eventSchema{
 	"diceRollResult":  schemaOf(diceEnv(&pb.DiceRollResult{})),
 	"diceRollRequest": schemaOf(diceRequestEnv(&pb.DiceRollRequest{}, nil)),
 	"initiativeStart": schemaOf(initiativeSubject{}.env()),
+	"initiativeEnd":   schemaOf(initiativeSubject{}.env()),
 }
 
 // tokenEnv exposes a token's fields to the expression evaluator. Unset numeric

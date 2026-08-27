@@ -344,6 +344,24 @@ func TestInitiativeStartFiresRules(t *testing.T) {
 	}
 }
 
+// TestInitiativeEndFiresRules confirms an initiativeEnd event (which binds no
+// variables) runs its rules and queues the webhook they fire.
+func TestInitiativeEndFiresRules(t *testing.T) {
+	cfg := &Config{
+		Webhooks: map[string]*Webhook{"combat": {URL: "http://localhost/combat-end"}},
+		Rules:    []Rule{{On: "initiativeEnd", When: "true", Do: []string{"webhook('combat')"}}},
+	}
+	if err := cfg.compile(); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	s := NewSession()
+	s.cfg = cfg
+	s.runRules(nil, "initiativeEnd", initiativeSubject{})
+	if len(s.outbound) != 1 || s.outbound[0].URL != "http://localhost/combat-end" {
+		t.Fatalf("expected combat-end webhook queued, got %#v", s.outbound)
+	}
+}
+
 // TestWebhookNotFiredWithoutMatch confirms a non-matching condition queues nothing.
 func TestWebhookNotFiredWithoutMatch(t *testing.T) {
 	cfg := &Config{
