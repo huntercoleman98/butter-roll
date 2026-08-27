@@ -62,6 +62,10 @@ export interface Character {
   sp: number;
   cp: number;
   languages: string;
+  // Free-form player notes (markdown), edited in the Notes tab. Rides along in
+  // the sheet blob so it persists and survives restarts via the same sync path;
+  // not rendered on the DM's read-only sheet, so it stays a player scratchpad.
+  notes: string;
 }
 
 // A blank character. Abilities default to 10 (neutral) and the level to 1;
@@ -92,6 +96,7 @@ export function emptyCharacter(): Character {
     sp: 0,
     cp: 0,
     languages: "",
+    notes: "",
   };
 }
 

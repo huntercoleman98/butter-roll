@@ -1,3 +1,4 @@
 back-end/assets/**
 data/
+documentation/
 *.tar.gz

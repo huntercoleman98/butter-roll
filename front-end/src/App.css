@@ -966,6 +966,18 @@
   overflow: hidden;
 }
 
+/* Suspense fallback shown while the lazy Notes chunk loads. Lives here (not in
+   PlayerNotes.css) because that file ships inside the lazy chunk and so isn't
+   applied until the very load this fallback covers. Centered in the tab body. */
+.player-notes-loading {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #808080;
+}
+
 .player-app menu[role="tablist"] > li > a {
   padding: 10px 20px;
   margin: 0;
@@ -1032,7 +1044,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 8px 0;
+  padding: 8px;
   flex-shrink: 0;
 }
 

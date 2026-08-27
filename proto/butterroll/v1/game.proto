@@ -250,6 +250,8 @@ message DiceRollRequest {
   string dice_color = 5;
   optional string adv_mode = 6; // "advantage" | "disadvantage"
   string label = 7;
+  optional string token_id = 8; // token that initiated the roll, if any
+  string metadata = 9;          // roll kind: "to_hit", "damage", "str_check", etc.
 }
 
 message DiceRollResult {
@@ -288,6 +290,18 @@ message PlayerRemove {
 
 // ── Envelope ─────────────────────────────────────────────────────────────────
 // Every message on the wire is an Envelope with exactly one payload set.
+// InitiativeStart signals the DM began an encounter (added the first token(s) to
+// an otherwise-empty initiative order). It carries no data — initiative itself is
+// tracked client-side; this exists only to drive server-side rules (e.g. a
+// combat-start webhook). See the "initiativeStart" event in config rules.
+message InitiativeStart {}
+
+// InitiativeEnd signals the DM ended an encounter (removed the last token from the
+// initiative order). Like InitiativeStart it carries no data and exists only to
+// drive server-side rules (e.g. a combat-end webhook). See the "initiativeEnd"
+// event in config rules.
+message InitiativeEnd {}
+
 // The oneof field name (e.g. "tokenMove") is the discriminator in protojson.
 message Envelope {
   oneof payload {
@@ -321,5 +335,7 @@ message Envelope {
     PlayerRemove player_remove = 28;
     PageTags page_tags = 29;
     TokenTags token_tags = 30;
+    InitiativeStart initiative_start = 31;
+    InitiativeEnd initiative_end = 32;
   }
 }

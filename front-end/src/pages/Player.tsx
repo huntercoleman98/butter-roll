@@ -1,16 +1,19 @@
-import { useEffect, useState } from "react";
-import { GiCog, GiSheikahEye, GiSightDisabled } from "react-icons/gi";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useGameSocket, fetchConfig } from "../hooks/useGameSocket";
 import { usePlayerDice } from "../hooks/usePlayerDice";
 import { usePlayerProfile } from "../hooks/usePlayerProfile";
 import CharacterSheet from "../components/CharacterSheet";
 import PlayerSetup from "../components/PlayerSetup";
 import PlayerDiceTab from "../components/PlayerDiceTab";
+import PlayerTabRow from "../components/PlayerTabRow";
 import "../App.css";
+
+// Lazy so MDXEditor (a heavy dependency) only loads when the Notes tab is opened.
+const PlayerNotes = lazy(() => import("../components/PlayerNotes"));
 
 export default function Player() {
   const { diceLog, myClientId, connected, send } = useGameSocket();
-  const [tab, setTab] = useState<"sheet" | "dice">("sheet");
+  const [tab, setTab] = useState<"sheet" | "dice" | "notes">("sheet");
   // The folder id the onboarding token picker is confined to (from /api/config);
   // undefined until loaded, meaning "whole library" until we know otherwise.
   const [playerTokenFolderId, setPlayerTokenFolderId] = useState<
@@ -99,50 +102,16 @@ export default function Player() {
       </div>
 
       <div className="window-body player-body">
-        <div className="player-tab-row">
-          <menu role="tablist">
-            <li aria-selected={tab === "sheet"}>
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setTab("sheet");
-                }}
-              >
-                Sheet
-              </a>
-            </li>
-            <li aria-selected={tab === "dice"}>
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setTab("dice");
-                }}
-              >
-                Dice
-              </a>
-            </li>
-          </menu>
-          <div className="player-tab-row-actions">
-            <button
-              disabled={!ready}
-              onClick={() => setIsPrivate((p) => !p)}
-              title={isPrivate ? "Private (in the tower)" : "Public"}
-              className="icon-btn"
-            >
-              {isPrivate ? <GiSightDisabled /> : <GiSheikahEye />}
-            </button>
-            <button
-              className="icon-btn"
-              title="Change name / color"
-              onClick={beginEditProfile}
-            >
-              <GiCog />
-            </button>
-          </div>
-        </div>
+        <PlayerTabRow
+          tab={tab}
+          onSelect={setTab}
+          ready={ready}
+          isPrivate={isPrivate}
+          onTogglePrivate={() => setIsPrivate((p) => !p)}
+          onEditProfile={beginEditProfile}
+        />
 
+        {tab !== "notes" && (
         <div className="player-adv-row">
           <button
             disabled={!ready}
@@ -162,6 +131,7 @@ export default function Player() {
           </button>
           {!connected && <span className="player-offline">○ Offline</span>}
         </div>
+        )}
 
         {tab === "sheet" && (
           <div className="player-sheet-scroll">
@@ -192,6 +162,18 @@ export default function Player() {
             history={history}
             historyRef={historyRef}
           />
+        )}
+
+        {tab === "notes" && (
+          <Suspense
+            fallback={<div className="player-notes-loading">Loading notes…</div>}
+          >
+            <PlayerNotes
+              value={character.notes}
+              onChange={(notes) => handleCharacterChange({ notes })}
+              ready={ready}
+            />
+          </Suspense>
         )}
       </div>
     </div>
