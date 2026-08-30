@@ -153,6 +153,10 @@ message TokenUpdate {
   optional int32 hp = 9;
   optional int32 wounds = 10;
   optional bool pinned = 11;
+  // owner_player_id assigns/clears a monster token's controlling player (a
+  // familiar/mount/summon). Empty string clears the association. player stays
+  // false — these are owned monsters, not character tokens.
+  optional string owner_player_id = 12;
 }
 
 message TokenStatus {

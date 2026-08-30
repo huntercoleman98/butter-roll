@@ -1,7 +1,15 @@
+import type { CharacterRecord } from "../hooks/useGameSocket";
 import { tokenLibraryApi } from "../hooks/useGameSocket";
 import AssetLibrary from "./AssetLibrary";
 
 interface Props {
+  // Existing active characters a returning player can adopt on this device.
+  // Empty (and the picker hidden) unless this is a genuine first-run setup.
+  loginCandidates: CharacterRecord[];
+  onLoginAs: (record: CharacterRecord) => void;
+  // Sign out of the current character on this device (shown only when editing an
+  // existing profile — i.e. after initial creation).
+  onLogout: () => void;
   setupName: string;
   setSetupName: (v: string) => void;
   setupColor: string;
@@ -27,6 +35,9 @@ interface Props {
 // (first run, or after clicking the gear / retiring a character). Purely a view:
 // all state and handlers live in <Player>.
 export default function PlayerSetup({
+  loginCandidates,
+  onLoginAs,
+  onLogout,
   setupName,
   setSetupName,
   setupColor,
@@ -150,6 +161,18 @@ export default function PlayerSetup({
                 Retire…
               </button>
             </div>
+            <div className="player-settings-row">
+              <div className="player-settings-row-text">
+                <span className="player-settings-row-title">Log out</span>
+                <span className="player-settings-row-desc">
+                  Sign out of {existingName} on this device. The character is
+                  kept — you can log back in as it.
+                </span>
+              </div>
+              <button onClick={onLogout} className="player-settings-row-action">
+                Log out
+              </button>
+            </div>
           </fieldset>
         )}
 
@@ -160,6 +183,33 @@ export default function PlayerSetup({
         >
           {existingName ? "Save" : "Enter"}
         </button>
+
+        {loginCandidates.length > 0 && (
+          <div className="player-setup-login">
+            <label htmlFor="setup-login-as">
+              Already have a character?
+            </label>
+            <select
+              id="setup-login-as"
+              defaultValue=""
+              onChange={(e) => {
+                const record = loginCandidates.find(
+                  (c) => c.characterId === e.target.value,
+                );
+                if (record) onLoginAs(record);
+              }}
+            >
+              <option value="" disabled>
+                Log in as…
+              </option>
+              {loginCandidates.map((c) => (
+                <option key={c.characterId} value={c.characterId}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
     </div>
   );

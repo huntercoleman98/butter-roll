@@ -16,7 +16,7 @@ import "../App.css";
 const PlayerNotes = lazy(() => import("../components/PlayerNotes"));
 
 export default function Player() {
-  const { diceLog, myClientId, connected, send, pages, presentedPageId } =
+  const { diceLog, myClientId, connected, send, pages, presentedPageId, characters } =
     useGameSocket();
   const [tab, setTab] = useState<"sheet" | "dice" | "notes" | "companions">(
     "sheet",
@@ -40,6 +40,9 @@ export default function Player() {
     handleCharacterChange,
     handleSave,
     handleNewCharacter,
+    handleLoginAs,
+    handleLogout,
+    isFreshSetup,
     beginEditProfile,
     existingCharacterName,
   } = usePlayerProfile({ connected, send });
@@ -89,8 +92,19 @@ export default function Player() {
 
   // ── Setup screen ──────────────────────────────────────────────
   if (!profile) {
+    // Active characters a returning player can reclaim on this device. Only
+    // offered on a genuine first run (not mid-retire), so a player setting up a
+    // replacement character isn't tempted back into an old one.
+    const loginCandidates = isFreshSetup()
+      ? Object.values(characters)
+          .filter((c) => !c.archived && c.ownerPlayerId)
+          .sort((a, b) => a.name.localeCompare(b.name))
+      : [];
     return (
       <PlayerSetup
+        loginCandidates={loginCandidates}
+        onLoginAs={handleLoginAs}
+        onLogout={handleLogout}
         setupName={setupName}
         setSetupName={setSetupName}
         setupColor={setupColor}

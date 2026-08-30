@@ -850,6 +850,21 @@
   padding: 16px !important;
 }
 
+.player-setup-login {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #d0d0d0;
+}
+
+.player-setup-login label {
+  font-size: 11px;
+  color: #666;
+}
+
 .player-setup-fields {
   display: grid;
   grid-template-columns: auto 1fr;
