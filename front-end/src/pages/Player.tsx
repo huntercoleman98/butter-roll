@@ -133,8 +133,21 @@ export default function Player() {
   }
 
   // ── Main UI ────────────────────────────────────────────────────
+  // The map the DM is currently presenting (if any). Rendered blurred behind
+  // the centered app window so it fills the side margins on wide screens
+  // instead of dead gray space — the player still feels "in" the scene.
+  const presentedMapUrl =
+    pages.find((p) => p.id === presentedPageId)?.mapUrl ?? null;
+
   return (
-    <div className="window app player-app">
+    <>
+      {presentedMapUrl && (
+        <div
+          className="player-map-backdrop"
+          style={{ backgroundImage: `url("${presentedMapUrl}")` }}
+        />
+      )}
+      <div className="window app player-app">
       <div className="title-bar">
         <div className="title-bar-text">Butter Roll — {profile.name}</div>
         <div className="title-bar-controls">
@@ -236,6 +249,7 @@ export default function Player() {
           />
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }

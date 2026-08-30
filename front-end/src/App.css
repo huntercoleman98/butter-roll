@@ -972,6 +972,28 @@
   margin: 0 auto;
 }
 
+/* The DM's currently-presented map, blurred into an ambient color wash behind
+   the centered app window. Fills the side margins on wide screens (see the
+   tablet media query) so the player reads as being "in" the scene rather than
+   floating in gray. The opaque .player-app window covers the center; only the
+   margins show through.
+
+   The blur is intentionally heavy: the raw map ignores fog of war, so anything
+   the DM has hidden would otherwise leak. At this radius no map detail
+   survives — it's reduced to mood/color, not a readable map. Keep it heavy;
+   don't dial the blur down. scale() must stay large enough that the blur's
+   feathered transparent edge never reaches the visible margins. */
+.player-map-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  filter: blur(72px) brightness(0.7) saturate(0.9);
+  transform: scale(1.25);
+  pointer-events: none;
+}
+
 .player-body {
   display: flex;
   flex-direction: column;
@@ -1569,6 +1591,34 @@ button.icon-btn {
 
 .sheet-languages {
   width: 100%;
+}
+
+/* ── Player page — tablet / wide screen ──────────────────────────────
+   The player app is phone-first: a 480px column that, uncapped on an iPad,
+   would float in dead gray space. From tablet width up we let it grow to a
+   comfortable reading cap and flow the self-contained sheet fieldsets into
+   balanced columns so the extra width is actually used. 768px is iPad
+   portrait; the sheet gets two columns there and stays two on landscape. */
+@media (min-width: 768px) {
+  .player-app {
+    max-width: 960px;
+  }
+
+  /* Switch the single flex column into balanced multi-column. Balancing
+     (the default column-fill) measures the sheet's natural height and splits
+     it into equal columns without needing an explicit height, so the outer
+     .player-sheet-scroll still scrolls vertically. break-inside keeps each
+     fieldset whole; margin replaces the flex `gap` that multicol drops. */
+  .player-sheet-scroll .sheet {
+    display: block;
+    column-count: 2;
+    column-gap: 16px;
+  }
+
+  .player-sheet-scroll .sheet > fieldset {
+    break-inside: avoid;
+    margin-bottom: 10px;
+  }
 }
 
 /* ── Monsters window ── */
