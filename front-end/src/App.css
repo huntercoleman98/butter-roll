@@ -1755,3 +1755,56 @@ button.icon-btn {
   margin-left: auto;
   font-size: 11px;
 }
+
+.token-monster-assign {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 2px;
+}
+
+.token-monster-assign-btn {
+  flex: 1;
+  font-size: 11px;
+}
+
+.token-monster-assign-clear {
+  font-size: 11px;
+}
+
+.token-monster-picker {
+  width: 200px;
+}
+
+.player-companions-scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 8px 4px;
+}
+
+.player-companion {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 20px;
+  border-bottom: 2px groove #c0c0c0;
+}
+
+.player-companion:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.player-companion-title {
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.monsters-row.is-selected {
+  font-weight: bold;
+  background: rgba(0, 0, 128, 0.12);
+}

@@ -293,6 +293,9 @@ export function useGameSocket() {
               if (m.hp !== undefined) next.hp = m.hp;
               if (m.wounds !== undefined) next.wounds = m.wounds;
               if (m.pinned !== undefined) next.pinned = m.pinned;
+              // Assign/clear a companion's controlling player ("" clears).
+              if (m.ownerPlayerId !== undefined)
+                next.ownerPlayerId = m.ownerPlayerId;
               // Unlinking clears the HP tracker (mirrors the server).
               if (m.monster === "") {
                 next.monster = "";

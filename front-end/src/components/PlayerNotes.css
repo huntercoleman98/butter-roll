@@ -81,3 +81,15 @@
 .player-notes-prose h3 {
   font-size: 1.15em;
 }
+
+.player-notes-prose h4 {
+  font-size: 1em;
+}
+
+.player-notes-prose h5 {
+  font-size: 0.9em;
+}
+
+.player-notes-prose h6 {
+  font-size: 0.85em;
+}

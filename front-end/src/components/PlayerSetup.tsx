@@ -16,6 +16,9 @@ interface Props {
   existingName: string | null;
   spellcastingEnabled: boolean;
   onSpellcastingChange: (checked: boolean) => void;
+  // Disables the notes-export row when the player has no notes to export.
+  notesEmpty: boolean;
+  onExportNotes: () => void;
   onRetire: () => void;
   onSave: () => void;
 }
@@ -34,6 +37,8 @@ export default function PlayerSetup({
   existingName,
   spellcastingEnabled,
   onSpellcastingChange,
+  notesEmpty,
+  onExportNotes,
   onRetire,
   onSave,
 }: Props) {
@@ -118,6 +123,21 @@ export default function PlayerSetup({
                 />
                 <label htmlFor="setting-spellcasting" />
               </div>
+            </div>
+            <div className="player-settings-row">
+              <div className="player-settings-row-text">
+                <span className="player-settings-row-title">Export notes</span>
+                <span className="player-settings-row-desc">
+                  Export your notes as a Markdown (.md) file.
+                </span>
+              </div>
+              <button
+                onClick={onExportNotes}
+                disabled={notesEmpty}
+                className="player-settings-row-action"
+              >
+                Export
+              </button>
             </div>
             <div className="player-settings-row">
               <div className="player-settings-row-text">

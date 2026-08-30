@@ -1,19 +1,27 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { useGameSocket, fetchConfig } from "../hooks/useGameSocket";
+import { useGameSocket, fetchConfig, fetchMonsters } from "../hooks/useGameSocket";
 import { usePlayerDice } from "../hooks/usePlayerDice";
 import { usePlayerProfile } from "../hooks/usePlayerProfile";
+import { useCompanions } from "../hooks/useCompanions";
+import type { Monster } from "../types/monster";
 import CharacterSheet from "../components/CharacterSheet";
 import PlayerSetup from "../components/PlayerSetup";
 import PlayerDiceTab from "../components/PlayerDiceTab";
+import PlayerCompanionsTab from "../components/PlayerCompanionsTab";
 import PlayerTabRow from "../components/PlayerTabRow";
+import { downloadTextFile } from "../utils/download";
 import "../App.css";
 
 // Lazy so MDXEditor (a heavy dependency) only loads when the Notes tab is opened.
 const PlayerNotes = lazy(() => import("../components/PlayerNotes"));
 
 export default function Player() {
-  const { diceLog, myClientId, connected, send } = useGameSocket();
-  const [tab, setTab] = useState<"sheet" | "dice" | "notes">("sheet");
+  const { diceLog, myClientId, connected, send, pages, presentedPageId } =
+    useGameSocket();
+  const [tab, setTab] = useState<"sheet" | "dice" | "notes" | "companions">(
+    "sheet",
+  );
+  const [monsters, setMonsters] = useState<Monster[]>([]);
   // The folder id the onboarding token picker is confined to (from /api/config);
   // undefined until loaded, meaning "whole library" until we know otherwise.
   const [playerTokenFolderId, setPlayerTokenFolderId] = useState<
@@ -63,9 +71,21 @@ export default function Player() {
     fetchConfig()
       .then((cfg) => setPlayerTokenFolderId(cfg.playerTokenFolderId || undefined))
       .catch(console.error);
+    fetchMonsters().then(setMonsters).catch(console.error);
   }, []);
 
   const ready = connected && myClientId !== null && profile !== null;
+
+  const { companions, hasCompanions } = useCompanions(
+    pages,
+    presentedPageId,
+    profile?.playerId,
+  );
+
+  // If the player is viewing Companions when access disappears (DM switches
+  // page, unassigns, or removes the token), snap them back to the Sheet tab.
+  // Adjusting state during render (not in an effect) is the recommended pattern.
+  if (!hasCompanions && tab === "companions") setTab("sheet");
 
   // ── Setup screen ──────────────────────────────────────────────
   if (!profile) {
@@ -83,6 +103,12 @@ export default function Player() {
         onSpellcastingChange={(checked) =>
           handleCharacterChange({ spellcastingEnabled: checked })
         }
+        notesEmpty={!character.notes.trim()}
+        onExportNotes={() => {
+          const name = existingCharacterName() ?? "character";
+          const safe = name.replace(/[^\w.-]+/g, "_");
+          downloadTextFile(`${safe}-notes.md`, character.notes, "text/markdown");
+        }}
         onRetire={handleNewCharacter}
         onSave={handleSave}
       />
@@ -107,6 +133,7 @@ export default function Player() {
           onSelect={setTab}
           ready={ready}
           isPrivate={isPrivate}
+          hasCompanions={hasCompanions}
           onTogglePrivate={() => setIsPrivate((p) => !p)}
           onEditProfile={beginEditProfile}
         />
@@ -174,6 +201,22 @@ export default function Player() {
               ready={ready}
             />
           </Suspense>
+        )}
+
+        {tab === "companions" && presentedPageId && (
+          <PlayerCompanionsTab
+            companions={companions}
+            monsters={monsters}
+            pageId={presentedPageId}
+            ready={ready}
+            onUpdate={(id, update) =>
+              send({
+                case: "tokenUpdate",
+                value: { pageId: presentedPageId, id, ...update },
+              })
+            }
+            onRoll={handleRoll}
+          />
         )}
       </div>
     </div>

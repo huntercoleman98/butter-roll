@@ -41,6 +41,9 @@ export default function PlayerNotes({ value, onChange, ready }: Props) {
         readOnly={!ready}
         placeholder="What comes next? Time will tell."
         contentEditableClassName="player-notes-prose"
+        // Serialize bullet lists with "-" instead of the mdast default "*".
+        // listItemIndent mirrors MDXEditor's own default so we don't clobber it.
+        toMarkdownOptions={{ listItemIndent: "one", bullet: "-" }}
         plugins={[
           headingsPlugin(),
           listsPlugin(),

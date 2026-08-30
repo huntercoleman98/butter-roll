@@ -52,7 +52,7 @@ export default function MonsterStatBlock({ monster, labelName, onRoll }: Props) 
                 key={key}
                 className="monster-stat-btn"
                 title={expr}
-                onClick={() => onRoll(expr, `${rollName} — ${label} check`, metadata)}
+                onClick={() => onRoll(expr, `${rollName} — ${label}`, metadata)}
               >
                 <strong>{label}</strong> {bonusToString(bonus)}
               </button>

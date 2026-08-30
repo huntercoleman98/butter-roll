@@ -563,6 +563,16 @@ func (p *Page) applyTokenUpdate(m *pb.TokenUpdate) bool {
 	if m.Pinned != nil {
 		t.Pinned = *m.Pinned
 	}
+	if m.OwnerPlayerId != nil {
+		// Assign/clear the controlling player for an owned monster (familiar,
+		// mount, summon). Empty string clears the association; player stays as-is
+		// (these are never character tokens).
+		if *m.OwnerPlayerId == "" {
+			t.OwnerPlayerId = nil
+		} else {
+			t.OwnerPlayerId = m.OwnerPlayerId
+		}
+	}
 	return true
 }
 

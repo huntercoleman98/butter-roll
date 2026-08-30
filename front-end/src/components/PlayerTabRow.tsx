@@ -1,6 +1,6 @@
 import { GiCog, GiSheikahEye, GiSightDisabled } from "react-icons/gi";
 
-export type PlayerTab = "sheet" | "dice" | "notes";
+export type PlayerTab = "sheet" | "dice" | "notes" | "companions";
 
 const TABS: { id: PlayerTab; label: string }[] = [
   { id: "sheet", label: "Sheet" },
@@ -13,6 +13,8 @@ interface Props {
   onSelect: (tab: PlayerTab) => void;
   ready: boolean;
   isPrivate: boolean;
+  /** Show the Companions tab (player has assigned monster tokens on this page). */
+  hasCompanions: boolean;
   onTogglePrivate: () => void;
   onEditProfile: () => void;
 }
@@ -25,13 +27,17 @@ export default function PlayerTabRow({
   onSelect,
   ready,
   isPrivate,
+  hasCompanions,
   onTogglePrivate,
   onEditProfile,
 }: Props) {
+  const tabs = hasCompanions
+    ? [...TABS, { id: "companions" as const, label: "Companions" }]
+    : TABS;
   return (
     <div className="player-tab-row">
       <menu role="tablist">
-        {TABS.map(({ id, label }) => (
+        {tabs.map(({ id, label }) => (
           <li key={id} aria-selected={tab === id}>
             <a
               href="#"

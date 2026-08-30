@@ -231,6 +231,12 @@ export default function DM() {
     );
   }
 
+  // Active players a companion token can be assigned to (one entry per player,
+  // keyed by their durable playerId). Feeds the token-monster window's picker.
+  const playerRoster = Object.values(characters)
+    .filter((c) => !c.archived)
+    .map((c) => ({ playerId: c.ownerPlayerId, name: c.name }));
+
   function handleMoveToken(id: string, x: number, y: number) {
     if (!activeId) return;
     send({ case: "tokenMove", value: { pageId: activeId, id, x, y } });
@@ -830,6 +836,7 @@ export default function DM() {
             <TokenMonsterWindow
               token={token}
               monsters={monsters}
+              players={playerRoster}
               x={monsterWindow.x}
               y={monsterWindow.y}
               onUpdate={(update) => {

@@ -995,18 +995,22 @@ func (x *TokenRemove) GetId() string {
 
 // Partial update: every field is optional; only the set ones are applied.
 type TokenUpdate struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PageId        string                 `protobuf:"bytes,1,opt,name=page_id,json=pageId,proto3" json:"page_id,omitempty"`
-	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
-	Color         *string                `protobuf:"bytes,3,opt,name=color,proto3,oneof" json:"color,omitempty"`
-	BorderWidth   *int32                 `protobuf:"varint,4,opt,name=border_width,json=borderWidth,proto3,oneof" json:"border_width,omitempty"`
-	Name          *string                `protobuf:"bytes,5,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	ShowName      *bool                  `protobuf:"varint,6,opt,name=show_name,json=showName,proto3,oneof" json:"show_name,omitempty"`
-	Public        *bool                  `protobuf:"varint,7,opt,name=public,proto3,oneof" json:"public,omitempty"`
-	Monster       *string                `protobuf:"bytes,8,opt,name=monster,proto3,oneof" json:"monster,omitempty"`
-	Hp            *int32                 `protobuf:"varint,9,opt,name=hp,proto3,oneof" json:"hp,omitempty"`
-	Wounds        *int32                 `protobuf:"varint,10,opt,name=wounds,proto3,oneof" json:"wounds,omitempty"`
-	Pinned        *bool                  `protobuf:"varint,11,opt,name=pinned,proto3,oneof" json:"pinned,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	PageId      string                 `protobuf:"bytes,1,opt,name=page_id,json=pageId,proto3" json:"page_id,omitempty"`
+	Id          string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Color       *string                `protobuf:"bytes,3,opt,name=color,proto3,oneof" json:"color,omitempty"`
+	BorderWidth *int32                 `protobuf:"varint,4,opt,name=border_width,json=borderWidth,proto3,oneof" json:"border_width,omitempty"`
+	Name        *string                `protobuf:"bytes,5,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	ShowName    *bool                  `protobuf:"varint,6,opt,name=show_name,json=showName,proto3,oneof" json:"show_name,omitempty"`
+	Public      *bool                  `protobuf:"varint,7,opt,name=public,proto3,oneof" json:"public,omitempty"`
+	Monster     *string                `protobuf:"bytes,8,opt,name=monster,proto3,oneof" json:"monster,omitempty"`
+	Hp          *int32                 `protobuf:"varint,9,opt,name=hp,proto3,oneof" json:"hp,omitempty"`
+	Wounds      *int32                 `protobuf:"varint,10,opt,name=wounds,proto3,oneof" json:"wounds,omitempty"`
+	Pinned      *bool                  `protobuf:"varint,11,opt,name=pinned,proto3,oneof" json:"pinned,omitempty"`
+	// owner_player_id assigns/clears a monster token's controlling player (a
+	// familiar/mount/summon). Empty string clears the association. player stays
+	// false — these are owned monsters, not character tokens.
+	OwnerPlayerId *string `protobuf:"bytes,12,opt,name=owner_player_id,json=ownerPlayerId,proto3,oneof" json:"owner_player_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1116,6 +1120,13 @@ func (x *TokenUpdate) GetPinned() bool {
 		return *x.Pinned
 	}
 	return false
+}
+
+func (x *TokenUpdate) GetOwnerPlayerId() string {
+	if x != nil && x.OwnerPlayerId != nil {
+		return *x.OwnerPlayerId
+	}
+	return ""
 }
 
 type TokenStatus struct {
@@ -3096,7 +3107,7 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\x01y\x18\x03 \x01(\x01R\x01y\"6\n" +
 	"\vTokenRemove\x12\x17\n" +
 	"\apage_id\x18\x01 \x01(\tR\x06pageId\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\tR\x02id\"\xa5\x03\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"\xe6\x03\n" +
 	"\vTokenUpdate\x12\x17\n" +
 	"\apage_id\x18\x01 \x01(\tR\x06pageId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x19\n" +
@@ -3109,7 +3120,8 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\x02hp\x18\t \x01(\x05H\x06R\x02hp\x88\x01\x01\x12\x1b\n" +
 	"\x06wounds\x18\n" +
 	" \x01(\x05H\aR\x06wounds\x88\x01\x01\x12\x1b\n" +
-	"\x06pinned\x18\v \x01(\bH\bR\x06pinned\x88\x01\x01B\b\n" +
+	"\x06pinned\x18\v \x01(\bH\bR\x06pinned\x88\x01\x01\x12+\n" +
+	"\x0fowner_player_id\x18\f \x01(\tH\tR\rownerPlayerId\x88\x01\x01B\b\n" +
 	"\x06_colorB\x0f\n" +
 	"\r_border_widthB\a\n" +
 	"\x05_nameB\f\n" +
@@ -3120,7 +3132,8 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\b_monsterB\x05\n" +
 	"\x03_hpB\t\n" +
 	"\a_woundsB\t\n" +
-	"\a_pinned\"]\n" +
+	"\a_pinnedB\x12\n" +
+	"\x10_owner_player_id\"]\n" +
 	"\vTokenStatus\x12\x17\n" +
 	"\apage_id\x18\x01 \x01(\tR\x06pageId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12%\n" +

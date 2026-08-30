@@ -43,9 +43,16 @@ function NumberInput({
 interface Props {
   token: TokenData;
   monsters: Monster[];
+  /** Active players a companion can be assigned to (name + durable playerId). */
+  players: { playerId: string; name: string }[];
   x: number;
   y: number;
-  onUpdate: (update: { monster?: string; hp?: number; wounds?: number }) => void;
+  onUpdate: (update: {
+    monster?: string;
+    hp?: number;
+    wounds?: number;
+    ownerPlayerId?: string;
+  }) => void;
   onRoll: (expression: string, label?: string, metadata?: string) => void;
   onClose: () => void;
 }
@@ -53,6 +60,7 @@ interface Props {
 export default function TokenMonsterWindow({
   token,
   monsters,
+  players,
   x,
   y,
   onUpdate,
@@ -61,9 +69,15 @@ export default function TokenMonsterWindow({
 }: Props) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [filter, setFilter] = useState("");
+  // Picker origin: the click point of the Assign button (null = closed).
+  const [picking, setPicking] = useState<{ x: number; y: number } | null>(null);
 
   const linked = monsters.find((m) => m.name === token.monster) ?? null;
   const filtered = filterMonsters(monsters, filter);
+  const ownerName = token.ownerPlayerId
+    ? (players.find((p) => p.playerId === token.ownerPlayerId)?.name ??
+      token.ownerPlayerId)
+    : null;
 
   function handleTitleBarDrag(e: React.MouseEvent) {
     if ((e.target as HTMLElement).closest("button")) return;
@@ -177,9 +191,66 @@ export default function TokenMonsterWindow({
                 </div>
               )}
             </div>
+            <div className="token-monster-assign">
+              <button
+                className="token-monster-assign-btn"
+                onClick={(e) => setPicking({ x: e.clientX, y: e.clientY })}
+              >
+                {ownerName ? `Owner: ${ownerName}` : "Assign to player…"}
+              </button>
+              {ownerName && (
+                <button
+                  className="token-monster-assign-clear"
+                  title="Clear owner"
+                  onClick={() => onUpdate({ ownerPlayerId: "" })}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </>
         )}
       </div>
+      {picking && (
+        <div
+          className="window token-monster-picker"
+          style={{
+            position: "fixed",
+            left: picking.x,
+            top: picking.y,
+            zIndex: 1001,
+          }}
+        >
+          <div className="title-bar">
+            <div className="title-bar-text">Assign to player</div>
+            <div className="title-bar-controls">
+              <button aria-label="Close" onClick={() => setPicking(null)} />
+            </div>
+          </div>
+          <div className="window-body">
+            <div className="monsters-scroll">
+              {players.length === 0 ? (
+                <div className="monsters-empty">No players have joined.</div>
+              ) : (
+                players.map((p) => (
+                  <div
+                    key={p.playerId}
+                    className={`monsters-row${
+                      p.playerId === token.ownerPlayerId ? " is-selected" : ""
+                    }`}
+                    onClick={() => {
+                      onUpdate({ ownerPlayerId: p.playerId });
+                      setPicking(null);
+                    }}
+                  >
+                    <span className="monsters-row-name">{p.name}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
