@@ -246,14 +246,6 @@ export function usePlayerProfile({
     setProfile(null);
   }
 
-  // True only on a genuine first run (or after logout): no persisted profile and
-  // not mid-retire. Gates the "Log in as" picker so it doesn't show while a
-  // returning player is setting up a replacement character. Reads storage lazily
-  // (like existingCharacterName) so main-UI renders don't touch localStorage.
-  function isFreshSetup(): boolean {
-    return !pendingCharacterId && loadProfile() === null;
-  }
-
   // Drop back to the setup screen to change name / color / token, pre-filling
   // the form from the current profile.
   function beginEditProfile() {
@@ -285,7 +277,6 @@ export function usePlayerProfile({
     handleNewCharacter,
     handleLoginAs,
     handleLogout,
-    isFreshSetup,
     beginEditProfile,
     existingCharacterName,
   };

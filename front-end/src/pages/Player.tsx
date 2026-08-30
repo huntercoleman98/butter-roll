@@ -42,7 +42,6 @@ export default function Player() {
     handleNewCharacter,
     handleLoginAs,
     handleLogout,
-    isFreshSetup,
     beginEditProfile,
     existingCharacterName,
   } = usePlayerProfile({ connected, send });
@@ -92,14 +91,18 @@ export default function Player() {
 
   // ── Setup screen ──────────────────────────────────────────────
   if (!profile) {
-    // Active characters a returning player can reclaim on this device. Only
-    // offered on a genuine first run (not mid-retire), so a player setting up a
-    // replacement character isn't tempted back into an old one.
-    const loginCandidates = isFreshSetup()
-      ? Object.values(characters)
-          .filter((c) => !c.archived && c.ownerPlayerId)
-          .sort((a, b) => a.name.localeCompare(b.name))
-      : [];
+    // null on a first run or mid-retire (choosing/creating a character), the
+    // current name when editing an existing profile via the gear.
+    const existingName = existingCharacterName();
+    // Active characters that can be adopted on this device. Offered whenever the
+    // player is choosing a character (first run or mid-retire), but not when
+    // they're just editing their current profile in place.
+    const loginCandidates =
+      existingName === null
+        ? Object.values(characters)
+            .filter((c) => !c.archived && c.ownerPlayerId)
+            .sort((a, b) => a.name.localeCompare(b.name))
+        : [];
     return (
       <PlayerSetup
         loginCandidates={loginCandidates}
@@ -112,14 +115,14 @@ export default function Player() {
         setupTokenUrl={setupTokenUrl}
         setSetupTokenUrl={setSetupTokenUrl}
         playerTokenFolderId={playerTokenFolderId}
-        existingName={existingCharacterName()}
+        existingName={existingName}
         spellcastingEnabled={character.spellcastingEnabled}
         onSpellcastingChange={(checked) =>
           handleCharacterChange({ spellcastingEnabled: checked })
         }
         notesEmpty={!character.notes.trim()}
         onExportNotes={() => {
-          const name = existingCharacterName() ?? "character";
+          const name = existingName ?? "character";
           const safe = name.replace(/[^\w.-]+/g, "_");
           downloadTextFile(`${safe}-notes.md`, character.notes, "text/markdown");
         }}

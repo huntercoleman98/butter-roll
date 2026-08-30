@@ -165,8 +165,8 @@ export default function PlayerSetup({
               <div className="player-settings-row-text">
                 <span className="player-settings-row-title">Log out</span>
                 <span className="player-settings-row-desc">
-                  Sign out of {existingName} on this device. The character is
-                  kept — you can log back in as it.
+                  Sign out of {existingName}. The character is
+                  safe, you may return to them later.
                 </span>
               </div>
               <button onClick={onLogout} className="player-settings-row-action">
