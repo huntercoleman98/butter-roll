@@ -1442,7 +1442,8 @@ button.icon-btn {
   font-size: 12px;
 }
 
-.sheet-remove {
+.sheet-remove,
+.sheet-send-party {
   min-width: 22px;
   width: 22px;
   height: 22px;
@@ -1450,6 +1451,16 @@ button.icon-btn {
   font-size: 14px;
   line-height: 1;
   flex-shrink: 0;
+}
+
+/* 98.css renders button *text* via text-shadow with color:transparent, which an
+   SVG icon can't use — it'd inherit currentColor:transparent and vanish. Restore
+   a real color so the icon's currentColor fill shows, and flex-center the glyph. */
+.sheet-send-party {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color);
 }
 
 .sheet-inline-roll {
@@ -1567,9 +1578,41 @@ button.icon-btn {
 .sheet-gear-head,
 .sheet-gear-row {
   display: grid;
-  grid-template-columns: 1fr 44px 56px 22px;
-  gap: 4px;
+  /* Columns: drag handle, send-to-party, name, qty, slots, remove. The three
+     icon columns stay fixed; the name (1fr) takes the bulk of the row while
+     Qty/Slots stay narrow — they're almost always a single digit. Every
+     flexible column has a 0 floor via minmax so the row degrades gracefully
+     instead of overflowing (.player-sheet-scroll is overflow-x:hidden, so an
+     over-wide row gets clipped on the right). The px values are the maximums. */
+  grid-template-columns: 16px 22px minmax(0, 1fr) minmax(0, 32px) minmax(0, 32px) 22px;
+  gap: 3px;
   align-items: center;
+}
+
+.sheet-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #808080;
+  cursor: grab;
+  /* stop the browser turning a handle-drag into a text/image selection drag */
+  user-select: none;
+  /* required for Pointer Events on touch: without this a touch-drag scrolls the
+     page instead of firing pointermove to the handle. */
+  touch-action: none;
+}
+
+.sheet-drag-handle:active {
+  cursor: grabbing;
+}
+
+.sheet-gear-row.is-dragging {
+  opacity: 0.4;
+}
+
+.sheet-gear-row.is-drop-target {
+  outline: 1px dashed #808080;
+  outline-offset: -1px;
 }
 
 .sheet-gear-head {
@@ -1597,7 +1640,7 @@ button.icon-btn {
 .sheet-coins {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-top: 10px;
   padding-top: 8px;
   border-top: 1px solid #d4d0c8;
@@ -1609,16 +1652,23 @@ button.icon-btn {
   flex-shrink: 0;
 }
 
+/* The three coin fields share the row and shrink evenly (min-width:0) rather
+   than sitting at a fixed 56px each — three fixed inputs + labels made this row
+   ~284px min-content, forcing the whole Gear fieldset wider than a 320px screen
+   and clipping the right edge (× buttons, CP box) against overflow-x:hidden. */
 .sheet-coins label {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   font-weight: bold;
 }
 
 .sheet-coins input {
-  width: 56px;
+  width: 100%;
+  min-width: 0;
   text-align: center;
 }
 

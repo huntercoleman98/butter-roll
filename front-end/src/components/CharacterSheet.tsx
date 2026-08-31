@@ -1,6 +1,8 @@
 import { type CSSProperties } from "react";
-import { GiDiceTwentyFacesTwenty, GiTwoCoins } from "react-icons/gi";
+import { GiDiceTwentyFacesTwenty, GiTwoCoins, GiUpCard } from "react-icons/gi";
+import { MdDragIndicator } from "react-icons/md";
 import { uuid } from "../utils/uuid";
+import { useDragReorder } from "../hooks/useDragReorder";
 import { ABILITY_NAMES, type AbilityName, type Character } from "./character";
 
 // The sheet is a controlled component: the parent owns the Character and
@@ -84,6 +86,8 @@ export default function CharacterSheet({
   accentColor,
 }: Props) {
   const set = (patch: Partial<Character>) => onChange?.(patch);
+
+  const gearDrag = useDragReorder(c.gear, (gear) => set({ gear }));
 
   const strScore = c.abilities.STR;
   const totalSlots = Math.max(strScore, 10);
@@ -583,13 +587,46 @@ export default function CharacterSheet({
         </legend>
         <div className="sheet-list">
           <div className="sheet-gear-head">
+            <span />
+            <span />
             <span>Item</span>
             <span>Qty</span>
             <span>Slots ea.</span>
             <span />
           </div>
-          {c.gear.map((g) => (
-            <div key={g.id} className="sheet-gear-row">
+          {c.gear.map((g, i) => (
+            <div
+              key={g.id}
+              className={
+                "sheet-gear-row" +
+                (gearDrag.draggingIndex === i ? " is-dragging" : "") +
+                (gearDrag.overIndex === i ? " is-drop-target" : "")
+              }
+              {...gearDrag.rowProps()}
+            >
+              {readOnly ? (
+                <span />
+              ) : (
+                <span
+                  className="sheet-drag-handle"
+                  title="Drag to reorder"
+                  {...gearDrag.handleProps(i)}
+                >
+                  <MdDragIndicator />
+                </span>
+              )}
+              {readOnly ? (
+                <span />
+              ) : (
+                <button
+                  className="sheet-send-party"
+                  title="Send to party inventory"
+                  // Stubbed: party inventory isn't wired up yet.
+                  onClick={() => {}}
+                >
+                  <GiUpCard />
+                </button>
+              )}
               <input
                 type="text"
                 disabled={readOnly}
