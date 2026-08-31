@@ -848,6 +848,13 @@
   display: flex;
   flex-direction: column;
   padding: 16px !important;
+  /* The window is height:100% of the viewport; without letting the body flex and
+     scroll, tall setup content (settings + token picker) overflows the fixed
+     window and is clipped with no scrollbar. min-height:0 lets it shrink below
+     content so overflow-y actually engages. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .player-setup-login {
@@ -1015,21 +1022,34 @@
   color: #808080;
 }
 
+/* Let the tablist fill the row and wrap its tabs onto a second line when they
+   don't fit (narrow phones, ~320px), so labels keep their full width instead of
+   clipping. Tabs grow to share the row width but never shrink below their
+   content — that shrink is what would trigger a "Comp…" ellipsis. */
+.player-app menu[role="tablist"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.player-app menu[role="tablist"] > li {
+  flex: 1 1 auto;
+  text-align: center;
+}
+
 .player-app menu[role="tablist"] > li > a {
-  padding: 5px 12px;
+  padding: 5px 6px;
   margin: 0;
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .player-tab-row {
   display: flex;
-  /* wrap-reverse: when the tabs + action buttons don't fit (narrow phones),
-     the buttons drop to a line *above* the tabs instead of being clipped.
-     align-items: flex-start reads as "bottom" under wrap-reverse (cross axis
-     is flipped), preserving the tabs' bottom baseline on the single-line case. */
-  flex-wrap: wrap-reverse;
-  align-items: flex-start;
-  justify-content: space-between;
+  /* column-reverse: the private-roll/profile buttons always sit on their own
+     line *above* the tabs (DOM order is tabs-then-actions), giving the tablist
+     the full window width so labels like "Companions" never clip on a phone. */
+  flex-direction: column-reverse;
   gap: 4px;
 }
 
@@ -1038,8 +1058,8 @@
   align-items: center;
   gap: 4px;
   padding-bottom: 2px;
-  /* keep the buttons right-aligned whether inline with the tabs or wrapped
-     onto their own line above them. */
+  /* right-align the buttons on their own line above the tabs (auto margin
+     absorbs the cross-axis free space in the column layout). */
   margin-left: auto;
 }
 
@@ -1853,6 +1873,20 @@ button.icon-btn {
 
 .token-monster-picker {
   width: 200px;
+}
+
+.player-party-tab {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+}
+
+.player-party-empty {
+  color: #888;
+  font-size: 13px;
 }
 
 .player-companions-scroll {

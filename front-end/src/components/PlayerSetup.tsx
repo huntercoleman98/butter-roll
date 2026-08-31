@@ -70,7 +70,6 @@ export default function PlayerSetup({
           <input
             id="setup-name"
             type="text"
-            autoFocus
             maxLength={20}
             placeholder="Character name"
             value={setupName}

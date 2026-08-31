@@ -8,6 +8,7 @@ import CharacterSheet from "../components/CharacterSheet";
 import PlayerSetup from "../components/PlayerSetup";
 import PlayerDiceTab from "../components/PlayerDiceTab";
 import PlayerCompanionsTab from "../components/PlayerCompanionsTab";
+import PlayerPartyTab from "../components/PlayerPartyTab";
 import PlayerTabRow from "../components/PlayerTabRow";
 import { downloadTextFile } from "../utils/download";
 import "../App.css";
@@ -18,9 +19,9 @@ const PlayerNotes = lazy(() => import("../components/PlayerNotes"));
 export default function Player() {
   const { diceLog, myClientId, connected, send, pages, presentedPageId, characters } =
     useGameSocket();
-  const [tab, setTab] = useState<"sheet" | "dice" | "notes" | "companions">(
-    "sheet",
-  );
+  const [tab, setTab] = useState<
+    "sheet" | "dice" | "notes" | "party" | "companions"
+  >("sheet");
   const [monsters, setMonsters] = useState<Monster[]>([]);
   // The folder id the onboarding token picker is confined to (from /api/config);
   // undefined until loaded, meaning "whole library" until we know otherwise.
@@ -168,7 +169,7 @@ export default function Player() {
           onEditProfile={beginEditProfile}
         />
 
-        {tab !== "notes" && (
+        {tab !== "notes" && tab !== "party" && (
         <div className="player-adv-row">
           <button
             disabled={!ready}
@@ -232,6 +233,8 @@ export default function Player() {
             />
           </Suspense>
         )}
+
+        {tab === "party" && <PlayerPartyTab />}
 
         {tab === "companions" && presentedPageId && (
           <PlayerCompanionsTab

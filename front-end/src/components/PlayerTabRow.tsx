@@ -1,11 +1,12 @@
 import { GiCog, GiSheikahEye, GiSightDisabled } from "react-icons/gi";
 
-export type PlayerTab = "sheet" | "dice" | "notes" | "companions";
+export type PlayerTab = "sheet" | "dice" | "notes" | "party" | "companions";
 
 const TABS: { id: PlayerTab; label: string }[] = [
   { id: "sheet", label: "Sheet" },
   { id: "dice", label: "Dice" },
   { id: "notes", label: "Notes" },
+  { id: "party", label: "Party" },
 ];
 
 interface Props {
