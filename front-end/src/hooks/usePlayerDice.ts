@@ -50,7 +50,18 @@ export function usePlayerDice({
     if (el) el.scrollTop = el.scrollHeight;
   }, [history]);
 
-  function handleRoll(expression: string, label?: string) {
+  // metadata/tokenId flow through only on the public (diceRollRequest) path,
+  // where the server evaluates rules: they let a companion's attack fire the
+  // same webhooks a DM-driven monster roll does (metadata tags the roll as
+  // 'to_hit'; tokenId resolves the firing token so its tags render into the
+  // webhook body). They have no meaning on the private path, which resolves
+  // locally and broadcasts a bare result.
+  function handleRoll(
+    expression: string,
+    label?: string,
+    metadata?: string,
+    tokenId?: string,
+  ) {
     if (!playerName) return;
     const trimmed = expression.trim();
     if (!trimmed) return;
@@ -92,6 +103,8 @@ export function usePlayerDice({
           diceColor,
           advMode: advMode !== "normal" ? advMode : undefined,
           label,
+          metadata,
+          tokenId,
         },
       });
     }

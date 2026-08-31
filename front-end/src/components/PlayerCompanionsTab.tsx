@@ -49,7 +49,12 @@ interface Props {
   /** Commit an HP/wounds change to the given companion token. */
   onUpdate: (id: string, update: { hp?: number; wounds?: number }) => void;
   /** Roll through the player's dice pipeline (attributed, TV animation). */
-  onRoll: (expression: string, label?: string, metadata?: string) => void;
+  onRoll: (
+    expression: string,
+    label?: string,
+    metadata?: string,
+    tokenId?: string,
+  ) => void;
 }
 
 // The player's "Companions" tab: a vertical list of statblocks for the monster
@@ -91,7 +96,9 @@ export default function PlayerCompanionsTab({
               <MonsterStatBlock
                 monster={linked}
                 labelName={token.name}
-                onRoll={onRoll}
+                onRoll={(expr, label, metadata) =>
+                  onRoll(expr, label, metadata, token.id)
+                }
               />
             ) : (
               <div className="monsters-empty">

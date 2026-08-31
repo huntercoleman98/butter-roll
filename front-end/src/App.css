@@ -1016,15 +1016,21 @@
 }
 
 .player-app menu[role="tablist"] > li > a {
-  padding: 10px 20px;
+  padding: 5px 12px;
   margin: 0;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .player-tab-row {
   display: flex;
-  align-items: flex-end;
+  /* wrap-reverse: when the tabs + action buttons don't fit (narrow phones),
+     the buttons drop to a line *above* the tabs instead of being clipped.
+     align-items: flex-start reads as "bottom" under wrap-reverse (cross axis
+     is flipped), preserving the tabs' bottom baseline on the single-line case. */
+  flex-wrap: wrap-reverse;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 4px;
 }
 
 .player-tab-row-actions {
@@ -1032,6 +1038,9 @@
   align-items: center;
   gap: 4px;
   padding-bottom: 2px;
+  /* keep the buttons right-aligned whether inline with the tabs or wrapped
+     onto their own line above them. */
+  margin-left: auto;
 }
 
 .player-tab-body {
@@ -1497,7 +1506,11 @@ button.icon-btn {
 .sheet-spell-head,
 .sheet-spell-row {
   display: grid;
-  grid-template-columns: 40px 40px 1fr 64px 48px 22px;
+  /* Name (2fr) and Duration (1fr) both flex so Name stays the widest column at
+     any width — with fixed px on both, a 320px phone starved Name down below
+     Duration. minmax(0, …) + the input width:100%/min-width:0 below lets them
+     shrink past their content. Ready/Tier/remove are trimmed to what they hold. */
+  grid-template-columns: 22px 38px minmax(0, 2fr) minmax(0, 1fr) 46px 22px;
   gap: 4px;
   align-items: center;
 }
