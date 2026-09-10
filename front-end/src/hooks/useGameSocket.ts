@@ -183,6 +183,15 @@ export function useGameSocket() {
                   : null,
               tokens: p.tokens,
               fogPolys: p.fogPolys,
+              hexGrid: p.hexGrid
+                ? {
+                  orientation: p.hexGrid.orientation,
+                  width: p.hexGrid.width,
+                  height: p.hexGrid.height,
+                  offsetX: p.hexGrid.offsetX,
+                  offsetY: p.hexGrid.offsetY,
+                }
+                : null,
             })),
           );
           presentedPageIdRef.current = s.presentedPageId;
@@ -358,6 +367,7 @@ export function useGameSocket() {
               mapSize: null,
               tokens: [],
               fogPolys: [],
+              hexGrid: null,
             },
           ]);
           break;
@@ -504,6 +514,25 @@ export function useGameSocket() {
           };
           setDiceResult(result);
           setDiceLog((prev) => [...prev, result]);
+          break;
+        }
+
+        case "hexGridSet": {
+          const m = payload.value;
+
+          updatePage(m.pageId, (p) => ({
+            ...p,
+            hexGrid: m.hexGrid
+              ? {
+                orientation: m.hexGrid.orientation,
+                width: m.hexGrid.width,
+                height: m.hexGrid.height,
+                offsetX: m.hexGrid.offsetX,
+                offsetY: m.hexGrid.offsetY,
+              }
+              : null,
+          }));
+
           break;
         }
 
