@@ -23,6 +23,7 @@ import {
   type RadiusCircle,
   type TokenData,
   type CharacterRecord,
+  type HexGridConfig,
 } from "../hooks/useGameSocket";
 import { useDiceHistory } from "../hooks/useDiceHistory";
 import { useInitiative, INITIATIVE_FOCUS_SCALE } from "../hooks/useInitiative";
@@ -31,6 +32,17 @@ import { useTokenKeyboardMove } from "../hooks/useTokenKeyboardMove";
 import { usePages } from "../hooks/usePages";
 import { usePanels } from "../hooks/usePanels";
 import "../App.css";
+import { handleHexGridChange } from "../hooks/useHexes";
+import { HexGeneratorInput } from "../components/MapCanvas/HexGridOverlay";
+import { HexGrid_Orientation } from "../gen/butterroll/v1/game_pb";
+
+const DEFAULT_HEX_GRID: HexGridConfig = {
+  orientation: HexGrid_Orientation.FLAT,
+  width: 100,
+  height: 100,
+  offsetX: 0,
+  offsetY: 0,
+};
 
 export default function DM() {
   const {
@@ -59,6 +71,7 @@ export default function DM() {
     y: number;
   } | null>(null);
   const [tokenMenuOpen, setTokenMenuOpen] = useState(false);
+
   // A read-only character sheet opened from the player bar (a retired character
   // has no map token, so it can't reuse the token-driven sheet window).
   const [sheetWindow, setSheetWindow] = useState<{
@@ -98,6 +111,26 @@ export default function DM() {
     onPageSwitch: () => setSelectedTokenIds(new Set()),
   });
 
+  const [calibratingHex, setCalibratingHex] = useState(false);
+  const [hexGridDraft, setHexGridDraft] =
+  useState<HexGridConfig>(DEFAULT_HEX_GRID);
+
+  useEffect(() => {
+    if (activePage) {
+      setHexGridDraft(activePage.hexGrid ?? DEFAULT_HEX_GRID);
+    }
+  }, [activePage]);
+
+  function updateHexGrid<K extends keyof HexGridConfig>(
+    key: K,
+    value: HexGridConfig[K],
+  ) {
+    setHexGridDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
   const {
     history: diceHistory,
     privateRollRequests,
@@ -120,13 +153,16 @@ export default function DM() {
   const fogToolActive =
     activeTool === "fog-reveal-box" ||
     activeTool === "fog-reveal-poly" ||
-    activeTool === "fog-hide";
+    activeTool === "fog-hide" ||
+    activeTool === "hex-reveal";
   const fogToolLabel =
     activeTool === "fog-reveal-box"
       ? "Reveal Box"
       : activeTool === "fog-reveal-poly"
         ? "Reveal Poly"
-        : "Hide";
+        : activeTool === "hex-reveal"
+          ? "Reveal Hex"
+          : "Hide";
 
   useTokenClipboard({
     activePage,
@@ -500,6 +536,56 @@ export default function DM() {
                         </label>
                       </div>
                       <hr className="map-dropdown-sep" />
+                      <div>
+                        <button
+                          className="hex-grid-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCalibratingHex(!calibratingHex);
+                          }}
+                        >
+                          {calibratingHex ? 'Stop Calibrating Hex Grid' : 'Calibrate Hex Grid'}
+                        </button>
+                      </div>
+                      {calibratingHex ? (
+                        <>
+                          <div className="field-row">
+                            <label>Orientation</label>
+                            <select
+                              value={hexGridDraft.orientation}
+                              onChange={(e) =>
+                                updateHexGrid("orientation", Number(e.target.value))
+                              }
+                            >
+                              <option value={HexGrid_Orientation.FLAT}>Flat</option>
+                              <option value={HexGrid_Orientation.POINTY}>Pointy</option>
+                            </select>
+                          </div>
+                          <HexGeneratorInput
+                            label="Hex Width"
+                            value={hexGridDraft.width}
+                            onChange={(n) => updateHexGrid("width", n)}
+                          />
+                          <HexGeneratorInput
+                            label="Hex Height"
+                            value={hexGridDraft.height}
+                            onChange={(n) => updateHexGrid("height", n)}
+                          />
+                          <HexGeneratorInput
+                            label="X Offset"
+                            value={hexGridDraft.offsetX}
+                            onChange={(n) => updateHexGrid("offsetX", n)}
+                          />
+                          <HexGeneratorInput
+                            label="Y Offset"
+                            value={hexGridDraft.offsetY}
+                            onChange={(n) => updateHexGrid("offsetY", n)}
+                          />
+                        </>
+
+                      ) : (null)}
+                      <hr className="map-dropdown-sep" />
+
                     </>
                   )}
                   <AssetLibrary
@@ -653,6 +739,14 @@ export default function DM() {
                       Reveal Poly
                     </li>
                     <li
+                      className={
+                        activeTool === "hex-reveal" ? "active" : ""
+                      }
+                      onClick={() => setActiveTool("hex-reveal")}
+                    >
+                      Reveal Hex
+                    </li>
+                    <li
                       className={activeTool === "fog-hide" ? "active" : ""}
                       onClick={() => setActiveTool("fog-hide")}
                     >
@@ -684,6 +778,8 @@ export default function DM() {
               stageRef.current = stage;
             }}
             fogPolys={activePage?.fogPolys ?? []}
+            hexGrid={hexGridDraft}
+            onHexGridChange={handleHexGridChange}
             tool={activeTool}
             onFogDraw={handleFogDraw}
             onFogRemove={handleFogRemove}
@@ -705,8 +801,8 @@ export default function DM() {
             initiativeTokenId={
               panels.initiative.open
                 ? initiative.entries.find(
-                    (e) => e.entryId === initiative.currentId,
-                  )?.tokenId ?? null
+                  (e) => e.entryId === initiative.currentId,
+                )?.tokenId ?? null
                 : null
             }
           />

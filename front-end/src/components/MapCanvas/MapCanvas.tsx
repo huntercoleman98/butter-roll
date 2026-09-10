@@ -10,6 +10,7 @@ import type {
   RadiusCircle,
   Ping,
   ViewportSync,
+  HexGridConfig,
 } from "../../hooks/useGameSocket";
 import type { Monster } from "../../types/monster";
 import { clientToWorld } from "./canvasMath";
@@ -26,6 +27,7 @@ import { RadiusOverlay } from "./overlays/RadiusOverlay";
 import { PingOverlay } from "./overlays/PingOverlay";
 import { TokenContextMenu } from "./menus/TokenContextMenu";
 import { CanvasContextMenu } from "./menus/CanvasContextMenu";
+import HexGridOverlay from "./HexGridOverlay";
 
 export type { ActiveTool };
 
@@ -40,6 +42,8 @@ interface MapCanvasProps {
   onStageReady?: (stage: Konva.Stage) => void;
   readOnly?: boolean;
   fogPolys?: FogPoly[];
+  hexGrid?: HexGridConfig | null;
+  onHexGridChange?: (hexGrid: HexGridConfig) => void;
   tool?: ActiveTool;
   onFogDraw?: (poly: { points: number[] }) => void;
   onFogRemove?: (id: string) => void;
@@ -100,6 +104,8 @@ export default function MapCanvas({
   onStageReady,
   readOnly = false,
   fogPolys = [],
+  hexGrid = null,
+  onHexGridChange,
   tool = "select",
   onFogDraw,
   onFogRemove,
@@ -128,7 +134,7 @@ export default function MapCanvas({
         ? "poly"
         : tool === "fog-hide"
           ? "hide"
-          : null;
+          : tool === "hex-reveal" ? "hex" : null;
   const arrowMode = tool === "arrow";
   const radiusMode = tool === "radius";
 
@@ -277,6 +283,11 @@ export default function MapCanvas({
               listening={false}
             />
           )}
+          {hexGrid && <HexGridOverlay
+            hexGrid={hexGrid}
+            mapWidth={mapSize?.width ?? mapImage?.naturalWidth ?? 0}
+            mapHeight={mapSize?.height ?? mapImage?.naturalHeight ?? 0}
+          />}
         </Layer>
         <Layer>
           {tokens.map((t) => (

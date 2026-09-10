@@ -7,7 +7,7 @@ import { DraftRectOverlay } from "../overlays/DraftRectOverlay";
 import { DraftPolyOverlay } from "../overlays/DraftPolyOverlay";
 import { SelectedFogOverlay } from "../overlays/SelectedFogOverlay";
 
-export type FogMode = "reveal" | "poly" | "hide" | null;
+export type FogMode = "reveal" | "poly" | "hide" | "hex" | null;
 
 interface FogToolOptions {
   fogMode: FogMode;
@@ -97,6 +97,15 @@ export function useFogTool({
       }
       setDraftPoly([...cur, start.x, start.y]);
       setPolyCursor(start);
+      return true;
+    }
+
+    if (fogMode === "hex") {
+      // 1. Take start.x/start.y
+      // 2. Determine which calibrated hex contains that point
+      // 3. Generate that hex's polygon
+      // 4. onFogDraw({ points: ... })
+      // 5. Done
       return true;
     }
 
