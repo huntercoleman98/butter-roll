@@ -5,7 +5,7 @@ import {
   toJsonString,
   type MessageInitShape,
 } from "@bufbuild/protobuf";
-import { EnvelopeSchema, type Envelope, type Token } from "../gen/butterroll/v1/game_pb";
+import { EnvelopeSchema, type Envelope, type Token, HexGrid_Orientation } from "../gen/butterroll/v1/game_pb";
 import { uuid } from "../utils/uuid";
 
 // The token/message wire schema lives in proto/butterroll/v1/game.proto and is
@@ -18,6 +18,14 @@ export type TokenData = Token;
 export interface FogPoly {
   id: string;
   points: number[];
+}
+
+export interface HexGridConfig {
+  orientation: HexGrid_Orientation;
+  width: number;
+  height: number;
+  offsetX: number;
+  offsetY: number;
 }
 
 export interface ArrowOverlay {
@@ -89,6 +97,7 @@ export interface Page {
   mapSize: { width: number; height: number } | null;
   tokens: TokenData[];
   fogPolys: FogPoly[];
+  hexGrid: HexGridConfig | null;
 }
 
 const API_BASE = "";

@@ -21,6 +21,7 @@ type Page struct {
 	MapHeight int32
 	Tokens    map[string]*pb.Token
 	FogPolys  map[string]*pb.FogPoly
+	HexGrid   *pb.HexGrid
 }
 
 // Session holds the authoritative room state.
@@ -92,6 +93,7 @@ func (s *Session) snapshotEnvelope() *pb.Envelope {
 			MapHeight: p.MapHeight,
 			Tokens:    tokens,
 			FogPolys:  fogPolys,
+			HexGrid:   p.HexGrid,
 		})
 	}
 	characters := make([]*pb.Character, 0, len(s.Characters))
@@ -186,6 +188,7 @@ func LoadSession(path string) (*Session, error) {
 			MapHeight: pd.MapHeight,
 			Tokens:    make(map[string]*pb.Token, len(pd.Tokens)),
 			FogPolys:  make(map[string]*pb.FogPoly, len(pd.FogPolys)),
+			HexGrid:   pd.HexGrid,
 		}
 		for _, t := range pd.Tokens {
 			p.Tokens[t.Id] = t

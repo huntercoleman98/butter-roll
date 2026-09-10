@@ -2,15 +2,15 @@
 // @generated from file butterroll/v1/game.proto (package butterroll.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file butterroll/v1/game.proto.
  */
 export const file_butterroll_v1_game: GenFile = /*@__PURE__*/
-  fileDesc("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ZRgIIAEoCRISCgpkaWNlX2NvbG9yGAkgASgJEg0KBWxhYmVsGAogASgJInYKClBsYXllckpvaW4SEQoJcGxheWVyX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSDQoFY29sb3IYAyABKAkSEQoJdG9rZW5fdXJsGAQgASgJEg8KB3BhZ2VfaWQYBSABKAkSFAoMY2hhcmFjdGVyX2lkGAYgASgJIiEKDFBsYXllclJlbW92ZRIRCglwbGF5ZXJfaWQYASABKAkihQsKCEVudmVsb3BlEiUKBWhlbGxvGAEgASgLMhQuYnV0dGVycm9sbC52MS5IZWxsb0gAEisKCHNuYXBzaG90GAIgASgLMhcuYnV0dGVycm9sbC52MS5TbmFwc2hvdEgAEigKB21hcF9zZXQYAyABKAsyFS5idXR0ZXJyb2xsLnYxLk1hcFNldEgAEi4KCm1hcF9yZXNpemUYBCABKAsyGC5idXR0ZXJyb2xsLnYxLk1hcFJlc2l6ZUgAEiwKCXRva2VuX2FkZBgFIAEoCzIXLmJ1dHRlcnJvbGwudjEuVG9rZW5BZGRIABIuCgp0b2tlbl9tb3ZlGAYgASgLMhguYnV0dGVycm9sbC52MS5Ub2tlbk1vdmVIABIyCgx0b2tlbl9yZW1vdmUYByABKAsyGi5idXR0ZXJyb2xsLnYxLlRva2VuUmVtb3ZlSAASMgoMdG9rZW5fdXBkYXRlGAggASgLMhouYnV0dGVycm9sbC52MS5Ub2tlblVwZGF0ZUgAEjIKDHRva2VuX3N0YXR1cxgJIAEoCzIaLmJ1dHRlcnJvbGwudjEuVG9rZW5TdGF0dXNIABIoCgdmb2dfYWRkGAogASgLMhUuYnV0dGVycm9sbC52MS5Gb2dBZGRIABIuCgpmb2dfcmVtb3ZlGAsgASgLMhguYnV0dGVycm9sbC52MS5Gb2dSZW1vdmVIABIsCglmb2dfY2xlYXIYDCABKAsyFy5idXR0ZXJyb2xsLnYxLkZvZ0NsZWFySAASKgoIcGFnZV9hZGQYDSABKAsyFi5idXR0ZXJyb2xsLnYxLlBhZ2VBZGRIABIwCgtwYWdlX3JlbW92ZRgOIAEoCzIZLmJ1dHRlcnJvbGwudjEuUGFnZVJlbW92ZUgAEjAKC3BhZ2VfcmVuYW1lGA8gASgLMhkuYnV0dGVycm9sbC52MS5QYWdlUmVuYW1lSAASMgoMcGFnZV9wcmVzZW50GBAgASgLMhouYnV0dGVycm9sbC52MS5QYWdlUHJlc2VudEgAEjIKDGFycm93X3VwZGF0ZRgRIAEoCzIaLmJ1dHRlcnJvbGwudjEuQXJyb3dVcGRhdGVIABIwCgthcnJvd19jbGVhchgSIAEoCzIZLmJ1dHRlcnJvbGwudjEuQXJyb3dDbGVhckgAEjQKDXJhZGl1c191cGRhdGUYEyABKAsyGy5idXR0ZXJyb2xsLnYxLlJhZGl1c1VwZGF0ZUgAEjIKDHJhZGl1c19jbGVhchgUIAEoCzIaLmJ1dHRlcnJvbGwudjEuUmFkaXVzQ2xlYXJIABIjCgRwaW5nGBUgASgLMhMuYnV0dGVycm9sbC52MS5QaW5nSAASNAoNdmlld3BvcnRfc3luYxgWIAEoCzIbLmJ1dHRlcnJvbGwudjEuVmlld3BvcnRTeW5jSAASOwoRZGljZV9yb2xsX3JlcXVlc3QYFyABKAsyHi5idXR0ZXJyb2xsLnYxLkRpY2VSb2xsUmVxdWVzdEgAEjkKEGRpY2Vfcm9sbF9yZXN1bHQYGCABKAsyHS5idXR0ZXJyb2xsLnYxLkRpY2VSb2xsUmVzdWx0SAASOQoQdG9rZW5fbW92ZV9iYXRjaBgZIAEoCzIdLmJ1dHRlcnJvbGwudjEuVG9rZW5Nb3ZlQmF0Y2hIABIwCgtwbGF5ZXJfam9pbhgaIAEoCzIZLmJ1dHRlcnJvbGwudjEuUGxheWVySm9pbkgAEjQKEGNoYXJhY3Rlcl91cGRhdGUYGyABKAsyGC5idXR0ZXJyb2xsLnYxLkNoYXJhY3RlckgAEjQKDXBsYXllcl9yZW1vdmUYHCABKAsyGy5idXR0ZXJyb2xsLnYxLlBsYXllclJlbW92ZUgAQgkKB3BheWxvYWRCM1oxYnV0dGVyLXJvbGwvc2VydmVyL2dlbi9idXR0ZXJyb2xsL3YxO2J1dHRlcnJvbGx2MWIGcHJvdG8z");
+  fileDesc("ChhidXR0ZXJyb2xsL3YxL2dhbWUucHJvdG8SDWJ1dHRlcnJvbGwudjEi+gIKBVRva2VuEgoKAmlkGAEgASgJEgsKA3VybBgCIAEoCRIJCgF4GAMgASgBEgkKAXkYBCABKAESEgoFY29sb3IYBSABKAlIAIgBARIZCgxib3JkZXJfd2lkdGgYBiABKAVIAYgBARIWCg5zdGF0dXNfZWZmZWN0cxgHIAMoCRIMCgRuYW1lGAggASgJEhEKCXNob3dfbmFtZRgJIAEoCBIOCgZwdWJsaWMYCiABKAgSDwoHbW9uc3RlchgLIAEoCRIPCgJocBgMIAEoBUgCiAEBEhMKBndvdW5kcxgNIAEoBUgDiAEBEhwKD293bmVyX3BsYXllcl9pZBgOIAEoCUgEiAEBEg4KBnBsYXllchgPIAEoCBIUCgxjaGFyYWN0ZXJfaWQYECABKAkSDgoGcGlubmVkGBEgASgIQggKBl9jb2xvckIPCg1fYm9yZGVyX3dpZHRoQgUKA19ocEIJCgdfd291bmRzQhIKEF9vd25lcl9wbGF5ZXJfaWQiJQoHRm9nUG9seRIKCgJpZBgBIAEoCRIOCgZwb2ludHMYAiADKAEiqgEKB0hleEdyaWQSNwoLb3JpZW50YXRpb24YASABKA4yIi5idXR0ZXJyb2xsLnYxLkhleEdyaWQuT3JpZW50YXRpb24SDQoFd2lkdGgYAiABKAESDgoGaGVpZ2h0GAMgASgBEhAKCG9mZnNldF94GAQgASgBEhAKCG9mZnNldF95GAUgASgBIiMKC09yaWVudGF0aW9uEgoKBlBPSU5UWRAAEggKBEZMQVQQASLTAQoEUGFnZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg8KB21hcF91cmwYAyABKAkSEQoJbWFwX3dpZHRoGAQgASgFEhIKCm1hcF9oZWlnaHQYBSABKAUSJAoGdG9rZW5zGAYgAygLMhQuYnV0dGVycm9sbC52MS5Ub2tlbhIpCglmb2dfcG9seXMYByADKAsyFi5idXR0ZXJyb2xsLnYxLkZvZ1BvbHkSKAoIaGV4X2dyaWQYCCABKAsyFi5idXR0ZXJyb2xsLnYxLkhleEdyaWQiGgoFSGVsbG8SEQoJY2xpZW50X2lkGAEgASgJIncKCFNuYXBzaG90EhkKEXByZXNlbnRl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b24YASABKAkSEQoJY2xpZW50X2lkGAIgASgJEg8KB3ByaXZhdGUYAyABKAgSEwoLcGxheWVyX25hbWUYBCABKAkSEgoKZGljZV9jb2xvchgFIAEoCRIVCghhZHZfbW9kZRgGIAEoCUgAiAEBEg0KBWxhYmVsGAcgASgJQgsKCV9hZHZfbW9kZSK/AQoORGljZVJvbGxSZXN1bHQSEgoKZXhwcmVzc2lvbhgBIAEoCRINCgVzaWRlcxgCIAEoBRINCgVyb2xscxgDIAMoBRIQCghtb2RpZmllchgEIAEoBRINCgV0b3RhbBgFIAEoBRIRCgljbGllbnRfaWQYBiABKAkSDwoHcHJpdmF0ZRgHIAEoCBITCgtwbGF5ZXJfbmFtZRgIIAEoCRISCgpkaWNlX2NvbG9yGAkgASgJEg0KBWxhYmVsGAogASgJInYKClBsYXllckpvaW4SEQoJcGxheWVyX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSDQoFY29sb3IYAyABKAkSEQoJdG9rZW5fdXJsGAQgASgJEg8KB3BhZ2VfaWQYBSABKAkSFAoMY2hhcmFjdGVyX2lkGAYgASgJIiEKDFBsYXllclJlbW92ZRIRCglwbGF5ZXJfaWQYASABKAkiuAsKCEVudmVsb3BlEiUKBWhlbGxvGAEgASgLMhQuYnV0dGVycm9sbC52MS5IZWxsb0gAEisKCHNuYXBzaG90GAIgASgLMhcuYnV0dGVycm9sbC52MS5TbmFwc2hvdEgAEigKB21hcF9zZXQYAyABKAsyFS5idXR0ZXJyb2xsLnYxLk1hcFNldEgAEi4KCm1hcF9yZXNpemUYBCABKAsyGC5idXR0ZXJyb2xsLnYxLk1hcFJlc2l6ZUgAEiwKCXRva2VuX2FkZBgFIAEoCzIXLmJ1dHRlcnJvbGwudjEuVG9rZW5BZGRIABIuCgp0b2tlbl9tb3ZlGAYgASgLMhguYnV0dGVycm9sbC52MS5Ub2tlbk1vdmVIABIyCgx0b2tlbl9yZW1vdmUYByABKAsyGi5idXR0ZXJyb2xsLnYxLlRva2VuUmVtb3ZlSAASMgoMdG9rZW5fdXBkYXRlGAggASgLMhouYnV0dGVycm9sbC52MS5Ub2tlblVwZGF0ZUgAEjIKDHRva2VuX3N0YXR1cxgJIAEoCzIaLmJ1dHRlcnJvbGwudjEuVG9rZW5TdGF0dXNIABIoCgdmb2dfYWRkGAogASgLMhUuYnV0dGVycm9sbC52MS5Gb2dBZGRIABIuCgpmb2dfcmVtb3ZlGAsgASgLMhguYnV0dGVycm9sbC52MS5Gb2dSZW1vdmVIABIsCglmb2dfY2xlYXIYDCABKAsyFy5idXR0ZXJyb2xsLnYxLkZvZ0NsZWFySAASKgoIcGFnZV9hZGQYDSABKAsyFi5idXR0ZXJyb2xsLnYxLlBhZ2VBZGRIABIwCgtwYWdlX3JlbW92ZRgOIAEoCzIZLmJ1dHRlcnJvbGwudjEuUGFnZVJlbW92ZUgAEjAKC3BhZ2VfcmVuYW1lGA8gASgLMhkuYnV0dGVycm9sbC52MS5QYWdlUmVuYW1lSAASMgoMcGFnZV9wcmVzZW50GBAgASgLMhouYnV0dGVycm9sbC52MS5QYWdlUHJlc2VudEgAEjIKDGFycm93X3VwZGF0ZRgRIAEoCzIaLmJ1dHRlcnJvbGwudjEuQXJyb3dVcGRhdGVIABIwCgthcnJvd19jbGVhchgSIAEoCzIZLmJ1dHRlcnJvbGwudjEuQXJyb3dDbGVhckgAEjQKDXJhZGl1c191cGRhdGUYEyABKAsyGy5idXR0ZXJyb2xsLnYxLlJhZGl1c1VwZGF0ZUgAEjIKDHJhZGl1c19jbGVhchgUIAEoCzIaLmJ1dHRlcnJvbGwudjEuUmFkaXVzQ2xlYXJIABIjCgRwaW5nGBUgASgLMhMuYnV0dGVycm9sbC52MS5QaW5nSAASNAoNdmlld3BvcnRfc3luYxgWIAEoCzIbLmJ1dHRlcnJvbGwudjEuVmlld3BvcnRTeW5jSAASOwoRZGljZV9yb2xsX3JlcXVlc3QYFyABKAsyHi5idXR0ZXJyb2xsLnYxLkRpY2VSb2xsUmVxdWVzdEgAEjkKEGRpY2Vfcm9sbF9yZXN1bHQYGCABKAsyHS5idXR0ZXJyb2xsLnYxLkRpY2VSb2xsUmVzdWx0SAASOQoQdG9rZW5fbW92ZV9iYXRjaBgZIAEoCzIdLmJ1dHRlcnJvbGwudjEuVG9rZW5Nb3ZlQmF0Y2hIABIwCgtwbGF5ZXJfam9pbhgaIAEoCzIZLmJ1dHRlcnJvbGwudjEuUGxheWVySm9pbkgAEjQKEGNoYXJhY3Rlcl91cGRhdGUYGyABKAsyGC5idXR0ZXJyb2xsLnYxLkNoYXJhY3RlckgAEjQKDXBsYXllcl9yZW1vdmUYHCABKAsyGy5idXR0ZXJyb2xsLnYxLlBsYXllclJlbW92ZUgAEjEKDGhleF9ncmlkX3NldBgdIAEoCzIZLmJ1dHRlcnJvbGwudjEuSGV4R3JpZFNldEgAQgkKB3BheWxvYWRCM1oxYnV0dGVyLXJvbGwvc2VydmVyL2dlbi9idXR0ZXJyb2xsL3YxO2J1dHRlcnJvbGx2MWIGcHJvdG8z");
 
 /**
  * Token is one piece on the map. X/Y are world-space coordinates.
@@ -155,6 +155,68 @@ export const FogPolySchema: GenMessage<FogPoly> = /*@__PURE__*/
   messageDesc(file_butterroll_v1_game, 1);
 
 /**
+ * HexGrid is the DM's per-page hex overlay used to reveal fog one cell at a
+ * time. width/height are the bounding box of one hex in world pixels; offset is
+ * the world position of hex (0, 0)'s center. Unset on a page means not calibrated.
+ *
+ * @generated from message butterroll.v1.HexGrid
+ */
+export type HexGrid = Message<"butterroll.v1.HexGrid"> & {
+  /**
+   * @generated from field: butterroll.v1.HexGrid.Orientation orientation = 1;
+   */
+  orientation: HexGrid_Orientation;
+
+  /**
+   * @generated from field: double width = 2;
+   */
+  width: number;
+
+  /**
+   * @generated from field: double height = 3;
+   */
+  height: number;
+
+  /**
+   * @generated from field: double offset_x = 4;
+   */
+  offsetX: number;
+
+  /**
+   * @generated from field: double offset_y = 5;
+   */
+  offsetY: number;
+};
+
+/**
+ * Describes the message butterroll.v1.HexGrid.
+ * Use `create(HexGridSchema)` to create a new message.
+ */
+export const HexGridSchema: GenMessage<HexGrid> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 2);
+
+/**
+ * @generated from enum butterroll.v1.HexGrid.Orientation
+ */
+export enum HexGrid_Orientation {
+  /**
+   * @generated from enum value: POINTY = 0;
+   */
+  POINTY = 0,
+
+  /**
+   * @generated from enum value: FLAT = 1;
+   */
+  FLAT = 1,
+}
+
+/**
+ * Describes the enum butterroll.v1.HexGrid.Orientation.
+ */
+export const HexGrid_OrientationSchema: GenEnum<HexGrid_Orientation> = /*@__PURE__*/
+  enumDesc(file_butterroll_v1_game, 2, 0);
+
+/**
  * Page is a single map scene.
  *
  * @generated from message butterroll.v1.Page
@@ -194,6 +256,11 @@ export type Page = Message<"butterroll.v1.Page"> & {
    * @generated from field: repeated butterroll.v1.FogPoly fog_polys = 7;
    */
   fogPolys: FogPoly[];
+
+  /**
+   * @generated from field: butterroll.v1.HexGrid hex_grid = 8;
+   */
+  hexGrid?: HexGrid | undefined;
 };
 
 /**
@@ -201,7 +268,7 @@ export type Page = Message<"butterroll.v1.Page"> & {
  * Use `create(PageSchema)` to create a new message.
  */
 export const PageSchema: GenMessage<Page> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 2);
+  messageDesc(file_butterroll_v1_game, 3);
 
 /**
  * @generated from message butterroll.v1.Hello
@@ -218,7 +285,7 @@ export type Hello = Message<"butterroll.v1.Hello"> & {
  * Use `create(HelloSchema)` to create a new message.
  */
 export const HelloSchema: GenMessage<Hello> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 3);
+  messageDesc(file_butterroll_v1_game, 4);
 
 /**
  * @generated from message butterroll.v1.Snapshot
@@ -245,7 +312,7 @@ export type Snapshot = Message<"butterroll.v1.Snapshot"> & {
  * Use `create(SnapshotSchema)` to create a new message.
  */
 export const SnapshotSchema: GenMessage<Snapshot> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 4);
+  messageDesc(file_butterroll_v1_game, 5);
 
 /**
  * Character holds a player's sheet as an opaque JSON blob. The server stores and
@@ -253,7 +320,7 @@ export const SnapshotSchema: GenMessage<Snapshot> = /*@__PURE__*/
  * interpret its contents. name and token_url mirror the player's chosen display
  * name and token image so clients (the DM's player bar) can show the player even
  * on pages where they have no token.
- *
+ * 
  * The store is keyed by character_id. An active character (archived == false)
  * is owned by a player (player_id); switching characters archives the old one,
  * which clears player_id — retired sheets live in a shared graveyard belonging
@@ -309,7 +376,7 @@ export type Character = Message<"butterroll.v1.Character"> & {
  * Use `create(CharacterSchema)` to create a new message.
  */
 export const CharacterSchema: GenMessage<Character> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 5);
+  messageDesc(file_butterroll_v1_game, 6);
 
 /**
  * @generated from message butterroll.v1.MapSet
@@ -341,7 +408,7 @@ export type MapSet = Message<"butterroll.v1.MapSet"> & {
  * Use `create(MapSetSchema)` to create a new message.
  */
 export const MapSetSchema: GenMessage<MapSet> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 6);
+  messageDesc(file_butterroll_v1_game, 7);
 
 /**
  * @generated from message butterroll.v1.MapResize
@@ -368,7 +435,7 @@ export type MapResize = Message<"butterroll.v1.MapResize"> & {
  * Use `create(MapResizeSchema)` to create a new message.
  */
 export const MapResizeSchema: GenMessage<MapResize> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 7);
+  messageDesc(file_butterroll_v1_game, 8);
 
 /**
  * @generated from message butterroll.v1.TokenAdd
@@ -390,7 +457,7 @@ export type TokenAdd = Message<"butterroll.v1.TokenAdd"> & {
  * Use `create(TokenAddSchema)` to create a new message.
  */
 export const TokenAddSchema: GenMessage<TokenAdd> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 8);
+  messageDesc(file_butterroll_v1_game, 9);
 
 /**
  * @generated from message butterroll.v1.TokenMove
@@ -422,7 +489,7 @@ export type TokenMove = Message<"butterroll.v1.TokenMove"> & {
  * Use `create(TokenMoveSchema)` to create a new message.
  */
 export const TokenMoveSchema: GenMessage<TokenMove> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 9);
+  messageDesc(file_butterroll_v1_game, 10);
 
 /**
  * @generated from message butterroll.v1.TokenMoveBatch
@@ -444,7 +511,7 @@ export type TokenMoveBatch = Message<"butterroll.v1.TokenMoveBatch"> & {
  * Use `create(TokenMoveBatchSchema)` to create a new message.
  */
 export const TokenMoveBatchSchema: GenMessage<TokenMoveBatch> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 10);
+  messageDesc(file_butterroll_v1_game, 11);
 
 /**
  * @generated from message butterroll.v1.TokenMovePos
@@ -471,7 +538,7 @@ export type TokenMovePos = Message<"butterroll.v1.TokenMovePos"> & {
  * Use `create(TokenMovePosSchema)` to create a new message.
  */
 export const TokenMovePosSchema: GenMessage<TokenMovePos> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 11);
+  messageDesc(file_butterroll_v1_game, 12);
 
 /**
  * @generated from message butterroll.v1.TokenRemove
@@ -493,7 +560,7 @@ export type TokenRemove = Message<"butterroll.v1.TokenRemove"> & {
  * Use `create(TokenRemoveSchema)` to create a new message.
  */
 export const TokenRemoveSchema: GenMessage<TokenRemove> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 12);
+  messageDesc(file_butterroll_v1_game, 13);
 
 /**
  * Partial update: every field is optional; only the set ones are applied.
@@ -562,7 +629,7 @@ export type TokenUpdate = Message<"butterroll.v1.TokenUpdate"> & {
  * Use `create(TokenUpdateSchema)` to create a new message.
  */
 export const TokenUpdateSchema: GenMessage<TokenUpdate> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 13);
+  messageDesc(file_butterroll_v1_game, 14);
 
 /**
  * @generated from message butterroll.v1.TokenStatus
@@ -589,7 +656,7 @@ export type TokenStatus = Message<"butterroll.v1.TokenStatus"> & {
  * Use `create(TokenStatusSchema)` to create a new message.
  */
 export const TokenStatusSchema: GenMessage<TokenStatus> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 14);
+  messageDesc(file_butterroll_v1_game, 15);
 
 /**
  * @generated from message butterroll.v1.FogAdd
@@ -616,7 +683,7 @@ export type FogAdd = Message<"butterroll.v1.FogAdd"> & {
  * Use `create(FogAddSchema)` to create a new message.
  */
 export const FogAddSchema: GenMessage<FogAdd> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 15);
+  messageDesc(file_butterroll_v1_game, 16);
 
 /**
  * @generated from message butterroll.v1.FogRemove
@@ -638,7 +705,29 @@ export type FogRemove = Message<"butterroll.v1.FogRemove"> & {
  * Use `create(FogRemoveSchema)` to create a new message.
  */
 export const FogRemoveSchema: GenMessage<FogRemove> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 16);
+  messageDesc(file_butterroll_v1_game, 17);
+
+/**
+ * @generated from message butterroll.v1.HexGridSet
+ */
+export type HexGridSet = Message<"butterroll.v1.HexGridSet"> & {
+  /**
+   * @generated from field: string page_id = 1;
+   */
+  pageId: string;
+
+  /**
+   * @generated from field: butterroll.v1.HexGrid hex_grid = 2;
+   */
+  hexGrid?: HexGrid | undefined;
+};
+
+/**
+ * Describes the message butterroll.v1.HexGridSet.
+ * Use `create(HexGridSetSchema)` to create a new message.
+ */
+export const HexGridSetSchema: GenMessage<HexGridSet> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 18);
 
 /**
  * @generated from message butterroll.v1.FogClear
@@ -655,7 +744,7 @@ export type FogClear = Message<"butterroll.v1.FogClear"> & {
  * Use `create(FogClearSchema)` to create a new message.
  */
 export const FogClearSchema: GenMessage<FogClear> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 17);
+  messageDesc(file_butterroll_v1_game, 19);
 
 /**
  * @generated from message butterroll.v1.PageAdd
@@ -677,7 +766,7 @@ export type PageAdd = Message<"butterroll.v1.PageAdd"> & {
  * Use `create(PageAddSchema)` to create a new message.
  */
 export const PageAddSchema: GenMessage<PageAdd> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 18);
+  messageDesc(file_butterroll_v1_game, 20);
 
 /**
  * @generated from message butterroll.v1.PageRemove
@@ -694,7 +783,7 @@ export type PageRemove = Message<"butterroll.v1.PageRemove"> & {
  * Use `create(PageRemoveSchema)` to create a new message.
  */
 export const PageRemoveSchema: GenMessage<PageRemove> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 19);
+  messageDesc(file_butterroll_v1_game, 21);
 
 /**
  * @generated from message butterroll.v1.PageRename
@@ -716,7 +805,7 @@ export type PageRename = Message<"butterroll.v1.PageRename"> & {
  * Use `create(PageRenameSchema)` to create a new message.
  */
 export const PageRenameSchema: GenMessage<PageRename> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 20);
+  messageDesc(file_butterroll_v1_game, 22);
 
 /**
  * @generated from message butterroll.v1.PagePresent
@@ -733,7 +822,7 @@ export type PagePresent = Message<"butterroll.v1.PagePresent"> & {
  * Use `create(PagePresentSchema)` to create a new message.
  */
 export const PagePresentSchema: GenMessage<PagePresent> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 21);
+  messageDesc(file_butterroll_v1_game, 23);
 
 /**
  * @generated from message butterroll.v1.ArrowUpdate
@@ -770,7 +859,7 @@ export type ArrowUpdate = Message<"butterroll.v1.ArrowUpdate"> & {
  * Use `create(ArrowUpdateSchema)` to create a new message.
  */
 export const ArrowUpdateSchema: GenMessage<ArrowUpdate> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 22);
+  messageDesc(file_butterroll_v1_game, 24);
 
 /**
  * @generated from message butterroll.v1.ArrowClear
@@ -787,7 +876,7 @@ export type ArrowClear = Message<"butterroll.v1.ArrowClear"> & {
  * Use `create(ArrowClearSchema)` to create a new message.
  */
 export const ArrowClearSchema: GenMessage<ArrowClear> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 23);
+  messageDesc(file_butterroll_v1_game, 25);
 
 /**
  * @generated from message butterroll.v1.RadiusUpdate
@@ -824,7 +913,7 @@ export type RadiusUpdate = Message<"butterroll.v1.RadiusUpdate"> & {
  * Use `create(RadiusUpdateSchema)` to create a new message.
  */
 export const RadiusUpdateSchema: GenMessage<RadiusUpdate> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 24);
+  messageDesc(file_butterroll_v1_game, 26);
 
 /**
  * @generated from message butterroll.v1.RadiusClear
@@ -841,7 +930,7 @@ export type RadiusClear = Message<"butterroll.v1.RadiusClear"> & {
  * Use `create(RadiusClearSchema)` to create a new message.
  */
 export const RadiusClearSchema: GenMessage<RadiusClear> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 25);
+  messageDesc(file_butterroll_v1_game, 27);
 
 /**
  * @generated from message butterroll.v1.Ping
@@ -868,7 +957,7 @@ export type Ping = Message<"butterroll.v1.Ping"> & {
  * Use `create(PingSchema)` to create a new message.
  */
 export const PingSchema: GenMessage<Ping> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 26);
+  messageDesc(file_butterroll_v1_game, 28);
 
 /**
  * @generated from message butterroll.v1.ViewportSync
@@ -900,7 +989,7 @@ export type ViewportSync = Message<"butterroll.v1.ViewportSync"> & {
  * Use `create(ViewportSyncSchema)` to create a new message.
  */
 export const ViewportSyncSchema: GenMessage<ViewportSync> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 27);
+  messageDesc(file_butterroll_v1_game, 29);
 
 /**
  * @generated from message butterroll.v1.DiceRollRequest
@@ -949,7 +1038,7 @@ export type DiceRollRequest = Message<"butterroll.v1.DiceRollRequest"> & {
  * Use `create(DiceRollRequestSchema)` to create a new message.
  */
 export const DiceRollRequestSchema: GenMessage<DiceRollRequest> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 28);
+  messageDesc(file_butterroll_v1_game, 30);
 
 /**
  * @generated from message butterroll.v1.DiceRollResult
@@ -1011,7 +1100,7 @@ export type DiceRollResult = Message<"butterroll.v1.DiceRollResult"> & {
  * Use `create(DiceRollResultSchema)` to create a new message.
  */
 export const DiceRollResultSchema: GenMessage<DiceRollResult> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 29);
+  messageDesc(file_butterroll_v1_game, 31);
 
 /**
  * PlayerJoin registers a player's active-character identity (name, color, token
@@ -1069,7 +1158,7 @@ export type PlayerJoin = Message<"butterroll.v1.PlayerJoin"> & {
  * Use `create(PlayerJoinSchema)` to create a new message.
  */
 export const PlayerJoinSchema: GenMessage<PlayerJoin> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 30);
+  messageDesc(file_butterroll_v1_game, 32);
 
 /**
  * PlayerRemove asks the server to fully evict a player: delete their entire
@@ -1092,7 +1181,7 @@ export type PlayerRemove = Message<"butterroll.v1.PlayerRemove"> & {
  * Use `create(PlayerRemoveSchema)` to create a new message.
  */
 export const PlayerRemoveSchema: GenMessage<PlayerRemove> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 31);
+  messageDesc(file_butterroll_v1_game, 33);
 
 /**
  * ── Envelope ─────────────────────────────────────────────────────────────────
@@ -1273,6 +1362,12 @@ export type Envelope = Message<"butterroll.v1.Envelope"> & {
      */
     value: PlayerRemove;
     case: "playerRemove";
+  } | {
+    /**
+     * @generated from field: butterroll.v1.HexGridSet hex_grid_set = 29;
+     */
+    value: HexGridSet;
+    case: "hexGridSet";
   } | { case: undefined; value?: undefined };
 };
 
@@ -1281,5 +1376,5 @@ export type Envelope = Message<"butterroll.v1.Envelope"> & {
  * Use `create(EnvelopeSchema)` to create a new message.
  */
 export const EnvelopeSchema: GenMessage<Envelope> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 32);
+  messageDesc(file_butterroll_v1_game, 34);
 
