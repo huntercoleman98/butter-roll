@@ -71,46 +71,51 @@ interface HexGridOverlayProps {
     hexGrid: HexGridConfig;
     mapWidth: number;
     mapHeight: number;
-  }
+    calibratingHex: boolean;
+}
 
 export default function HexGridOverlay({
     hexGrid,
     mapWidth,
     mapHeight,
-  }: HexGridOverlayProps) {
+    calibratingHex,
+}: HexGridOverlayProps) {
     const hexes: HexCoord[] = [];
-  
+
     // Generate a generous range of axial coordinates.
     for (let q = -100; q <= 100; q++) {
-      for (let r = -100; r <= 100; r++) {
-        const center = hexCenter({ q, r }, hexGrid);
-  
-        // Skip hexes whose centers are nowhere near the map.
-        if (
-          center.x < -hexGrid.width ||
-          center.x > mapWidth + hexGrid.width ||
-          center.y < -hexGrid.height ||
-          center.y > mapHeight + hexGrid.height
-        ) {
-          continue;
+        for (let r = -100; r <= 100; r++) {
+            const center = hexCenter({ q, r }, hexGrid);
+
+            // Skip hexes whose centers are nowhere near the map.
+            if (
+                center.x < -hexGrid.width ||
+                center.x > mapWidth + hexGrid.width ||
+                center.y < -hexGrid.height ||
+                center.y > mapHeight + hexGrid.height
+            ) {
+                continue;
+            }
+
+            hexes.push({ q, r });
         }
-  
-        hexes.push({ q, r });
-      }
     }
-  
+
+    if (!calibratingHex) {
+        return null
+    }
     return (
-      <>
-        {hexes.map((hex) => (
-          <Line
-            key={`${hex.q},${hex.r}`}
-            points={hexPolygon(hex, hexGrid)}
-            closed
-            stroke="red"
-            strokeWidth={2}
-            listening={false}
-          />
-        ))}
-      </>
+        <>
+            {hexes.map((hex) => (
+                <Line
+                    key={`${hex.q},${hex.r}`}
+                    points={hexPolygon(hex, hexGrid)}
+                    closed
+                    stroke="red"
+                    strokeWidth={2}
+                    listening={false}
+                />
+            ))}
+        </>
     );
-  }
+}

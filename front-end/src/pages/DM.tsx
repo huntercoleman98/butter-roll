@@ -820,6 +820,7 @@ export default function DM() {
             }}
             fogPolys={activePage?.fogPolys ?? []}
             hexGrid={calibratingHex ? hexGridDraft : activePage?.hexGrid}
+            calibratingHex={calibratingHex}
             tool={activeTool}
             onFogDraw={handleFogDraw}
             onFogRemove={handleFogRemove}
