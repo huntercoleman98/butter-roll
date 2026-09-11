@@ -608,14 +608,9 @@ export default function DM() {
                             </select>
                           </div>
                           <HexGeneratorInput
-                            label="Hex Width"
+                            label="Hex Size"
                             value={hexGridDraft.width}
-                            onChange={(n) => updateHexGrid("width", n)}
-                          />
-                          <HexGeneratorInput
-                            label="Hex Height"
-                            value={hexGridDraft.height}
-                            onChange={(n) => updateHexGrid("height", n)}
+                            onChange={(n) => {updateHexGrid("width", n), updateHexGrid("height", n) }}
                           />
                           <HexGeneratorInput
                             label="X Offset"
