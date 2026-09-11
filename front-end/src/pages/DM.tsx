@@ -32,7 +32,6 @@ import { useTokenKeyboardMove } from "../hooks/useTokenKeyboardMove";
 import { usePages } from "../hooks/usePages";
 import { usePanels } from "../hooks/usePanels";
 import "../App.css";
-import { handleHexGridChange } from "../hooks/useHexes";
 import { HexGeneratorInput } from "../components/MapCanvas/HexGridOverlay";
 import { HexGrid_Orientation } from "../gen/butterroll/v1/game_pb";
 
@@ -112,12 +111,11 @@ export default function DM() {
   });
 
   const [calibratingHex, setCalibratingHex] = useState(false);
-  const [hexGridDraft, setHexGridDraft] =
-    useState<HexGridConfig>(DEFAULT_HEX_GRID);
+  const [hexGridDraft, setHexGridDraft] = useState<HexGridConfig | null>(null);
 
   useEffect(() => {
     if (activePage) {
-      setHexGridDraft(activePage.hexGrid ?? DEFAULT_HEX_GRID);
+      setHexGridDraft(activePage.hexGrid);
     }
   }, [activePage]);
 
@@ -125,10 +123,43 @@ export default function DM() {
     key: K,
     value: HexGridConfig[K],
   ) {
-    setHexGridDraft((current) => ({
-      ...current,
-      [key]: value,
-    }));
+    setHexGridDraft((current) => {
+      if (!current) return current;
+  
+      return {
+        ...current,
+        [key]: value,
+      };
+    });
+  }
+
+  function saveHexGrid() {
+    if (!activeId || !hexGridDraft) return;
+
+    send({
+      case: "hexGridSet",
+      value: {
+        pageId: activeId,
+        hexGrid: hexGridDraft,
+      },
+    });
+
+    setCalibratingHex(false);
+  }
+
+  function removeHexGrid() {
+    if (!activeId) return;
+  
+    setHexGridDraft(null);
+  
+    send({
+      case: "hexGridRemove",
+      value: {
+        pageId: activeId,
+      },
+    });
+  
+    setCalibratingHex(false);
   }
 
   const {
@@ -541,28 +572,33 @@ export default function DM() {
                           className="hex-grid-btn"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setCalibratingHex(!calibratingHex);
+
+                            if (calibratingHex) {
+                              saveHexGrid();
+                            } else {
+                              setHexGridDraft(activePage?.hexGrid ?? DEFAULT_HEX_GRID);
+                              setCalibratingHex(true);
+                            }
                           }}
                         >
                           {calibratingHex ? 'Save Hex Grid' : 'Calibrate Hex Grid'}
                         </button>
-                        {calibratingHex ? (
-                          <button
-                            className="hex-grid-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCalibratingHex(false);
-                            }}
-                          >
-                            Remove Hex Grid
-                          </button>) : (<></>)}
+                        <button
+                          className="hex-grid-rmv-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeHexGrid();
+                          }}
+                        >
+                          Remove Hex Grid
+                        </button>
                       </div>
-                      {calibratingHex ? (
+                      {calibratingHex && hexGridDraft ? (
                         <>
                           <div className="field-row">
                             <label>Orientation</label>
                             <select
-                              value={hexGridDraft.orientation}
+                              value={hexGridDraft?.orientation}
                               onChange={(e) =>
                                 updateHexGrid("orientation", Number(e.target.value))
                               }
@@ -788,8 +824,7 @@ export default function DM() {
               stageRef.current = stage;
             }}
             fogPolys={activePage?.fogPolys ?? []}
-            hexGrid={hexGridDraft}
-            onHexGridChange={handleHexGridChange}
+            hexGrid={calibratingHex ? hexGridDraft : activePage?.hexGrid}
             tool={activeTool}
             onFogDraw={handleFogDraw}
             onFogRemove={handleFogRemove}

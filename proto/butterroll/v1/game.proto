@@ -187,6 +187,10 @@ message HexGridSet {
   HexGrid hex_grid = 2;
 }
 
+message HexGridRemove {
+  string page_id = 1;
+}
+
 message FogClear {
   string page_id = 1;
 }
@@ -324,5 +328,6 @@ message Envelope {
     Character character_update = 27;
     PlayerRemove player_remove = 28;
     HexGridSet hex_grid_set = 29;
+    HexGridRemove hex_grid_remove = 30;
   }
 }

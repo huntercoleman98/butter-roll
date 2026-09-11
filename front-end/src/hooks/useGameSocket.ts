@@ -536,6 +536,17 @@ export function useGameSocket() {
           break;
         }
 
+        case "hexGridRemove": {
+          const m = payload.value;
+
+          updatePage(m.pageId, (p) => ({
+            ...p,
+            hexGrid: null,
+          }));
+
+          break;
+        }
+
         default:
           console.warn("unknown message case", payload.case);
       }

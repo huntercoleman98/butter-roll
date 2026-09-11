@@ -1,3 +1,4 @@
 back-end/assets/**
 data/
 *.tar.gz
+buf.gen.windows.yaml

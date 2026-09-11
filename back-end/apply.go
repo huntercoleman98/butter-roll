@@ -110,6 +110,8 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo // flat me
 		return nil, page.applyFogClear(p.FogClear)
 	case *pb.Envelope_HexGridSet:
 		return nil, page.applyHexGridSet(p.HexGridSet)
+	case *pb.Envelope_HexGridRemove:
+		return nil, page.applyHexGridRemove()
 	default:
 		log.Printf("session.Apply: unhandled message type %T", env.Payload)
 		return nil, false
@@ -575,6 +577,11 @@ func (p *Page) applyHexGridSet(m *pb.HexGridSet) bool {
 	return true
 }
 
+func (p *Page) applyHexGridRemove() bool {
+	p.HexGrid = nil
+	return true
+}
+
 // marshalEnvelope serializes env for broadcast, returning (nil, false) on error
 // so a failed marshal becomes a no-op rather than broadcasting nil bytes.
 func marshalEnvelope(env *pb.Envelope) ([]byte, bool) {
@@ -614,6 +621,8 @@ func pageIDOf(env *pb.Envelope) (string, bool) {
 		return p.FogClear.PageId, true
 	case *pb.Envelope_HexGridSet:
 		return p.HexGridSet.PageId, true
+	case *pb.Envelope_HexGridRemove:
+		return p.HexGridRemove.PageId, true
 	}
 	return "", false
 }

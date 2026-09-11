@@ -1,9 +1,5 @@
   import { HexGrid_Orientation } from "../gen/butterroll/v1/game_pb";
 import type { HexGridConfig } from "./useGameSocket";
-  
-export function handleHexGridChange() {
-    return null
-}
 
   export interface HexCoord {
     q: number;

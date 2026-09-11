@@ -43,7 +43,6 @@ interface MapCanvasProps {
   readOnly?: boolean;
   fogPolys?: FogPoly[];
   hexGrid?: HexGridConfig | null;
-  onHexGridChange?: (hexGrid: HexGridConfig) => void;
   tool?: ActiveTool;
   onFogDraw?: (poly: { points: number[] }) => void;
   onFogRemove?: (id: string) => void;
@@ -105,7 +104,6 @@ export default function MapCanvas({
   readOnly = false,
   fogPolys = [],
   hexGrid = null,
-  onHexGridChange,
   tool = "select",
   onFogDraw,
   onFogRemove,
