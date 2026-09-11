@@ -6,7 +6,7 @@ export type ActiveTool =
   | "fog-reveal-box"
   | "fog-reveal-poly"
   | "fog-hide"
-  | "hex-reveal"
+  | "fog-reveal-hex"
   | "arrow"
   | "radius";
 

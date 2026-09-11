@@ -113,7 +113,7 @@ export default function DM() {
 
   const [calibratingHex, setCalibratingHex] = useState(false);
   const [hexGridDraft, setHexGridDraft] =
-  useState<HexGridConfig>(DEFAULT_HEX_GRID);
+    useState<HexGridConfig>(DEFAULT_HEX_GRID);
 
   useEffect(() => {
     if (activePage) {
@@ -154,13 +154,13 @@ export default function DM() {
     activeTool === "fog-reveal-box" ||
     activeTool === "fog-reveal-poly" ||
     activeTool === "fog-hide" ||
-    activeTool === "hex-reveal";
+    activeTool === "fog-reveal-hex";
   const fogToolLabel =
     activeTool === "fog-reveal-box"
       ? "Reveal Box"
       : activeTool === "fog-reveal-poly"
         ? "Reveal Poly"
-        : activeTool === "hex-reveal"
+        : activeTool === "fog-reveal-hex"
           ? "Reveal Hex"
           : "Hide";
 
@@ -544,8 +544,18 @@ export default function DM() {
                             setCalibratingHex(!calibratingHex);
                           }}
                         >
-                          {calibratingHex ? 'Stop Calibrating Hex Grid' : 'Calibrate Hex Grid'}
+                          {calibratingHex ? 'Save Hex Grid' : 'Calibrate Hex Grid'}
                         </button>
+                        {calibratingHex ? (
+                          <button
+                            className="hex-grid-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCalibratingHex(false);
+                            }}
+                          >
+                            Remove Hex Grid
+                          </button>) : (<></>)}
                       </div>
                       {calibratingHex ? (
                         <>
@@ -740,9 +750,9 @@ export default function DM() {
                     </li>
                     <li
                       className={
-                        activeTool === "hex-reveal" ? "active" : ""
+                        activeTool === "fog-reveal-hex" ? "active" : ""
                       }
-                      onClick={() => setActiveTool("hex-reveal")}
+                      onClick={() => setActiveTool("fog-reveal-hex")}
                     >
                       Reveal Hex
                     </li>

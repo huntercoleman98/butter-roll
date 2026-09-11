@@ -134,7 +134,7 @@ export default function MapCanvas({
         ? "poly"
         : tool === "fog-hide"
           ? "hide"
-          : tool === "hex-reveal" ? "hex" : null;
+          : tool === "fog-reveal-hex" ? "hex" : null;
   const arrowMode = tool === "arrow";
   const radiusMode = tool === "radius";
 
@@ -160,6 +160,7 @@ export default function MapCanvas({
     stageRef,
     onFogDraw,
     onFogRemove,
+    hexGrid,
   });
   const measure = useMeasureTool({
     tool,
