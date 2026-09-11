@@ -42,7 +42,7 @@ export function HexGeneratorInput({ label, value, onChange }: HexGeneratorInputP
 
     function commit(raw: string) {
         const result = evaluate(raw);
-        if (result !== null && result > 0) {
+        if (result !== null && result >= 0) {
             onChange(result);
             setDisplay(String(result));
         } else {
