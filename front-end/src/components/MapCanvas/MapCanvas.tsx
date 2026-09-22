@@ -43,7 +43,9 @@ interface MapCanvasProps {
   readOnly?: boolean;
   fogPolys?: FogPoly[];
   hexGrid?: HexGridConfig | null;
-  calibratingHex?: boolean;
+  /** Draw the red hex-grid overlay (calibration aid); the grid data itself is
+   *  always active for hex reveals regardless of this flag. */
+  showHexGrid?: boolean;
   tool?: ActiveTool;
   onFogDraw?: (poly: { points: number[] }) => void;
   onFogRemove?: (id: string) => void;
@@ -110,7 +112,7 @@ export default function MapCanvas({
   readOnly = false,
   fogPolys = [],
   hexGrid = null,
-  calibratingHex = false,
+  showHexGrid = false,
   tool = "select",
   onFogDraw,
   onFogRemove,
@@ -290,11 +292,10 @@ export default function MapCanvas({
               listening={false}
             />
           )}
-          {hexGrid && <HexGridOverlay
+          {showHexGrid && hexGrid && <HexGridOverlay
             hexGrid={hexGrid}
             mapWidth={mapSize?.width ?? mapImage?.naturalWidth ?? 0}
             mapHeight={mapSize?.height ?? mapImage?.naturalHeight ?? 0}
-            calibratingHex={calibratingHex}
           />}
         </Layer>
         <Layer>

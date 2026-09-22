@@ -111,56 +111,32 @@ export default function DM() {
     onPageSwitch: () => setSelectedTokenIds(new Set()),
   });
 
-  const [calibratingHex, setCalibratingHex] = useState(false);
-  const [hexGridDraft, setHexGridDraft] = useState<HexGridConfig | null>(null);
-
-  useEffect(() => {
-    if (activePage) {
-      setHexGridDraft(activePage.hexGrid);
-    }
-  }, [activePage]);
-
-  function updateHexGrid<K extends keyof HexGridConfig>(
-    key: K,
-    value: HexGridConfig[K],
-  ) {
-    setHexGridDraft((current) => {
-      if (!current) return current;
-  
-      return {
-        ...current,
-        [key]: value,
-      };
-    });
-  }
-
-  function saveHexGrid() {
-    if (!activeId || !hexGridDraft) return;
-
+  // The hex grid is authoritative server state (activePage.hexGrid). Editing is
+  // live: each change sends hexGridSet and the echoed snapshot updates the page,
+  // so there is no draft, no Save button, and no separate remove control —
+  // choosing "None" in the Grid selector clears it.
+  function updateHexGrid(patch: Partial<HexGridConfig>) {
+    if (!activeId) return;
+    const next = { ...(activePage?.hexGrid ?? DEFAULT_HEX_GRID), ...patch };
     send({
       case: "hexGridSet",
-      value: {
-        pageId: activeId,
-        hexGrid: hexGridDraft,
-      },
+      value: { pageId: activeId, hexGrid: next },
     });
-
-    setCalibratingHex(false);
   }
 
-  function removeHexGrid() {
+  function setGridType(type: "none" | "hex") {
     if (!activeId) return;
-  
-    setHexGridDraft(null);
-  
-    send({
-      case: "hexGridRemove",
-      value: {
-        pageId: activeId,
-      },
-    });
-  
-    setCalibratingHex(false);
+    if (type === "hex") {
+      send({
+        case: "hexGridSet",
+        value: {
+          pageId: activeId,
+          hexGrid: activePage?.hexGrid ?? DEFAULT_HEX_GRID,
+        },
+      });
+    } else {
+      send({ case: "hexGridRemove", value: { pageId: activeId } });
+    }
   }
 
   const {
@@ -619,40 +595,27 @@ export default function DM() {
                         </label>
                       </div>
                       <hr className="map-dropdown-sep" />
-                      <div>
-                        <button
-                          className="hex-grid-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-
-                            if (calibratingHex) {
-                              saveHexGrid();
-                            } else {
-                              setHexGridDraft(activePage?.hexGrid ?? DEFAULT_HEX_GRID);
-                              setCalibratingHex(true);
-                            }
-                          }}
+                      <div className="field-row">
+                        <label>Grid</label>
+                        <select
+                          value={activePage.hexGrid ? "hex" : "none"}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) =>
+                            setGridType(e.target.value as "none" | "hex")
+                          }
                         >
-                          {calibratingHex ? 'Save Hex Grid' : 'Calibrate Hex Grid'}
-                        </button>
-                        <button
-                          className="hex-grid-rmv-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeHexGrid();
-                          }}
-                        >
-                          Remove Hex Grid
-                        </button>
+                          <option value="none">None</option>
+                          <option value="hex">Hex</option>
+                        </select>
                       </div>
-                      {calibratingHex && hexGridDraft ? (
+                      {activePage.hexGrid ? (
                         <>
                           <div className="field-row">
                             <label>Orientation</label>
                             <select
-                              value={hexGridDraft?.orientation}
+                              value={activePage.hexGrid.orientation}
                               onChange={(e) =>
-                                updateHexGrid("orientation", Number(e.target.value))
+                                updateHexGrid({ orientation: Number(e.target.value) })
                               }
                             >
                               <option value={HexGrid_Orientation.FLAT}>Flat</option>
@@ -661,22 +624,21 @@ export default function DM() {
                           </div>
                           <HexGeneratorInput
                             label="Hex Size"
-                            value={hexGridDraft.width}
-                            onChange={(n) => {updateHexGrid("width", n), updateHexGrid("height", n) }}
+                            value={activePage.hexGrid.width}
+                            onChange={(n) => updateHexGrid({ width: n, height: n })}
                           />
                           <HexGeneratorInput
                             label="X Offset"
-                            value={hexGridDraft.offsetX}
-                            onChange={(n) => updateHexGrid("offsetX", n)}
+                            value={activePage.hexGrid.offsetX}
+                            onChange={(n) => updateHexGrid({ offsetX: n })}
                           />
                           <HexGeneratorInput
                             label="Y Offset"
-                            value={hexGridDraft.offsetY}
-                            onChange={(n) => updateHexGrid("offsetY", n)}
+                            value={activePage.hexGrid.offsetY}
+                            onChange={(n) => updateHexGrid({ offsetY: n })}
                           />
                         </>
-
-                      ) : (null)}
+                      ) : null}
                       <hr className="map-dropdown-sep" />
 
                     </>
@@ -871,8 +833,8 @@ export default function DM() {
               stageRef.current = stage;
             }}
             fogPolys={activePage?.fogPolys ?? []}
-            hexGrid={calibratingHex ? hexGridDraft : activePage?.hexGrid}
-            calibratingHex={calibratingHex}
+            hexGrid={activePage?.hexGrid}
+            showHexGrid={mapMenuOpen}
             tool={activeTool}
             onFogDraw={handleFogDraw}
             onFogRemove={handleFogRemove}

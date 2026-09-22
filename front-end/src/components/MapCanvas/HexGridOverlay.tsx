@@ -71,14 +71,12 @@ interface HexGridOverlayProps {
     hexGrid: HexGridConfig;
     mapWidth: number;
     mapHeight: number;
-    calibratingHex: boolean;
 }
 
 export default function HexGridOverlay({
     hexGrid,
     mapWidth,
     mapHeight,
-    calibratingHex,
 }: HexGridOverlayProps) {
     const hexes: HexCoord[] = [];
 
@@ -101,9 +99,6 @@ export default function HexGridOverlay({
         }
     }
 
-    if (!calibratingHex) {
-        return null
-    }
     return (
         <>
             {hexes.map((hex) => (
