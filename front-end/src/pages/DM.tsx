@@ -24,6 +24,7 @@ import {
   type RadiusCircle,
   type TokenData,
   type CharacterRecord,
+  type HexGridConfig,
 } from "../hooks/useGameSocket";
 import { useDiceHistory } from "../hooks/useDiceHistory";
 import { useInitiative, INITIATIVE_FOCUS_SCALE } from "../hooks/useInitiative";
@@ -32,6 +33,16 @@ import { useTokenKeyboardMove } from "../hooks/useTokenKeyboardMove";
 import { usePages } from "../hooks/usePages";
 import { usePanels } from "../hooks/usePanels";
 import "../App.css";
+import { HexGeneratorInput } from "../components/MapCanvas/HexGridOverlay";
+import { HexGrid_Orientation } from "../gen/butterroll/v1/game_pb";
+
+const DEFAULT_HEX_GRID: HexGridConfig = {
+  orientation: HexGrid_Orientation.FLAT,
+  width: 100,
+  height: 100,
+  offsetX: 0,
+  offsetY: 0,
+};
 
 export default function DM() {
   const {
@@ -60,6 +71,7 @@ export default function DM() {
     y: number;
   } | null>(null);
   const [tokenMenuOpen, setTokenMenuOpen] = useState(false);
+
   // A read-only character sheet opened from the player bar (a retired character
   // has no map token, so it can't reuse the token-driven sheet window).
   const [sheetWindow, setSheetWindow] = useState<{
@@ -99,6 +111,34 @@ export default function DM() {
     onPageSwitch: () => setSelectedTokenIds(new Set()),
   });
 
+  // The hex grid is authoritative server state (activePage.hexGrid). Editing is
+  // live: each change sends hexGridSet and the echoed snapshot updates the page,
+  // so there is no draft, no Save button, and no separate remove control —
+  // choosing "None" in the Grid selector clears it.
+  function updateHexGrid(patch: Partial<HexGridConfig>) {
+    if (!activeId) return;
+    const next = { ...(activePage?.hexGrid ?? DEFAULT_HEX_GRID), ...patch };
+    send({
+      case: "hexGridSet",
+      value: { pageId: activeId, hexGrid: next },
+    });
+  }
+
+  function setGridType(type: "none" | "hex") {
+    if (!activeId) return;
+    if (type === "hex") {
+      send({
+        case: "hexGridSet",
+        value: {
+          pageId: activeId,
+          hexGrid: activePage?.hexGrid ?? DEFAULT_HEX_GRID,
+        },
+      });
+    } else {
+      send({ case: "hexGridRemove", value: { pageId: activeId } });
+    }
+  }
+
   const {
     history: diceHistory,
     privateRollRequests,
@@ -121,13 +161,16 @@ export default function DM() {
   const fogToolActive =
     activeTool === "fog-reveal-box" ||
     activeTool === "fog-reveal-poly" ||
-    activeTool === "fog-hide";
+    activeTool === "fog-hide" ||
+    activeTool === "fog-reveal-hex";
   const fogToolLabel =
     activeTool === "fog-reveal-box"
       ? "Reveal Box"
       : activeTool === "fog-reveal-poly"
         ? "Reveal Poly"
-        : "Hide";
+        : activeTool === "fog-reveal-hex"
+          ? "Reveal Hex"
+          : "Hide";
 
   useTokenClipboard({
     activePage,
@@ -552,6 +595,52 @@ export default function DM() {
                         </label>
                       </div>
                       <hr className="map-dropdown-sep" />
+                      <div className="field-row">
+                        <label>Grid</label>
+                        <select
+                          value={activePage.hexGrid ? "hex" : "none"}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) =>
+                            setGridType(e.target.value as "none" | "hex")
+                          }
+                        >
+                          <option value="none">None</option>
+                          <option value="hex">Hex</option>
+                        </select>
+                      </div>
+                      {activePage.hexGrid ? (
+                        <>
+                          <div className="field-row">
+                            <label>Orientation</label>
+                            <select
+                              value={activePage.hexGrid.orientation}
+                              onChange={(e) =>
+                                updateHexGrid({ orientation: Number(e.target.value) })
+                              }
+                            >
+                              <option value={HexGrid_Orientation.FLAT}>Flat</option>
+                              <option value={HexGrid_Orientation.POINTY}>Pointy</option>
+                            </select>
+                          </div>
+                          <HexGeneratorInput
+                            label="Hex Size"
+                            value={activePage.hexGrid.width}
+                            onChange={(n) => updateHexGrid({ width: n, height: n })}
+                          />
+                          <HexGeneratorInput
+                            label="X Offset"
+                            value={activePage.hexGrid.offsetX}
+                            onChange={(n) => updateHexGrid({ offsetX: n })}
+                          />
+                          <HexGeneratorInput
+                            label="Y Offset"
+                            value={activePage.hexGrid.offsetY}
+                            onChange={(n) => updateHexGrid({ offsetY: n })}
+                          />
+                        </>
+                      ) : null}
+                      <hr className="map-dropdown-sep" />
+
                     </>
                   )}
                   <AssetLibrary
@@ -705,6 +794,14 @@ export default function DM() {
                       Reveal Poly
                     </li>
                     <li
+                      className={
+                        activeTool === "fog-reveal-hex" ? "active" : ""
+                      }
+                      onClick={() => setActiveTool("fog-reveal-hex")}
+                    >
+                      Reveal Hex
+                    </li>
+                    <li
                       className={activeTool === "fog-hide" ? "active" : ""}
                       onClick={() => setActiveTool("fog-hide")}
                     >
@@ -736,6 +833,8 @@ export default function DM() {
               stageRef.current = stage;
             }}
             fogPolys={activePage?.fogPolys ?? []}
+            hexGrid={activePage?.hexGrid}
+            showHexGrid={mapMenuOpen}
             tool={activeTool}
             onFogDraw={handleFogDraw}
             onFogRemove={handleFogRemove}
@@ -758,8 +857,8 @@ export default function DM() {
             initiativeTokenId={
               panels.initiative.open
                 ? initiative.entries.find(
-                    (e) => e.entryId === initiative.currentId,
-                  )?.tokenId ?? null
+                  (e) => e.entryId === initiative.currentId,
+                )?.tokenId ?? null
                 : null
             }
           />

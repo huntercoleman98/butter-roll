@@ -5,7 +5,7 @@ import {
   toJsonString,
   type MessageInitShape,
 } from "@bufbuild/protobuf";
-import { EnvelopeSchema, type Envelope, type Token } from "../gen/butterroll/v1/game_pb";
+import { EnvelopeSchema, type Envelope, type Token, HexGrid_Orientation } from "../gen/butterroll/v1/game_pb";
 import { uuid } from "../utils/uuid";
 import type { GearItem } from "../components/character";
 
@@ -19,6 +19,14 @@ export type TokenData = Token;
 export interface FogPoly {
   id: string;
   points: number[];
+}
+
+export interface HexGridConfig {
+  orientation: HexGrid_Orientation;
+  width: number;
+  height: number;
+  offsetX: number;
+  offsetY: number;
 }
 
 export interface ArrowOverlay {
@@ -110,6 +118,7 @@ export interface Page {
   tokens: TokenData[];
   fogPolys: FogPoly[];
   tags: string[];
+  hexGrid: HexGridConfig | null;
 }
 
 const API_BASE = "";
@@ -207,6 +216,15 @@ export function useGameSocket() {
               tokens: p.tokens,
               fogPolys: p.fogPolys,
               tags: p.tags,
+              hexGrid: p.hexGrid
+                ? {
+                  orientation: p.hexGrid.orientation,
+                  width: p.hexGrid.width,
+                  height: p.hexGrid.height,
+                  offsetX: p.hexGrid.offsetX,
+                  offsetY: p.hexGrid.offsetY,
+                }
+                : null,
             })),
           );
           presentedPageIdRef.current = s.presentedPageId;
@@ -414,6 +432,7 @@ export function useGameSocket() {
               tokens: [],
               fogPolys: [],
               tags: [],
+              hexGrid: null,
             },
           ]);
           break;
@@ -678,6 +697,36 @@ export function useGameSocket() {
           };
           setDiceResult(result);
           setDiceLog((prev) => [...prev, result]);
+          break;
+        }
+
+        case "hexGridSet": {
+          const m = payload.value;
+
+          updatePage(m.pageId, (p) => ({
+            ...p,
+            hexGrid: m.hexGrid
+              ? {
+                orientation: m.hexGrid.orientation,
+                width: m.hexGrid.width,
+                height: m.hexGrid.height,
+                offsetX: m.hexGrid.offsetX,
+                offsetY: m.hexGrid.offsetY,
+              }
+              : null,
+          }));
+
+          break;
+        }
+
+        case "hexGridRemove": {
+          const m = payload.value;
+
+          updatePage(m.pageId, (p) => ({
+            ...p,
+            hexGrid: null,
+          }));
+
           break;
         }
 

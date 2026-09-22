@@ -51,6 +51,21 @@ message FogPoly {
   repeated double points = 2;
 }
 
+// HexGrid is the DM's per-page hex overlay used to reveal fog one cell at a
+// time. width/height are the bounding box of one hex in world pixels; offset is
+// the world position of hex (0, 0)'s center. Unset on a page means not calibrated.
+message HexGrid {
+  enum Orientation {
+    POINTY = 0;
+    FLAT = 1;
+  }
+  Orientation orientation = 1;
+  double width = 2;
+  double height = 3;
+  double offset_x = 4;
+  double offset_y = 5;
+}
+
 // Page is a single map scene.
 message Page {
   string id = 1;
@@ -63,6 +78,7 @@ message Page {
   // tags are free-form labels a rule condition can match with hasTag('forest')
   // on a pagePresent event. Authored by the DM.
   repeated string tags = 8;
+  HexGrid hex_grid = 9;
 }
 
 // ── Server → client messages ─────────────────────────────────────────────────
@@ -210,6 +226,15 @@ message FogAdd {
 message FogRemove {
   string page_id = 1;
   string id = 2;
+}
+
+message HexGridSet {
+  string page_id = 1;
+  HexGrid hex_grid = 2;
+}
+
+message HexGridRemove {
+  string page_id = 1;
 }
 
 message FogClear {
@@ -433,5 +458,7 @@ message Envelope {
     PartySectionRename party_section_rename = 39;
     PartySectionRemove party_section_remove = 40;
     PartySectionReorder party_section_reorder = 41;
+    HexGridSet hex_grid_set = 42;
+    HexGridRemove hex_grid_remove = 43;
   }
 }

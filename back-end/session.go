@@ -22,6 +22,7 @@ type Page struct {
 	Tags      []string
 	Tokens    map[string]*pb.Token
 	FogPolys  map[string]*pb.FogPoly
+	HexGrid   *pb.HexGrid
 }
 
 // Session holds the authoritative room state.
@@ -115,6 +116,7 @@ func (s *Session) snapshotEnvelope() *pb.Envelope {
 			Tags:      p.Tags,
 			Tokens:    tokens,
 			FogPolys:  fogPolys,
+			HexGrid:   p.HexGrid,
 		})
 	}
 	characters := make([]*pb.Character, 0, len(s.Characters))
@@ -216,6 +218,7 @@ func LoadSession(path string) (*Session, error) {
 			Tags:      pd.Tags,
 			Tokens:    make(map[string]*pb.Token, len(pd.Tokens)),
 			FogPolys:  make(map[string]*pb.FogPoly, len(pd.FogPolys)),
+			HexGrid:   pd.HexGrid,
 		}
 		for _, t := range pd.Tokens {
 			p.Tokens[t.Id] = t

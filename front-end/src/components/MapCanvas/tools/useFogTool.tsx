@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type Konva from "konva";
-import type { FogPoly } from "../../../hooks/useGameSocket";
+import type { FogPoly, HexGridConfig } from "../../../hooks/useGameSocket";
 import { clientToWorld, pointInPoly, startDrag } from "../canvasMath";
 import type { DraftRect, Tool, ToolContext } from "./types";
 import { DraftRectOverlay } from "../overlays/DraftRectOverlay";
 import { DraftPolyOverlay } from "../overlays/DraftPolyOverlay";
 import { SelectedFogOverlay } from "../overlays/SelectedFogOverlay";
+import { hexPolygon, worldToHex } from "../../../hooks/useHexes";
 
-export type FogMode = "reveal" | "poly" | "hide" | null;
+export type FogMode = "reveal" | "poly" | "hide" | "hex" | null;
 
 interface FogToolOptions {
   fogMode: FogMode;
@@ -15,6 +16,7 @@ interface FogToolOptions {
   stageRef: React.RefObject<Konva.Stage | null>;
   onFogDraw?: (poly: { points: number[] }) => void;
   onFogRemove?: (id: string) => void;
+  hexGrid?: HexGridConfig | null;
 }
 
 // Box reveal, polygon reveal, and hide-selection fog tools. Owns all three
@@ -26,6 +28,7 @@ export function useFogTool({
   stageRef,
   onFogDraw,
   onFogRemove,
+  hexGrid,
 }: FogToolOptions): Tool & {
   onMouseMove(stage: Konva.Stage, evt: MouseEvent): void;
 } {
@@ -97,6 +100,22 @@ export function useFogTool({
       }
       setDraftPoly([...cur, start.x, start.y]);
       setPolyCursor(start);
+      return true;
+    }
+
+    if (fogMode === "hex") {
+      if (!hexGrid) return false;
+    
+      const hex = worldToHex(
+        start.x,
+        start.y,
+        hexGrid,
+      );
+    
+      const points = hexPolygon(hex, hexGrid);
+    
+      onFogDraw?.({points: points});
+    
       return true;
     }
 

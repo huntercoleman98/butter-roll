@@ -131,6 +131,10 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo,funlen // 
 		return nil, page.applyFogRemove(p.FogRemove)
 	case *pb.Envelope_FogClear:
 		return nil, page.applyFogClear(p.FogClear)
+	case *pb.Envelope_HexGridSet:
+		return nil, page.applyHexGridSet(p.HexGridSet)
+	case *pb.Envelope_HexGridRemove:
+		return nil, page.applyHexGridRemove()
 	default:
 		log.Printf("session.Apply: unhandled message type %T", env.Payload)
 		return nil, false
@@ -835,6 +839,38 @@ func (p *Page) applyFogClear(_ *pb.FogClear) bool {
 	return true
 }
 
+func (p *Page) applyHexGridSet(m *pb.HexGridSet) bool {
+	g := m.HexGrid
+	if g == nil {
+		log.Printf("session.Apply hex_grid_set: missing hex_grid")
+		return false
+	}
+	if g.Width <= 0 || g.Height <= 0 ||
+		!finiteFloat(g.Width) || !finiteFloat(g.Height) ||
+		!finiteFloat(g.OffsetX) || !finiteFloat(g.OffsetY) {
+		log.Printf("session.Apply hex_grid_set: invalid size/offset (w=%v h=%v ox=%v oy=%v)",
+			g.Width, g.Height, g.OffsetX, g.OffsetY)
+		return false
+	}
+	if g.Orientation != pb.HexGrid_POINTY && g.Orientation != pb.HexGrid_FLAT {
+		log.Printf("session.Apply hex_grid_set: invalid orientation %v", g.Orientation)
+		return false
+	}
+	p.HexGrid = &pb.HexGrid{
+		Orientation: g.Orientation,
+		Width:       g.Width,
+		Height:      g.Height,
+		OffsetX:     g.OffsetX,
+		OffsetY:     g.OffsetY,
+	}
+	return true
+}
+
+func (p *Page) applyHexGridRemove() bool {
+	p.HexGrid = nil
+	return true
+}
+
 // marshalEnvelope serializes env for broadcast, returning (nil, false) on error
 // so a failed marshal becomes a no-op rather than broadcasting nil bytes.
 func marshalEnvelope(env *pb.Envelope) ([]byte, bool) {
@@ -874,6 +910,10 @@ func pageIDOf(env *pb.Envelope) (string, bool) {
 		return p.FogRemove.PageId, true
 	case *pb.Envelope_FogClear:
 		return p.FogClear.PageId, true
+	case *pb.Envelope_HexGridSet:
+		return p.HexGridSet.PageId, true
+	case *pb.Envelope_HexGridRemove:
+		return p.HexGridRemove.PageId, true
 	}
 	return "", false
 }
