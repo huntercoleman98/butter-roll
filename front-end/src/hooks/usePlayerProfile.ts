@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { OutgoingPayload } from "./useGameSocket";
+import type { CharacterRecord, OutgoingPayload } from "./useGameSocket";
 import { uuid } from "../utils/uuid";
 import {
   type Character,
@@ -204,6 +204,48 @@ export function usePlayerProfile({
     setProfile(null);
   }
 
+  // Adopt an existing character from the server roster: copy its sheet and
+  // identity into local storage so this device resumes as that character. We
+  // take on its ownerPlayerId/characterId, so the DM's token link and player-bar
+  // entry carry over (the "iPad one week, phone the next" case). Sync stays
+  // one-way — a second device logged in as the same character won't see edits
+  // made here.
+  function handleLoginAs(record: CharacterRecord) {
+    let sheet: Character;
+    try {
+      sheet = normalizeCharacter(JSON.parse(record.data));
+    } catch {
+      sheet = emptyCharacter();
+    }
+    const p: PlayerProfile = {
+      playerId: record.ownerPlayerId,
+      activeCharacterId: record.characterId,
+      name: record.name,
+      color: record.color || "#4c6ef5",
+      tokenUrl: record.tokenUrl,
+    };
+    saveProfile(p);
+    localStorage.setItem(CHAR_KEY, JSON.stringify(sheet));
+    setCharacter(sheet);
+    setPendingCharacterId(null);
+    setProfile(p);
+  }
+
+  // Sign out on this device: clear the stored identity and sheet and drop back
+  // to a fresh setup screen. No server message — the one-way model keeps the
+  // character active/claimable server-side (unlike Retire, which archives), so
+  // it stays available to log back in as.
+  function handleLogout() {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(CHAR_KEY);
+    setCharacter(emptyCharacter());
+    setSetupName("");
+    setSetupColor("#4c6ef5");
+    setSetupTokenUrl("");
+    setPendingCharacterId(null);
+    setProfile(null);
+  }
+
   // Drop back to the setup screen to change name / color / token, pre-filling
   // the form from the current profile.
   function beginEditProfile() {
@@ -233,6 +275,8 @@ export function usePlayerProfile({
     handleCharacterChange,
     handleSave,
     handleNewCharacter,
+    handleLoginAs,
+    handleLogout,
     beginEditProfile,
     existingCharacterName,
   };

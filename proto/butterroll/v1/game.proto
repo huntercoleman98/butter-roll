@@ -39,6 +39,9 @@ message Token {
   // pinned surfaces a DM/NPC token as a quick-access chip in the DM top bar,
   // alongside the player token chips. Set from the token's right-click menu.
   bool pinned = 17;
+  // tags are free-form labels a rule condition can match with hasTag('goblin').
+  // Authored by the DM; carry no built-in meaning to the client.
+  repeated string tags = 18;
 }
 
 // FogPoly is one revealed polygon cut out of the fog overlay. points is a flat
@@ -72,7 +75,10 @@ message Page {
   int32 map_height = 5;
   repeated Token tokens = 6;
   repeated FogPoly fog_polys = 7;
-  HexGrid hex_grid = 8;
+  // tags are free-form labels a rule condition can match with hasTag('forest')
+  // on a pagePresent event. Authored by the DM.
+  repeated string tags = 8;
+  HexGrid hex_grid = 9;
 }
 
 // ── Server → client messages ─────────────────────────────────────────────────
@@ -85,6 +91,36 @@ message Snapshot {
   string presented_page_id = 1;
   repeated Page pages = 2;
   repeated Character characters = 3;
+  repeated PartyItem party_inventory = 4;
+  PartyWallet party_wallet = 5;
+  repeated PartySection party_sections = 6;
+}
+
+// PartySection is a named, flat (non-nestable) bucket in the party inventory —
+// "Wagon", "House". Items reference it by id via PartyItem.section_id; an empty
+// section_id means the item is unsorted (in no section).
+message PartySection {
+  string id = 1;
+  string name = 2;
+}
+
+// PartyWallet is the room's shared coin pool — a communal GP/SP/CP pot every
+// player can read and edit, separate from any character's personal coins.
+message PartyWallet {
+  int32 gp = 1;
+  int32 sp = 2;
+  int32 cp = 3;
+}
+
+// PartyItem is one entry in the room's shared party inventory — a single list all
+// players can read and write, owned by no individual player. Mirrors the
+// character sheet's gear item ({ name, qty, slotsEach }).
+message PartyItem {
+  string id = 1;
+  string name = 2;
+  int32 qty = 3;
+  int32 slots_each = 4;
+  string section_id = 5; // owning PartySection id; empty = unsorted
 }
 
 // Character holds a player's sheet as an opaque JSON blob. The server stores and
@@ -163,12 +199,22 @@ message TokenUpdate {
   optional int32 hp = 9;
   optional int32 wounds = 10;
   optional bool pinned = 11;
+  // owner_player_id assigns/clears a monster token's controlling player (a
+  // familiar/mount/summon). Empty string clears the association. player stays
+  // false — these are owned monsters, not character tokens.
+  optional string owner_player_id = 12;
 }
 
 message TokenStatus {
   string page_id = 1;
   string id = 2;
   repeated string status_effects = 3;
+}
+
+message TokenTags {
+  string page_id = 1;
+  string id = 2;
+  repeated string tags = 3;
 }
 
 message FogAdd {
@@ -211,6 +257,11 @@ message PageRename {
 
 message PagePresent {
   string id = 1;
+}
+
+message PageTags {
+  string id = 1;
+  repeated string tags = 2;
 }
 
 message ArrowUpdate {
@@ -258,6 +309,8 @@ message DiceRollRequest {
   string dice_color = 5;
   optional string adv_mode = 6; // "advantage" | "disadvantage"
   string label = 7;
+  optional string token_id = 8; // token that initiated the roll, if any
+  string metadata = 9;          // roll kind: "to_hit", "damage", "str_check", etc.
 }
 
 message DiceRollResult {
@@ -287,6 +340,59 @@ message PlayerJoin {
   string character_id = 6;  // the player's active character this identity is for
 }
 
+// ── Party inventory (shared, per-room) ───────────────────────────────────────
+// Granular per-item ops (add/update/remove/reorder), mirroring the token
+// messages, so concurrent edits to different items don't clobber each other. The
+// server holds the authoritative ordered list (Session.PartyInventory) and
+// rebroadcasts each op. No owner check — a future DM UI can emit these unchanged.
+
+message PartyItemAdd {
+  PartyItem item = 1;
+}
+
+// Partial update: every field is optional; only the set ones are applied.
+message PartyItemUpdate {
+  string id = 1;
+  optional string name = 2;
+  optional int32 qty = 3;
+  optional int32 slots_each = 4;
+  optional string section_id = 5; // move to a section ("" = unsorted)
+}
+
+message PartyItemRemove {
+  string id = 1;
+}
+
+// PartyItemReorder gives the new full order of the list by item id.
+message PartyItemReorder {
+  repeated string ids = 1;
+}
+
+// Party section ops mirror the party-item ops. PartySectionRemove orphans the
+// section's items to unsorted (clears their section_id) rather than deleting them.
+
+message PartySectionAdd {
+  PartySection section = 1;
+}
+
+message PartySectionRename {
+  string id = 1;
+  string name = 2;
+}
+
+message PartySectionRemove {
+  string id = 1;
+}
+
+// PartySectionReorder gives the new full order of the sections by id.
+message PartySectionReorder {
+  repeated string ids = 1;
+}
+
+// PartyWallet doubles as the client→server edit (the new absolute totals) and the
+// server→client rebroadcast. Standalone pool, last-write-wins — no per-field
+// deltas (an in-person, trusted-players fund; see the party-wallet plan).
+
 // PlayerRemove asks the server to fully evict a player: delete their entire
 // character roster and remove every token they own across all pages. The server
 // rebroadcasts it so all clients drop the player's tokens and sheets.
@@ -296,6 +402,18 @@ message PlayerRemove {
 
 // ── Envelope ─────────────────────────────────────────────────────────────────
 // Every message on the wire is an Envelope with exactly one payload set.
+// InitiativeStart signals the DM began an encounter (added the first token(s) to
+// an otherwise-empty initiative order). It carries no data — initiative itself is
+// tracked client-side; this exists only to drive server-side rules (e.g. a
+// combat-start webhook). See the "initiativeStart" event in config rules.
+message InitiativeStart {}
+
+// InitiativeEnd signals the DM ended an encounter (removed the last token from the
+// initiative order). Like InitiativeStart it carries no data and exists only to
+// drive server-side rules (e.g. a combat-end webhook). See the "initiativeEnd"
+// event in config rules.
+message InitiativeEnd {}
+
 // The oneof field name (e.g. "tokenMove") is the discriminator in protojson.
 message Envelope {
   oneof payload {
@@ -327,7 +445,20 @@ message Envelope {
     PlayerJoin player_join = 26;
     Character character_update = 27;
     PlayerRemove player_remove = 28;
-    HexGridSet hex_grid_set = 29;
-    HexGridRemove hex_grid_remove = 30;
+    PageTags page_tags = 29;
+    TokenTags token_tags = 30;
+    InitiativeStart initiative_start = 31;
+    InitiativeEnd initiative_end = 32;
+    PartyItemAdd party_item_add = 33;
+    PartyItemUpdate party_item_update = 34;
+    PartyItemRemove party_item_remove = 35;
+    PartyItemReorder party_item_reorder = 36;
+    PartyWallet party_wallet = 37;
+    PartySectionAdd party_section_add = 38;
+    PartySectionRename party_section_rename = 39;
+    PartySectionRemove party_section_remove = 40;
+    PartySectionReorder party_section_reorder = 41;
+    HexGridSet hex_grid_set = 42;
+    HexGridRemove hex_grid_remove = 43;
   }
 }

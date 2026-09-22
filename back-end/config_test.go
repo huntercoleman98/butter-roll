@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
@@ -50,7 +51,7 @@ func TestRunRulesEmitsPerAffectedToken(t *testing.T) {
 	}}
 	s.followups = s.followups[:0]
 
-	s.runRules(page, "tokenUpdate", page.Tokens["a"])
+	s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["a"]})
 
 	if len(s.followups) != 2 {
 		t.Fatalf("expected a followup per affected token (2), got %d", len(s.followups))
@@ -84,10 +85,11 @@ func applyWounds(t *testing.T, cfg *Config, hp, wounds int32, initial ...string)
 	page.Tokens["tok"] = &pb.Token{
 		Id: "tok", Url: "u", Hp: proto.Int32(hp), StatusEffects: append([]string(nil), initial...),
 	}
+	prev := proto.Clone(page.Tokens["tok"]).(*pb.Token) // pre-merge snapshot for prev(...)
 	if ok := page.applyTokenUpdate(&pb.TokenUpdate{Id: "tok", Wounds: proto.Int32(wounds)}); !ok {
 		t.Fatal("applyTokenUpdate returned false")
 	}
-	s.runRules(page, "tokenUpdate", page.Tokens["tok"])
+	s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["tok"], prev: prev})
 	return page.Tokens["tok"].StatusEffects
 }
 
@@ -111,7 +113,7 @@ func TestDefaultConfigAutoDead(t *testing.T) {
 	page := s.Pages[s.PresentedPageID]
 	page.Tokens["t2"] = &pb.Token{Id: "t2", Url: "u"}
 	page.applyTokenUpdate(&pb.TokenUpdate{Id: "t2", Wounds: proto.Int32(0)})
-	s.runRules(page, "tokenUpdate", page.Tokens["t2"])
+	s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["t2"]})
 	if len(page.Tokens["t2"].StatusEffects) != 0 {
 		t.Errorf("unlinked token gained status: %v", page.Tokens["t2"].StatusEffects)
 	}
@@ -155,6 +157,320 @@ func TestApplyEmitsTokenStatusFollowup(t *testing.T) {
 	}
 	if len(s.followups) != 0 {
 		t.Fatalf("expected no followup when status unchanged, got %d", len(s.followups))
+	}
+}
+
+// TestPrevAndTagRuleFires exercises the generalized comparison: a rule that
+// fires only when a goblin-tagged token takes damage (wounds rose vs prev).
+func TestPrevAndTagRuleFires(t *testing.T) {
+	cfg := &Config{Rules: []Rule{
+		{On: "tokenUpdate", When: "hasTag('goblin') && wounds > prev(wounds)", Do: []string{"addStatus('hurt')"}},
+	}}
+	if err := cfg.compile(); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	run := func(tags []string, from, to int32) []string {
+		s := NewSession()
+		s.cfg = cfg
+		page := s.Pages[s.PresentedPageID]
+		page.Tokens["g"] = &pb.Token{Id: "g", Url: "u", Hp: proto.Int32(10), Wounds: proto.Int32(from), Tags: tags}
+		prev := proto.Clone(page.Tokens["g"]).(*pb.Token)
+		page.applyTokenUpdate(&pb.TokenUpdate{Id: "g", Wounds: proto.Int32(to)})
+		s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["g"], prev: prev})
+		return page.Tokens["g"].StatusEffects
+	}
+	if got := run([]string{"goblin"}, 3, 6); len(got) != 1 || got[0] != "hurt" {
+		t.Errorf("goblin took damage: got %v, want [hurt]", got)
+	}
+	if got := run([]string{"orc"}, 3, 6); len(got) != 0 {
+		t.Errorf("non-goblin damaged: got %v, want []", got)
+	}
+	if got := run([]string{"goblin"}, 6, 3); len(got) != 0 {
+		t.Errorf("goblin healed (not damaged): got %v, want []", got)
+	}
+}
+
+func TestPageEnvHasTag(t *testing.T) {
+	p := &Page{Name: "Darkwood", Tags: []string{"forest", "night"}}
+	cases := []struct {
+		src  string
+		want bool
+	}{
+		{"hasTag('forest')", true},
+		{"hasTag('desert')", false},
+		{"pageName == 'Darkwood'", true},
+	}
+	for _, c := range cases {
+		expr, err := Compile(c.src, eventSchemas["pagePresent"])
+		if err != nil {
+			t.Fatalf("Compile(%q): %v", c.src, err)
+		}
+		if got := expr.Eval(pageEnv(p)).Bool(); got != c.want {
+			t.Errorf("Eval(%q) on page env = %v, want %v", c.src, got, c.want)
+		}
+	}
+}
+
+// recordAction records that it ran, for asserting non-token event wiring.
+type recordAction struct{ hits *int }
+
+func (a recordAction) Apply(_ *pb.Token, _ *ruleCtx) { *a.hits++ }
+
+// TestPagePresentRunsRules proves the pagePresent event is wired through Apply to
+// runRules against the presented page (a page subject, no token).
+func TestPagePresentRunsRules(t *testing.T) {
+	s := NewSession()
+	page := s.Pages[s.PresentedPageID]
+	page.Tags = []string{"forest"}
+	hits := 0
+	forest, err := Compile("hasTag('forest')", eventSchemas["pagePresent"])
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	s.cfg = &Config{byEvent: map[string][]Rule{
+		"pagePresent": {{when: forest, do: []Action{recordAction{hits: &hits}}}},
+	}}
+	msg, _ := marshalOpts.Marshal(&pb.Envelope{Payload: &pb.Envelope_PagePresent{
+		PagePresent: &pb.PagePresent{Id: page.ID},
+	}})
+	if _, ok := s.Apply(msg); !ok {
+		t.Fatal("Apply(pagePresent) returned false")
+	}
+	if hits != 1 {
+		t.Fatalf("expected pagePresent rule to fire once, got %d", hits)
+	}
+}
+
+// TestWebhookActionQueues fires a webhook rule and inspects the request queued on
+// Session.outbound (no network). The body is rendered from the firing token, so
+// {{tags[0]}} resolves to the token's first tag.
+func TestWebhookActionQueues(t *testing.T) {
+	cfg := &Config{
+		Webhooks: map[string]*Webhook{
+			"hurt": {
+				URL:  "http://localhost:8090/api/sfx",
+				Body: json.RawMessage(`{"cue":"sfx/monsters/{{tags[0]}}/wound"}`),
+			},
+		},
+		Rules: []Rule{
+			{On: "tokenUpdate", When: "hasTag('goblin') && wounds > prev(wounds)", Do: []string{"webhook('hurt')"}},
+		},
+	}
+	if err := cfg.compile(); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	s := NewSession()
+	s.cfg = cfg
+	page := s.Pages[s.PresentedPageID]
+	page.Tokens["g"] = &pb.Token{Id: "g", Url: "u", Hp: proto.Int32(10), Wounds: proto.Int32(2), Tags: []string{"goblin"}}
+	prev := proto.Clone(page.Tokens["g"]).(*pb.Token)
+	page.applyTokenUpdate(&pb.TokenUpdate{Id: "g", Wounds: proto.Int32(5)})
+	s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["g"], prev: prev})
+
+	if len(s.outbound) != 1 {
+		t.Fatalf("expected 1 outbound request, got %d", len(s.outbound))
+	}
+	req := s.outbound[0]
+	if req.Method != "POST" || req.URL != "http://localhost:8090/api/sfx" {
+		t.Errorf("unexpected method/url: %s %s", req.Method, req.URL)
+	}
+	if string(req.Body) != `{"cue":"sfx/monsters/goblin/wound"}` {
+		t.Errorf("body not rendered from token: %s", req.Body)
+	}
+}
+
+// TestRenderBody covers the webhook body template substitution directly: bare
+// scalars, tag indexing, out-of-range and unknown references (empty), and that
+// the result stays valid JSON.
+func TestRenderBody(t *testing.T) {
+	ctx := map[string]any{
+		"name":  "Gr+ax \"the\" Bold",
+		"hp":    12,
+		"tags":  []string{"goblin", "boss"},
+		"sides": 20,
+	}
+	cases := []struct {
+		name, tmpl, want string
+	}{
+		{"scalar in string", `{"n":"{{name}}"}`, `{"n":"Gr+ax \"the\" Bold"}`},
+		{"int as whole value", `{"hp":{{hp}}}`, `{"hp":12}`},
+		{"tag index", `{"c":"m/{{tags[0]}}/x"}`, `{"c":"m/goblin/x"}`},
+		{"tag second index", `{"c":"{{tags[1]}}"}`, `{"c":"boss"}`},
+		{"index out of range", `{"c":"{{tags[5]}}"}`, `{"c":""}`},
+		{"unknown var", `{"c":"{{nope}}"}`, `{"c":""}`},
+		{"no placeholders", `{"c":"static"}`, `{"c":"static"}`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := renderBody(json.RawMessage(c.tmpl), ctx)
+			if string(got) != c.want {
+				t.Fatalf("renderBody = %s, want %s", got, c.want)
+			}
+			if !json.Valid(got) {
+				t.Errorf("rendered body is not valid JSON: %s", got)
+			}
+		})
+	}
+	if renderBody(nil, ctx) != nil {
+		t.Errorf("empty template should render nil")
+	}
+}
+
+// TestRenderBodyDiceSubject renders a body from a dice subject (no token), so a
+// non-token subject's tmpl() values substitute correctly.
+func TestRenderBodyDiceSubject(t *testing.T) {
+	subj := diceSubject{res: &pb.DiceRollResult{Sides: 20, Total: 18, Modifier: 3}}
+	got := renderBody(json.RawMessage(`{"nat":{{natural}},"sides":{{sides}}}`), subj.tmpl())
+	if string(got) != `{"nat":15,"sides":20}` {
+		t.Fatalf("dice render = %s", got)
+	}
+}
+
+// TestInitiativeStartFiresRules confirms an initiativeStart event (which binds no
+// variables) runs its rules and queues the webhook they fire.
+func TestInitiativeStartFiresRules(t *testing.T) {
+	cfg := &Config{
+		Webhooks: map[string]*Webhook{"combat": {URL: "http://localhost/combat"}},
+		Rules:    []Rule{{On: "initiativeStart", When: "true", Do: []string{"webhook('combat')"}}},
+	}
+	if err := cfg.compile(); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	s := NewSession()
+	s.cfg = cfg
+	s.runRules(nil, "initiativeStart", initiativeSubject{})
+	if len(s.outbound) != 1 || s.outbound[0].URL != "http://localhost/combat" {
+		t.Fatalf("expected combat webhook queued, got %#v", s.outbound)
+	}
+}
+
+// TestInitiativeEndFiresRules confirms an initiativeEnd event (which binds no
+// variables) runs its rules and queues the webhook they fire.
+func TestInitiativeEndFiresRules(t *testing.T) {
+	cfg := &Config{
+		Webhooks: map[string]*Webhook{"combat": {URL: "http://localhost/combat-end"}},
+		Rules:    []Rule{{On: "initiativeEnd", When: "true", Do: []string{"webhook('combat')"}}},
+	}
+	if err := cfg.compile(); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	s := NewSession()
+	s.cfg = cfg
+	s.runRules(nil, "initiativeEnd", initiativeSubject{})
+	if len(s.outbound) != 1 || s.outbound[0].URL != "http://localhost/combat-end" {
+		t.Fatalf("expected combat-end webhook queued, got %#v", s.outbound)
+	}
+}
+
+// TestWebhookNotFiredWithoutMatch confirms a non-matching condition queues nothing.
+func TestWebhookNotFiredWithoutMatch(t *testing.T) {
+	cfg := &Config{
+		Webhooks: map[string]*Webhook{"x": {URL: "http://localhost/x"}},
+		Rules:    []Rule{{On: "tokenUpdate", When: "hasTag('goblin')", Do: []string{"webhook('x')"}}},
+	}
+	if err := cfg.compile(); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	s := NewSession()
+	s.cfg = cfg
+	page := s.Pages[s.PresentedPageID]
+	page.Tokens["t"] = &pb.Token{Id: "t", Url: "u", Tags: []string{"orc"}}
+	s.runRules(page, "tokenUpdate", tokenSubject{cur: page.Tokens["t"]})
+	if len(s.outbound) != 0 {
+		t.Fatalf("expected no outbound for non-matching rule, got %d", len(s.outbound))
+	}
+}
+
+func TestCompileRejectsUnknownWebhookAndBadURL(t *testing.T) {
+	// rule references a webhook that isn't defined
+	c1 := &Config{Rules: []Rule{{On: "pagePresent", When: "true", Do: []string{"webhook('nope')"}}}}
+	if err := c1.compile(); err == nil {
+		t.Error("compile accepted a rule referencing an undefined webhook")
+	}
+	// webhook with a non-absolute URL
+	c2 := &Config{Webhooks: map[string]*Webhook{"bad": {URL: "not-a-url"}}}
+	if err := c2.compile(); err == nil {
+		t.Error("compile accepted a webhook with an invalid url")
+	}
+}
+
+// TestCompileScopesIdentifiersToEvent proves a rule is validated against only its
+// event's schema: `hp` is valid for tokenUpdate but rejected for diceRollResult
+// (which never binds it), and an unknown event name fails at load rather than
+// silently never firing.
+func TestCompileScopesIdentifiersToEvent(t *testing.T) {
+	// hp is a token var; a dice rule referencing it must not compile.
+	wrongEvent := &Config{Rules: []Rule{{On: "diceRollResult", When: "hp > 0", Do: nil}}}
+	if err := wrongEvent.compile(); err == nil {
+		t.Error("compile accepted `hp` in a diceRollResult rule")
+	}
+	// The same var is fine for the event that does bind it.
+	rightEvent := &Config{Rules: []Rule{{On: "tokenUpdate", When: "hp > 0", Do: nil}}}
+	if err := rightEvent.compile(); err != nil {
+		t.Errorf("compile rejected `hp` in a tokenUpdate rule: %v", err)
+	}
+	// An event with no schema is a config error, not a silent no-op.
+	badEvent := &Config{Rules: []Rule{{On: "tokenUpdat", When: "true", Do: nil}}}
+	if err := badEvent.compile(); err == nil {
+		t.Error("compile accepted a rule with an unknown event")
+	}
+}
+
+func TestClientJSONStripsWebhooks(t *testing.T) {
+	cfg := &Config{
+		Rules:    []Rule{{On: "tokenUpdate", When: "true", Do: []string{"webhook('x')"}}},
+		Webhooks: map[string]*Webhook{"x": {URL: "http://secret.local/x"}},
+	}
+	body, err := cfg.clientJSON()
+	if err != nil {
+		t.Fatalf("clientJSON: %v", err)
+	}
+	if strings.Contains(string(body), "webhooks") || strings.Contains(string(body), "secret.local") {
+		t.Fatalf("client config leaked webhooks: %s", body)
+	}
+	if !strings.Contains(string(body), "\"rules\"") {
+		t.Fatalf("client config missing rules: %s", body)
+	}
+}
+
+// TestDiceRollResultRules exercises a crit-fail rule: fire on a natural 1 on a d20
+// (regardless of modifier), but not on other rolls, non-d20s, or private rolls.
+func TestDiceRollResultRules(t *testing.T) {
+	cfg := &Config{
+		Webhooks: map[string]*Webhook{
+			"crit-fail": {URL: "http://localhost/x", Body: json.RawMessage(`{"cue":"crit-fail"}`)},
+		},
+		Rules: []Rule{
+			{On: "diceRollResult", When: "sides == 20 && natural == 1 && !private", Do: []string{"webhook('crit-fail')"}},
+		},
+	}
+	if err := cfg.compile(); err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	fire := func(sides, modifier, total int32, private bool) int {
+		s := NewSession()
+		s.cfg = cfg
+		s.runRules(nil, "diceRollResult", diceSubject{res: &pb.DiceRollResult{
+			Sides: sides, Modifier: modifier, Total: total, Private: private,
+			Rolls: []int32{total - modifier},
+		}})
+		return len(s.outbound)
+	}
+	// natural 1 on a d20+5 (total 6): natural = 6-5 = 1 → fires
+	if n := fire(20, 5, 6, false); n != 1 {
+		t.Errorf("nat 1 on d20+5: expected 1 webhook, got %d", n)
+	}
+	// natural 2: no fire
+	if n := fire(20, 0, 2, false); n != 0 {
+		t.Errorf("nat 2: expected 0, got %d", n)
+	}
+	// natural 1 but private: skipped by !private
+	if n := fire(20, 0, 1, true); n != 0 {
+		t.Errorf("private nat 1: expected 0, got %d", n)
+	}
+	// natural 1 on a d6: not a d20 → no fire
+	if n := fire(6, 0, 1, false); n != 0 {
+		t.Errorf("d6 nat 1: expected 0, got %d", n)
 	}
 }
 

@@ -77,28 +77,11 @@ export function useTokenClipboard({
             value: {
               pageId: activeId,
               token: {
+                ...t,
                 id: uuid(),
-                url: t.url,
                 x: px + (t.x - cx),
                 y: py + (t.y - cy),
-                color: t.color,
-                borderWidth: t.borderWidth,
-                statusEffects: t.statusEffects,
-                name: t.name,
-                showName: t.showName,
-                public: t.public,
-                // Copies keep the monster link and max HP but start unwounded.
-                ...(t.monster
-                  ? { monster: t.monster, hp: t.hp, wounds: 0 }
-                  : {}),
-                // Carry the player association through as-is. The server drops it
-                // if it would duplicate an owner already on the target page (one
-                // player token per player per page), rewriting the broadcast so
-                // clients render the corrected token. characterId must ride along
-                // for that de-dup check to match — the server keys it on character.
-                player: t.player,
-                ownerPlayerId: t.ownerPlayerId,
-                characterId: t.characterId,
+                wounds: 0,
               },
             },
           });

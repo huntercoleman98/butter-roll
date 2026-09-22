@@ -9,6 +9,7 @@ import InitiativePanel from "../components/InitiativePanel";
 import MonstersPanel from "../components/MonstersPanel";
 import TokenMonsterWindow from "../components/TokenMonsterWindow";
 import TokenCharacterWindow from "../components/TokenCharacterWindow";
+import TagEditor from "../components/TagEditor";
 import AssetLibrary from "../components/AssetLibrary";
 import TokenBar from "../components/TokenBar";
 import { ContextMenu } from "../components/ContextMenu";
@@ -297,6 +298,12 @@ export default function DM() {
     );
   }
 
+  // Active players a companion token can be assigned to (one entry per player,
+  // keyed by their durable playerId). Feeds the token-monster window's picker.
+  const playerRoster = Object.values(characters)
+    .filter((c) => !c.archived)
+    .map((c) => ({ playerId: c.ownerPlayerId, name: c.name }));
+
   function handleMoveToken(id: string, x: number, y: number) {
     if (!activeId) return;
     send({ case: "tokenMove", value: { pageId: activeId, id, x, y } });
@@ -384,6 +391,27 @@ export default function DM() {
         case: "tokenStatus",
         value: { pageId: activeId, id, statusEffects: next },
       });
+    }
+  }
+
+  function handleUpdateTokenTags(
+    ids: Set<string>,
+    action: "add" | "remove",
+    tag: string,
+  ) {
+    if (!activeId) return;
+    const page = pages.find((p) => p.id === activeId);
+    if (!page) return;
+    for (const id of ids) {
+      const token = page.tokens.find((t) => t.id === id);
+      if (!token) continue;
+      const current = token.tags ?? [];
+      const has = current.includes(tag);
+      if (action === "add" && has) continue;
+      if (action === "remove" && !has) continue;
+      const next =
+        action === "add" ? [...current, tag] : current.filter((t) => t !== tag);
+      send({ case: "tokenTags", value: { pageId: activeId, id, tags: next } });
     }
   }
 
@@ -537,6 +565,30 @@ export default function DM() {
             {mapMenuOpen && (
               <div className="window map-dropdown">
                 <div className="window-body token-dropdown-body">
+                  {activePage && (
+                    <>
+                      <label className="map-dropdown-label">Page tags</label>
+                      <TagEditor
+                        tags={activePage.tags}
+                        onAdd={(tag) =>
+                          send({
+                            case: "pageTags",
+                            value: { id: activeId, tags: [...activePage.tags, tag] },
+                          })
+                        }
+                        onRemove={(tag) =>
+                          send({
+                            case: "pageTags",
+                            value: {
+                              id: activeId,
+                              tags: activePage.tags.filter((t) => t !== tag),
+                            },
+                          })
+                        }
+                      />
+                      <hr className="map-dropdown-sep" />
+                    </>
+                  )}
                   {activePage?.mapSize && (
                     <>
                       <div className="map-dropdown-row">
@@ -827,6 +879,7 @@ export default function DM() {
             onDeleteTokens={handleDeleteTokens}
             onUpdateToken={handleUpdateToken}
             onUpdateTokenStatus={handleUpdateTokenStatus}
+            onUpdateTokenTags={handleUpdateTokenTags}
             arrowOverlay={localArrow}
             onArrowUpdate={handleArrowUpdate}
             onArrowClear={handleArrowClear}
@@ -862,11 +915,7 @@ export default function DM() {
               prev.map((e) => (e.entryId === entryId ? { ...e, value } : e)),
             )
           }
-          onRemove={(entryId) =>
-            initiative.setEntries((prev) =>
-              prev.filter((e) => e.entryId !== entryId),
-            )
-          }
+          onRemove={initiative.removeByEntryId}
           onClose={panels.initiative.close}
           zIndex={panels.initiative.zIndex}
           onFocus={panels.initiative.focus}
@@ -924,18 +973,18 @@ export default function DM() {
             <TokenMonsterWindow
               token={token}
               monsters={monsters}
+              players={playerRoster}
               x={monsterWindow.x}
               y={monsterWindow.y}
               onUpdate={(update) => {
-                // The `dead` status is kept in sync with HP by the backend rules
-                // engine (see docs/config.md), inside this same tokenUpdate — no
-                // client-side status handling needed.
                 send({
                   case: "tokenUpdate",
                   value: { pageId: activeId, id: token.id, ...update },
                 });
               }}
-              onRoll={handleMonsterRoll}
+              onRoll={(expr, label, metadata) =>
+                handleMonsterRoll(expr, label, "DM", token.id, metadata)
+              }
               onClose={() => setMonsterWindow(null)}
             />
           );

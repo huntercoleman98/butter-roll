@@ -1,0 +1,95 @@
+/* Notes-tab styling. This is the app's first per-feature CSS file (App.css was
+   the sole stylesheet); the goal is to quarantine MDXEditor's overrides here so
+   the shared surface stays lean. Vite bundles CSS globally, so isolation comes
+   from namespacing EVERY rule under .player-notes — not from the file split.
+   Keep it that way: no bare element/`.mdxeditor` selectors at top level. */
+
+/* Suppress MDXEditor's toolbar-button tooltips: they mispositioned up by the
+   tabs and add nothing (B/I/U etc. are self-evident). Radix portals the tooltip
+   into .mdxeditor-popup-container on document.body — OUTSIDE .player-notes — so
+   this rule can't be namespaced; the MDXEditor-specific selector keeps it from
+   leaking. role="tooltip" is exact, so the Block-type dropdown (a listbox) and
+   other popups still work. */
+.mdxeditor-popup-container [role="tooltip"] {
+  display: none !important;
+}
+
+.player-notes {
+  /* Fill the tab body and let the editor scroll internally, matching how
+     .player-sheet-scroll claims the remaining column height. */
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* MDXEditor honors these font tokens; align the prose with the app's chrome
+     while keeping body text readable (not the pixelated 98.css face). */
+  --font-body: "Segoe UI", Tahoma, sans-serif;
+  --font-mono: "Cascadia Code", "Courier New", monospace;
+}
+
+/* Editor root: a 98.css-style inset field that fills the tab and scrolls. */
+.player-notes .mdxeditor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 2px solid;
+  border-color: #808080 #fff #fff #808080;
+  box-shadow: -1px -1px #0a0a0a inset, 1px 1px #dfdfdf inset;
+}
+
+/* Toolbar pinned to the top; stays in the retro font, wraps on narrow screens. */
+.player-notes .mdxeditor-toolbar {
+  flex-shrink: 0;
+  border-radius: 0;
+  background: silver;
+  border-bottom: 1px solid #808080;
+  font-family: "Pixelated MS Sans Serif", Arial, sans-serif;
+}
+
+/* The wrapper just below the toolbar is the bounded scroll region: as a flex
+   child of .mdxeditor (a min-height:0 column) it's height-capped to the tab, so
+   its overflow actually scrolls. The scroll MUST live here, not on the deeper
+   contenteditable — that element's parent is this plain block, so a flex:1 on it
+   resolves against nothing and the prose grows unbounded, dragging the whole
+   window taller (the page-breaks-on-long-notes bug). min-width:0 keeps long
+   unbroken text from forcing horizontal overflow. */
+.player-notes .mdxeditor-root-contenteditable {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden auto;
+}
+
+/* The editable prose area owns reading typography and grows inside the scroller. */
+.player-notes-prose {
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.player-notes-prose h1 {
+  font-size: 1.6em;
+}
+
+.player-notes-prose h2 {
+  font-size: 1.35em;
+}
+
+.player-notes-prose h3 {
+  font-size: 1.15em;
+}
+
+.player-notes-prose h4 {
+  font-size: 1em;
+}
+
+.player-notes-prose h5 {
+  font-size: 0.9em;
+}
+
+.player-notes-prose h6 {
+  font-size: 0.85em;
+}

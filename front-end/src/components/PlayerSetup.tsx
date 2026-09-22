@@ -1,7 +1,15 @@
+import type { CharacterRecord } from "../hooks/useGameSocket";
 import { tokenLibraryApi } from "../hooks/useGameSocket";
 import AssetLibrary from "./AssetLibrary";
 
 interface Props {
+  // Existing active characters a returning player can adopt on this device.
+  // Empty (and the picker hidden) unless this is a genuine first-run setup.
+  loginCandidates: CharacterRecord[];
+  onLoginAs: (record: CharacterRecord) => void;
+  // Sign out of the current character on this device (shown only when editing an
+  // existing profile — i.e. after initial creation).
+  onLogout: () => void;
   setupName: string;
   setSetupName: (v: string) => void;
   setupColor: string;
@@ -16,6 +24,9 @@ interface Props {
   existingName: string | null;
   spellcastingEnabled: boolean;
   onSpellcastingChange: (checked: boolean) => void;
+  // Disables the notes-export row when the player has no notes to export.
+  notesEmpty: boolean;
+  onExportNotes: () => void;
   onRetire: () => void;
   onSave: () => void;
 }
@@ -24,6 +35,9 @@ interface Props {
 // (first run, or after clicking the gear / retiring a character). Purely a view:
 // all state and handlers live in <Player>.
 export default function PlayerSetup({
+  loginCandidates,
+  onLoginAs,
+  onLogout,
   setupName,
   setSetupName,
   setupColor,
@@ -34,6 +48,8 @@ export default function PlayerSetup({
   existingName,
   spellcastingEnabled,
   onSpellcastingChange,
+  notesEmpty,
+  onExportNotes,
   onRetire,
   onSave,
 }: Props) {
@@ -54,7 +70,6 @@ export default function PlayerSetup({
           <input
             id="setup-name"
             type="text"
-            autoFocus
             maxLength={20}
             placeholder="Character name"
             value={setupName}
@@ -121,6 +136,21 @@ export default function PlayerSetup({
             </div>
             <div className="player-settings-row">
               <div className="player-settings-row-text">
+                <span className="player-settings-row-title">Export notes</span>
+                <span className="player-settings-row-desc">
+                  Export your notes as a Markdown (.md) file.
+                </span>
+              </div>
+              <button
+                onClick={onExportNotes}
+                disabled={notesEmpty}
+                className="player-settings-row-action"
+              >
+                Export
+              </button>
+            </div>
+            <div className="player-settings-row">
+              <div className="player-settings-row-text">
                 <span className="player-settings-row-title">Retire character</span>
                 <span className="player-settings-row-desc">
                   Archive {existingName} and start a new character.
@@ -128,6 +158,18 @@ export default function PlayerSetup({
               </div>
               <button onClick={onRetire} className="player-settings-row-action">
                 Retire…
+              </button>
+            </div>
+            <div className="player-settings-row">
+              <div className="player-settings-row-text">
+                <span className="player-settings-row-title">Log out</span>
+                <span className="player-settings-row-desc">
+                  Sign out of {existingName}. The character is
+                  safe, you may return to them later.
+                </span>
+              </div>
+              <button onClick={onLogout} className="player-settings-row-action">
+                Log out
               </button>
             </div>
           </fieldset>
@@ -140,6 +182,33 @@ export default function PlayerSetup({
         >
           {existingName ? "Save" : "Enter"}
         </button>
+
+        {loginCandidates.length > 0 && (
+          <div className="player-setup-login">
+            <label htmlFor="setup-login-as">
+              Already have a character?
+            </label>
+            <select
+              id="setup-login-as"
+              defaultValue=""
+              onChange={(e) => {
+                const record = loginCandidates.find(
+                  (c) => c.characterId === e.target.value,
+                );
+                if (record) onLoginAs(record);
+              }}
+            >
+              <option value="" disabled>
+                Log in as…
+              </option>
+              {loginCandidates.map((c) => (
+                <option key={c.characterId} value={c.characterId}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -62,6 +62,24 @@ export interface Character {
   sp: number;
   cp: number;
   languages: string;
+  // Free-form player notes (markdown), edited in the Notes tab. Rides along in
+  // the sheet blob so it persists and survives restarts via the same sync path;
+  // not rendered on the DM's read-only sheet, so it stays a player scratchpad.
+  notes: string;
+}
+
+// Pick black or white text for a #rrggbb background so a label stays legible
+// whatever color the player chose. Uses perceived (sRGB-weighted) luminance.
+// Shared by the accented character sheet and the party tab.
+export function readableTextColor(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return "#fff";
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? "#000" : "#fff";
 }
 
 // A blank character. Abilities default to 10 (neutral) and the level to 1;
@@ -92,6 +110,7 @@ export function emptyCharacter(): Character {
     sp: 0,
     cp: 0,
     languages: "",
+    notes: "",
   };
 }
 

@@ -1,7 +1,15 @@
 import { type CSSProperties } from "react";
-import { GiDiceTwentyFacesTwenty, GiTwoCoins } from "react-icons/gi";
+import { GiDiceTwentyFacesTwenty, GiPlainArrow } from "react-icons/gi";
 import { uuid } from "../utils/uuid";
-import { ABILITY_NAMES, type AbilityName, type Character } from "./character";
+import InventoryList from "./InventoryList";
+import CoinsRow from "./CoinsRow";
+import {
+  ABILITY_NAMES,
+  readableTextColor,
+  type AbilityName,
+  type Character,
+  type GearItem,
+} from "./character";
 
 // The sheet is a controlled component: the parent owns the Character and
 // receives patches via onChange. The player's copy lives in localStorage and is
@@ -24,30 +32,12 @@ function num(value: string, fallback = 0): number {
   return isNaN(n) ? fallback : n;
 }
 
-function fnum(value: string, fallback = 0): number {
-  const n = parseFloat(value);
-  return isNaN(n) ? fallback : n;
-}
-
 function updateItem<T extends { id: string }>(
   list: T[],
   id: string,
   patch: Partial<T>,
 ): T[] {
   return list.map((it) => (it.id === id ? { ...it, ...patch } : it));
-}
-
-// Pick black or white text for a #rrggbb background so the label stays legible
-// whatever color the player chose. Uses perceived (sRGB-weighted) luminance.
-function readableTextColor(hex: string): string {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
-  if (!m) return "#fff";
-  const n = parseInt(m[1], 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6 ? "#000" : "#fff";
 }
 
 // ── Props ─────────────────────────────────────────────────────────
@@ -71,6 +61,9 @@ interface Props {
   // The player's chosen color. When set, the section legends are tinted with it
   // (matching the player's identity). Omitted in the DM's read-only view.
   accentColor?: string;
+  // Move one unit of a gear item into the shared party inventory. When set, each
+  // gear row gets a "send to party" button. Omitted in read-only / DM views.
+  onSendToParty?: (item: GearItem) => void;
 }
 
 export default function CharacterSheet({
@@ -82,6 +75,7 @@ export default function CharacterSheet({
   onRollCheck,
   onRoll,
   accentColor,
+  onSendToParty,
 }: Props) {
   const set = (patch: Partial<Character>) => onChange?.(patch);
 
@@ -581,109 +575,36 @@ export default function CharacterSheet({
             {usedSlots.toFixed(2)}/{totalSlots} slots
           </span>
         </legend>
-        <div className="sheet-list">
-          <div className="sheet-gear-head">
-            <span>Item</span>
-            <span>Qty</span>
-            <span>Slots ea.</span>
-            <span />
-          </div>
-          {c.gear.map((g) => (
-            <div key={g.id} className="sheet-gear-row">
-              <input
-                type="text"
-                disabled={readOnly}
-                value={g.name}
-                onChange={(e) =>
-                  set({
-                    gear: updateItem(c.gear, g.id, { name: e.target.value }),
-                  })
+        <InventoryList
+          items={c.gear}
+          readOnly={readOnly}
+          onChange={(id, patch) => set({ gear: updateItem(c.gear, id, patch) })}
+          onRemove={(id) => set({ gear: c.gear.filter((x) => x.id !== id) })}
+          onReorder={(gear) => set({ gear })}
+          onAdd={() =>
+            set({
+              gear: [...c.gear, { id: uuid(), name: "", qty: 1, slotsEach: 1 }],
+            })
+          }
+          action={
+            onSendToParty
+              ? {
+                  icon: <GiPlainArrow />,
+                  title: "Send to party inventory",
+                  className: "sheet-send-party",
+                  onClick: onSendToParty,
                 }
-              />
-              <input
-                className="sheet-gear-num"
-                type="number"
-                min={0}
-                disabled={readOnly}
-                value={g.qty}
-                onChange={(e) =>
-                  set({
-                    gear: updateItem(c.gear, g.id, { qty: num(e.target.value) }),
-                  })
-                }
-              />
-              <input
-                className="sheet-gear-num"
-                type="number"
-                min={0}
-                step={0.01}
-                disabled={readOnly}
-                value={g.slotsEach}
-                onChange={(e) =>
-                  set({
-                    gear: updateItem(c.gear, g.id, {
-                      slotsEach: fnum(e.target.value),
-                    }),
-                  })
-                }
-              />
-              {!readOnly && (
-                <button
-                  className="sheet-remove"
-                  title="Remove"
-                  onClick={() =>
-                    set({ gear: c.gear.filter((x) => x.id !== g.id) })
-                  }
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-        {!readOnly && (
-          <button
-            className="sheet-add"
-            onClick={() =>
-              set({
-                gear: [...c.gear, { id: uuid(), name: "", qty: 1, slotsEach: 1 }],
-              })
-            }
-          >
-            + Add item
-          </button>
-        )}
+              : undefined
+          }
+        />
 
-        <div className="sheet-coins">
-          <GiTwoCoins className="sheet-coins-icon" />
-          <label>
-            GP
-            <input
-              type="number"
-              disabled={readOnly}
-              value={c.gp}
-              onChange={(e) => set({ gp: num(e.target.value) })}
-            />
-          </label>
-          <label>
-            SP
-            <input
-              type="number"
-              disabled={readOnly}
-              value={c.sp}
-              onChange={(e) => set({ sp: num(e.target.value) })}
-            />
-          </label>
-          <label>
-            CP
-            <input
-              type="number"
-              disabled={readOnly}
-              value={c.cp}
-              onChange={(e) => set({ cp: num(e.target.value) })}
-            />
-          </label>
-        </div>
+        <CoinsRow
+          gp={c.gp}
+          sp={c.sp}
+          cp={c.cp}
+          readOnly={readOnly}
+          onChange={set}
+        />
       </fieldset>
 
       {/* ── Languages ───────────────────────────────────────── */}

@@ -13,7 +13,9 @@ import (
 // to mutate state from inside an expression. It parses a fixed grammar (numeric
 // comparison, boolean logic, arithmetic, literals, and a small set of known
 // variables/functions) to an AST at config-load time, so a typo like `wonds`
-// fails at launch rather than mid-session.
+// fails at launch rather than mid-session. Compile validates against an
+// eventSchema, so identifiers are checked against exactly the triggering event's
+// bindings (a diceRollResult rule referencing `hp` is rejected, not read as 0).
 //
 // Grammar (lowest to highest precedence):
 //
@@ -26,16 +28,28 @@ import (
 //	unary:= '-' unary | primary
 //	prim := number | string | 'true' | 'false' | ident | ident '(' args ')' | '(' or ')'
 
-// knownVars are the identifiers an expression may reference. Extend as rules
-// need more of the token (x, y, public, monster, name, …).
-var knownVars = map[string]bool{
-	"hp":     true,
-	"wounds": true,
+// eventSchema is the set of identifiers an event's `when` expressions may
+// reference: the variable names it binds and the arity of each function it
+// exposes. Compile checks a rule against its event's schema so an identifier
+// valid for one event (e.g. `hp`) is rejected in a rule for an event that never
+// binds it. Built from the event's env via schemaOf, so the env builder is the
+// single source of truth — see eventSchemas in config.go.
+type eventSchema struct {
+	vars  map[string]bool
+	funcs map[string]int // name -> arity
 }
 
-// knownFuncs maps a callable name to its arity.
-var knownFuncs = map[string]int{
-	"hasStatus": 1,
+// schemaOf derives an eventSchema from a representative (typically zero-valued)
+// env: its var keys and its funcs' arities are exactly what expressions may use.
+func schemaOf(env *ruleEnv) eventSchema {
+	s := eventSchema{vars: make(map[string]bool), funcs: make(map[string]int)}
+	for name := range env.vars {
+		s.vars[name] = true
+	}
+	for name, f := range env.funcs {
+		s.funcs[name] = f.arity
+	}
+	return s
 }
 
 // Expr is a compiled expression. Eval is pure: it reads from env and returns a
@@ -46,9 +60,24 @@ type Expr interface {
 
 // ruleEnv supplies variable and function bindings at evaluation time. Missing
 // variables read as 0 so an unset token field (e.g. wounds) behaves as zero.
+//
+// prev, if set, is the same env valued at the entity's pre-event state; the
+// prev(...) operator evaluates its subexpression against it. When prev is nil
+// (events with no before/after, e.g. pagePresent) prev(x) reads the current
+// env, so it degrades to x rather than erroring.
 type ruleEnv struct {
 	vars  map[string]value
-	funcs map[string]func(args []value) value
+	funcs map[string]ruleFunc
+	prev  *ruleEnv
+}
+
+// ruleFunc is a callable binding: fn is the implementation, arity the number of
+// arguments Compile requires (checked at config-load, so fn can index args
+// directly). Carrying arity here lets schemaOf read it off the env builder,
+// keeping the compiler's view and the runtime's view of a function in one place.
+type ruleFunc struct {
+	arity int
+	fn    func(args []value) value
 }
 
 func (e *ruleEnv) lookup(name string) value {
@@ -59,8 +88,8 @@ func (e *ruleEnv) lookup(name string) value {
 }
 
 func (e *ruleEnv) call(name string, args []value) value {
-	if fn, ok := e.funcs[name]; ok {
-		return fn(args)
+	if f, ok := e.funcs[name]; ok {
+		return f.fn(args)
 	}
 	return boolean(false)
 }
@@ -146,6 +175,19 @@ func (e *callExpr) Eval(env *ruleEnv) value {
 type notExpr struct{ x Expr }
 
 func (e *notExpr) Eval(env *ruleEnv) value { return boolean(!e.x.Eval(env).Bool()) }
+
+// prevExpr evaluates its subexpression against the pre-event snapshot, so a rule
+// can compare old vs new without any per-notion variables: `wounds > prev(wounds)`
+// is "took damage". Falls back to the current env when there is no prior state.
+type prevExpr struct{ x Expr }
+
+func (e *prevExpr) Eval(env *ruleEnv) value {
+	p := env.prev
+	if p == nil {
+		p = env
+	}
+	return e.x.Eval(p)
+}
 
 type negExpr struct{ x Expr }
 
@@ -245,8 +287,16 @@ func lex(src string) ([]token, error) { //nolint:gocyclo // standard lexer: a fl
 			i = j
 		case unicode.IsLetter(c) || c == '_':
 			j := i
-			for j < len(runes) && (unicode.IsLetter(runes[j]) || unicode.IsDigit(runes[j]) || runes[j] == '_') {
-				j++
+			for j < len(runes) {
+				ch := runes[j]
+				if unicode.IsLetter(ch) || unicode.IsDigit(ch) || ch == '_' {
+					j++
+				} else if ch == '.' && j+1 < len(runes) && (unicode.IsLetter(runes[j+1]) || runes[j+1] == '_') {
+					// Allow a single dot to form namespaced identifiers like token.hp.
+					j++
+				} else {
+					break
+				}
 			}
 			toks = append(toks, token{tokIdent, string(runes[i:j])})
 			i = j
@@ -278,13 +328,14 @@ func lex(src string) ([]token, error) { //nolint:gocyclo // standard lexer: a fl
 // ── Parser ───────────────────────────────────────────────────────────────────
 
 type parser struct {
-	toks []token
-	pos  int
+	toks   []token
+	pos    int
+	schema eventSchema
 }
 
-// Compile lexes and parses src into an Expr, rejecting unknown identifiers and
-// functions so a bad `when` fails at config-load time.
-func Compile(src string) (Expr, error) {
+// Compile lexes and parses src into an Expr, rejecting identifiers and functions
+// not in schema so a bad `when` fails at config-load time.
+func Compile(src string, schema eventSchema) (Expr, error) {
 	if strings.TrimSpace(src) == "" {
 		return nil, fmt.Errorf("empty expression")
 	}
@@ -292,7 +343,7 @@ func Compile(src string) (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &parser{toks: toks}
+	p := &parser{toks: toks, schema: schema}
 	expr, err := p.parseOr()
 	if err != nil {
 		return nil, err
@@ -437,11 +488,13 @@ func (p *parser) parsePrimary() (Expr, error) {
 			return &litExpr{v: boolean(true)}, nil
 		case "false":
 			return &litExpr{v: boolean(false)}, nil
+		case "prev":
+			return p.parsePrev()
 		}
 		if p.isOp("(") {
 			return p.parseCall(t.text)
 		}
-		if !knownVars[t.text] {
+		if !p.schema.vars[t.text] {
 			return nil, fmt.Errorf("unknown identifier %q", t.text)
 		}
 		return &varExpr{name: t.text}, nil
@@ -462,8 +515,27 @@ func (p *parser) parsePrimary() (Expr, error) {
 	return nil, fmt.Errorf("unexpected token %q", t.text)
 }
 
+// parsePrev parses `prev(<expr>)`. The inner expression is parsed and validated
+// like any other (unknown identifiers/functions still fail at compile time); at
+// eval time it runs against the pre-event snapshot instead of the current state.
+func (p *parser) parsePrev() (Expr, error) {
+	if !p.isOp("(") {
+		return nil, fmt.Errorf("prev expects '(expression)'")
+	}
+	p.advance() // consume '('
+	inner, err := p.parseOr()
+	if err != nil {
+		return nil, err
+	}
+	if !p.isOp(")") {
+		return nil, fmt.Errorf("expected ')' after prev(...)")
+	}
+	p.advance()
+	return &prevExpr{x: inner}, nil
+}
+
 func (p *parser) parseCall(name string) (Expr, error) {
-	arity, ok := knownFuncs[name]
+	arity, ok := p.schema.funcs[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown function %q", name)
 	}

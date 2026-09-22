@@ -7,6 +7,7 @@ import {
 } from "@bufbuild/protobuf";
 import { EnvelopeSchema, type Envelope, type Token, HexGrid_Orientation } from "../gen/butterroll/v1/game_pb";
 import { uuid } from "../utils/uuid";
+import type { GearItem } from "../components/character";
 
 // The token/message wire schema lives in proto/butterroll/v1/game.proto and is
 // code-generated into ../gen. TokenData is re-exported from there so components
@@ -90,6 +91,25 @@ export interface CharacterRecord {
   color: string;
 }
 
+// The room's shared coin pool (see proto PartyWallet). A standalone, freely
+// editable pot separate from any character's personal coins.
+export interface PartyWallet {
+  gp: number;
+  sp: number;
+  cp: number;
+}
+
+// A party inventory item is a gear item that also knows its section (""=unsorted).
+export interface PartyInvItem extends GearItem {
+  sectionId: string;
+}
+
+// A flat, non-nestable bucket in the party inventory (see proto PartySection).
+export interface PartySection {
+  id: string;
+  name: string;
+}
+
 export interface Page {
   id: string;
   name: string;
@@ -97,6 +117,7 @@ export interface Page {
   mapSize: { width: number; height: number } | null;
   tokens: TokenData[];
   fogPolys: FogPoly[];
+  tags: string[];
   hexGrid: HexGridConfig | null;
 }
 
@@ -137,6 +158,17 @@ export function useGameSocket() {
   const [characters, setCharacters] = useState<Record<string, CharacterRecord>>(
     {},
   );
+  // The room's shared party inventory: one ordered list every player reads and
+  // writes. Stored as GearItem[] (field-compatible with the wire PartyItem) so
+  // the same InventoryList UI renders it as a character's Gear section.
+  const [partyInventory, setPartyInventory] = useState<PartyInvItem[]>([]);
+  const [partySections, setPartySections] = useState<PartySection[]>([]);
+  // The shared party coin pool. Defaults to all-zero until a snapshot arrives.
+  const [partyWallet, setPartyWallet] = useState<PartyWallet>({
+    gp: 0,
+    sp: 0,
+    cp: 0,
+  });
 
   const wsRef = useRef<WebSocket | null>(null);
   const pingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -183,6 +215,7 @@ export function useGameSocket() {
                   : null,
               tokens: p.tokens,
               fogPolys: p.fogPolys,
+              tags: p.tags,
               hexGrid: p.hexGrid
                 ? {
                   orientation: p.hexGrid.orientation,
@@ -196,6 +229,23 @@ export function useGameSocket() {
           );
           presentedPageIdRef.current = s.presentedPageId;
           setPresentedPageId(s.presentedPageId);
+          setPartyInventory(
+            s.partyInventory.map((it) => ({
+              id: it.id,
+              name: it.name,
+              qty: it.qty,
+              slotsEach: it.slotsEach,
+              sectionId: it.sectionId,
+            })),
+          );
+          setPartySections(
+            s.partySections.map((sec) => ({ id: sec.id, name: sec.name })),
+          );
+          setPartyWallet({
+            gp: s.partyWallet?.gp ?? 0,
+            sp: s.partyWallet?.sp ?? 0,
+            cp: s.partyWallet?.cp ?? 0,
+          });
           setCharacters(
             Object.fromEntries(
               s.characters.map((c) => [
@@ -309,6 +359,9 @@ export function useGameSocket() {
               if (m.hp !== undefined) next.hp = m.hp;
               if (m.wounds !== undefined) next.wounds = m.wounds;
               if (m.pinned !== undefined) next.pinned = m.pinned;
+              // Assign/clear a companion's controlling player ("" clears).
+              if (m.ownerPlayerId !== undefined)
+                next.ownerPlayerId = m.ownerPlayerId;
               // Unlinking clears the HP tracker (mirrors the server).
               if (m.monster === "") {
                 next.monster = "";
@@ -327,6 +380,17 @@ export function useGameSocket() {
             ...p,
             tokens: p.tokens.map((t) =>
               t.id !== m.id ? t : { ...t, statusEffects: m.statusEffects },
+            ),
+          }));
+          break;
+        }
+
+        case "tokenTags": {
+          const m = payload.value;
+          updatePage(m.pageId, (p) => ({
+            ...p,
+            tokens: p.tokens.map((t) =>
+              t.id !== m.id ? t : { ...t, tags: m.tags },
             ),
           }));
           break;
@@ -367,6 +431,7 @@ export function useGameSocket() {
               mapSize: null,
               tokens: [],
               fogPolys: [],
+              tags: [],
               hexGrid: null,
             },
           ]);
@@ -380,6 +445,12 @@ export function useGameSocket() {
         case "pageRename": {
           const m = payload.value;
           updatePage(m.id, (p) => ({ ...p, name: m.name }));
+          break;
+        }
+
+        case "pageTags": {
+          const m = payload.value;
+          updatePage(m.id, (p) => ({ ...p, tags: m.tags }));
           break;
         }
 
@@ -481,6 +552,118 @@ export function useGameSocket() {
           break;
         }
 
+        case "partyItemAdd": {
+          const it = payload.value.item;
+          if (!it) break;
+          setPartyInventory((prev) => [
+            ...prev,
+            {
+              id: it.id,
+              name: it.name,
+              qty: it.qty,
+              slotsEach: it.slotsEach,
+              sectionId: it.sectionId,
+            },
+          ]);
+          break;
+        }
+
+        case "partyItemUpdate": {
+          const m = payload.value;
+          setPartyInventory((prev) =>
+            prev.map((it) => {
+              if (it.id !== m.id) return it;
+              const next: PartyInvItem = { ...it };
+              if (m.name !== undefined) next.name = m.name;
+              if (m.qty !== undefined) next.qty = m.qty;
+              if (m.slotsEach !== undefined) next.slotsEach = m.slotsEach;
+              if (m.sectionId !== undefined) next.sectionId = m.sectionId;
+              return next;
+            }),
+          );
+          break;
+        }
+
+        case "partyItemRemove": {
+          const { id } = payload.value;
+          setPartyInventory((prev) => prev.filter((it) => it.id !== id));
+          break;
+        }
+
+        case "partyItemReorder": {
+          const { ids } = payload.value;
+          setPartyInventory((prev) => {
+            const byId = new Map(prev.map((it) => [it.id, it]));
+            const seen = new Set<string>();
+            const next: PartyInvItem[] = [];
+            for (const id of ids) {
+              const it = byId.get(id);
+              if (it && !seen.has(id)) {
+                next.push(it);
+                seen.add(id);
+              }
+            }
+            // Keep any current item the message omitted (racing add safety).
+            for (const it of prev) if (!seen.has(it.id)) next.push(it);
+            return next;
+          });
+          break;
+        }
+
+        case "partyWallet": {
+          const m = payload.value;
+          setPartyWallet({ gp: m.gp, sp: m.sp, cp: m.cp });
+          break;
+        }
+
+        case "partySectionAdd": {
+          const sec = payload.value.section;
+          if (!sec) break;
+          setPartySections((prev) => [...prev, { id: sec.id, name: sec.name }]);
+          break;
+        }
+
+        case "partySectionRename": {
+          const m = payload.value;
+          setPartySections((prev) =>
+            prev.map((sec) =>
+              sec.id === m.id ? { ...sec, name: m.name } : sec,
+            ),
+          );
+          break;
+        }
+
+        case "partySectionRemove": {
+          const { id } = payload.value;
+          setPartySections((prev) => prev.filter((sec) => sec.id !== id));
+          // Orphan the section's items back to unsorted (mirrors the server).
+          setPartyInventory((prev) =>
+            prev.map((it) =>
+              it.sectionId === id ? { ...it, sectionId: "" } : it,
+            ),
+          );
+          break;
+        }
+
+        case "partySectionReorder": {
+          const { ids } = payload.value;
+          setPartySections((prev) => {
+            const byId = new Map(prev.map((sec) => [sec.id, sec]));
+            const seen = new Set<string>();
+            const next: PartySection[] = [];
+            for (const id of ids) {
+              const sec = byId.get(id);
+              if (sec && !seen.has(id)) {
+                next.push(sec);
+                seen.add(id);
+              }
+            }
+            for (const sec of prev) if (!seen.has(sec.id)) next.push(sec);
+            return next;
+          });
+          break;
+        }
+
         case "diceRollRequest": {
           const m = payload.value;
           setDiceRequests((prev) => [
@@ -547,6 +730,10 @@ export function useGameSocket() {
           break;
         }
 
+        case "initiativeStart":
+        case "initiativeEnd":
+          // Server-side rule trigger only; nothing for clients to render.
+          break;
         default:
           console.warn("unknown message case", payload.case);
       }
@@ -609,6 +796,9 @@ export function useGameSocket() {
     connected,
     myClientId,
     characters,
+    partyInventory,
+    partySections,
+    partyWallet,
     send,
   };
 }

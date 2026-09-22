@@ -57,10 +57,12 @@ export function useDiceHistory({
     expression: string,
     label?: string,
     playerName = "DM",
+    tokenId?: string,
+    metadata?: string,
   ) {
     send({
       case: "diceRollRequest",
-      value: { expression, playerName, label },
+      value: { expression, playerName, label, tokenId, metadata },
     });
   }
 
