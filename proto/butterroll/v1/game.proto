@@ -75,6 +75,36 @@ message Snapshot {
   string presented_page_id = 1;
   repeated Page pages = 2;
   repeated Character characters = 3;
+  repeated PartyItem party_inventory = 4;
+  PartyWallet party_wallet = 5;
+  repeated PartySection party_sections = 6;
+}
+
+// PartySection is a named, flat (non-nestable) bucket in the party inventory —
+// "Wagon", "House". Items reference it by id via PartyItem.section_id; an empty
+// section_id means the item is unsorted (in no section).
+message PartySection {
+  string id = 1;
+  string name = 2;
+}
+
+// PartyWallet is the room's shared coin pool — a communal GP/SP/CP pot every
+// player can read and edit, separate from any character's personal coins.
+message PartyWallet {
+  int32 gp = 1;
+  int32 sp = 2;
+  int32 cp = 3;
+}
+
+// PartyItem is one entry in the room's shared party inventory — a single list all
+// players can read and write, owned by no individual player. Mirrors the
+// character sheet's gear item ({ name, qty, slotsEach }).
+message PartyItem {
+  string id = 1;
+  string name = 2;
+  int32 qty = 3;
+  int32 slots_each = 4;
+  string section_id = 5; // owning PartySection id; empty = unsorted
 }
 
 // Character holds a player's sheet as an opaque JSON blob. The server stores and
@@ -285,6 +315,59 @@ message PlayerJoin {
   string character_id = 6;  // the player's active character this identity is for
 }
 
+// ── Party inventory (shared, per-room) ───────────────────────────────────────
+// Granular per-item ops (add/update/remove/reorder), mirroring the token
+// messages, so concurrent edits to different items don't clobber each other. The
+// server holds the authoritative ordered list (Session.PartyInventory) and
+// rebroadcasts each op. No owner check — a future DM UI can emit these unchanged.
+
+message PartyItemAdd {
+  PartyItem item = 1;
+}
+
+// Partial update: every field is optional; only the set ones are applied.
+message PartyItemUpdate {
+  string id = 1;
+  optional string name = 2;
+  optional int32 qty = 3;
+  optional int32 slots_each = 4;
+  optional string section_id = 5; // move to a section ("" = unsorted)
+}
+
+message PartyItemRemove {
+  string id = 1;
+}
+
+// PartyItemReorder gives the new full order of the list by item id.
+message PartyItemReorder {
+  repeated string ids = 1;
+}
+
+// Party section ops mirror the party-item ops. PartySectionRemove orphans the
+// section's items to unsorted (clears their section_id) rather than deleting them.
+
+message PartySectionAdd {
+  PartySection section = 1;
+}
+
+message PartySectionRename {
+  string id = 1;
+  string name = 2;
+}
+
+message PartySectionRemove {
+  string id = 1;
+}
+
+// PartySectionReorder gives the new full order of the sections by id.
+message PartySectionReorder {
+  repeated string ids = 1;
+}
+
+// PartyWallet doubles as the client→server edit (the new absolute totals) and the
+// server→client rebroadcast. Standalone pool, last-write-wins — no per-field
+// deltas (an in-person, trusted-players fund; see the party-wallet plan).
+
 // PlayerRemove asks the server to fully evict a player: delete their entire
 // character roster and remove every token they own across all pages. The server
 // rebroadcasts it so all clients drop the player's tokens and sheets.
@@ -341,5 +424,14 @@ message Envelope {
     TokenTags token_tags = 30;
     InitiativeStart initiative_start = 31;
     InitiativeEnd initiative_end = 32;
+    PartyItemAdd party_item_add = 33;
+    PartyItemUpdate party_item_update = 34;
+    PartyItemRemove party_item_remove = 35;
+    PartyItemReorder party_item_reorder = 36;
+    PartyWallet party_wallet = 37;
+    PartySectionAdd party_section_add = 38;
+    PartySectionRename party_section_rename = 39;
+    PartySectionRemove party_section_remove = 40;
+    PartySectionReorder party_section_reorder = 41;
   }
 }

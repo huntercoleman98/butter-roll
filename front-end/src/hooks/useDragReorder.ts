@@ -75,6 +75,10 @@ export function useDragReorder<T>(items: T[], onReorder: (next: T[]) => void) {
         reset();
       },
       onPointerCancel: reset,
+      // Safety net: if capture ends without a pointerup reaching us (e.g. the
+      // gesture was stolen), clear the dragging state so the row doesn't stay
+      // grayed. No-op after a normal pointerup, which already reset.
+      onLostPointerCapture: reset,
     }),
     rowProps: () => ({ "data-reorder-row": "" }),
   };

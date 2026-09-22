@@ -3,6 +3,8 @@ import { useGameSocket, fetchConfig, fetchMonsters } from "../hooks/useGameSocke
 import { usePlayerDice } from "../hooks/usePlayerDice";
 import { usePlayerProfile } from "../hooks/usePlayerProfile";
 import { useCompanions } from "../hooks/useCompanions";
+import { usePartyInventory } from "../hooks/usePartyInventory";
+import { usePartyWallet } from "../hooks/usePartyWallet";
 import type { Monster } from "../types/monster";
 import CharacterSheet from "../components/CharacterSheet";
 import PlayerSetup from "../components/PlayerSetup";
@@ -17,8 +19,18 @@ import "../App.css";
 const PlayerNotes = lazy(() => import("../components/PlayerNotes"));
 
 export default function Player() {
-  const { diceLog, myClientId, connected, send, pages, presentedPageId, characters } =
-    useGameSocket();
+  const {
+    diceLog,
+    myClientId,
+    connected,
+    send,
+    pages,
+    presentedPageId,
+    characters,
+    partyInventory,
+    partySections,
+    partyWallet,
+  } = useGameSocket();
   const [tab, setTab] = useState<
     "sheet" | "dice" | "notes" | "party" | "companions"
   >("sheet");
@@ -46,6 +58,14 @@ export default function Player() {
     beginEditProfile,
     existingCharacterName,
   } = usePlayerProfile({ connected, send });
+
+  const party = usePartyInventory({
+    partyInventory,
+    send,
+    character,
+    onCharacterChange: handleCharacterChange,
+  });
+  const wallet = usePartyWallet({ partyWallet, send });
 
   const {
     expr,
@@ -201,6 +221,7 @@ export default function Player() {
               onRollCheck={rollCheck}
               onRoll={handleRoll}
               accentColor={profile.color}
+              onSendToParty={party.onSendToParty}
             />
           </div>
         )}
@@ -234,7 +255,15 @@ export default function Player() {
           </Suspense>
         )}
 
-        {tab === "party" && <PlayerPartyTab />}
+        {tab === "party" && (
+          <PlayerPartyTab
+            party={party}
+            sections={partySections}
+            wallet={wallet.wallet}
+            onWalletChange={wallet.onChange}
+            accentColor={profile.color}
+          />
+        )}
 
         {tab === "companions" && presentedPageId && (
           <PlayerCompanionsTab

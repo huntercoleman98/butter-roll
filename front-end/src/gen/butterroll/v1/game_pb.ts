@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file butterroll/v1/game.proto.
  */
 export const file_butterroll_v1_game: GenFile = /*@__PURE__*/
-  fileDesc("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bBgHIAEoCRIVCgh0b2tlbl9pZBgIIAEoCUgBiAEBEhAKCG1ldGFkYXRhGAkgASgJQgsKCV9hZHZfbW9kZUILCglfdG9rZW5faWQivwEKDkRpY2VSb2xsUmVzdWx0EhIKCmV4cHJlc3Npb24YASABKAkSDQoFc2lkZXMYAiABKAUSDQoFcm9sbHMYAyADKAUSEAoIbW9kaWZpZXIYBCABKAUSDQoFdG90YWwYBSABKAUSEQoJY2xpZW50X2lkGAYgASgJEg8KB3ByaXZhdGUYByABKAgSEwoLcGxheWVyX25hbWUYCCABKAkSEgoKZGljZV9jb2xvchgJIAEoCRINCgVsYWJlbBgKIAEoCSJ2CgpQbGF5ZXJKb2luEhEKCXBsYXllcl9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEg0KBWNvbG9yGAMgASgJEhEKCXRva2VuX3VybBgEIAEoCRIPCgdwYWdlX2lkGAUgASgJEhQKDGNoYXJhY3Rlcl9pZBgGIAEoCSIhCgxQbGF5ZXJSZW1vdmUSEQoJcGxheWVyX2lkGAEgASgJIhEKD0luaXRpYXRpdmVTdGFydCIPCg1Jbml0aWF0aXZlRW5kItcMCghFbnZlbG9wZRIlCgVoZWxsbxgBIAEoCzIULmJ1dHRlcnJvbGwudjEuSGVsbG9IABIrCghzbmFwc2hvdBgCIAEoCzIXLmJ1dHRlcnJvbGwudjEuU25hcHNob3RIABIoCgdtYXBfc2V0GAMgASgLMhUuYnV0dGVycm9sbC52MS5NYXBTZXRIABIuCgptYXBfcmVzaXplGAQgASgLMhguYnV0dGVycm9sbC52MS5NYXBSZXNpemVIABIsCgl0b2tlbl9hZGQYBSABKAsyFy5idXR0ZXJyb2xsLnYxLlRva2VuQWRkSAASLgoKdG9rZW5fbW92ZRgGIAEoCzIYLmJ1dHRlcnJvbGwudjEuVG9rZW5Nb3ZlSAASMgoMdG9rZW5fcmVtb3ZlGAcgASgLMhouYnV0dGVycm9sbC52MS5Ub2tlblJlbW92ZUgAEjIKDHRva2VuX3VwZGF0ZRgIIAEoCzIaLmJ1dHRlcnJvbGwudjEuVG9rZW5VcGRhdGVIABIyCgx0b2tlbl9zdGF0dXMYCSABKAsyGi5idXR0ZXJyb2xsLnYxLlRva2VuU3RhdHVzSAASKAoHZm9nX2FkZBgKIAEoCzIVLmJ1dHRlcnJvbGwudjEuRm9nQWRkSAASLgoKZm9nX3JlbW92ZRgLIAEoCzIYLmJ1dHRlcnJvbGwudjEuRm9nUmVtb3ZlSAASLAoJZm9nX2NsZWFyGAwgASgLMhcuYnV0dGVycm9sbC52MS5Gb2dDbGVhckgAEioKCHBhZ2VfYWRkGA0gASgLMhYuYnV0dGVycm9sbC52MS5QYWdlQWRkSAASMAoLcGFnZV9yZW1vdmUYDiABKAsyGS5idXR0ZXJyb2xsLnYxLlBhZ2VSZW1vdmVIABIwCgtwYWdlX3JlbmFtZRgPIAEoCzIZLmJ1dHRlcnJvbGwudjEuUGFnZVJlbmFtZUgAEjIKDHBhZ2VfcHJlc2VudBgQIAEoCzIaLmJ1dHRlcnJvbGwudjEuUGFnZVByZXNlbnRIABIyCgxhcnJvd191cGRhdGUYESABKAsyGi5idXR0ZXJyb2xsLnYxLkFycm93VXBkYXRlSAASMAoLYXJyb3dfY2xlYXIYEiABKAsyGS5idXR0ZXJyb2xsLnYxLkFycm93Q2xlYXJIABI0Cg1yYWRpdXNfdXBkYXRlGBMgASgLMhsuYnV0dGVycm9sbC52MS5SYWRpdXNVcGRhdGVIABIyCgxyYWRpdXNfY2xlYXIYFCABKAsyGi5idXR0ZXJyb2xsLnYxLlJhZGl1c0NsZWFySAASIwoEcGluZxgVIAEoCzITLmJ1dHRlcnJvbGwudjEuUGluZ0gAEjQKDXZpZXdwb3J0X3N5bmMYFiABKAsyGy5idXR0ZXJyb2xsLnYxLlZpZXdwb3J0U3luY0gAEjsKEWRpY2Vfcm9sbF9yZXF1ZXN0GBcgASgLMh4uYnV0dGVycm9sbC52MS5EaWNlUm9sbFJlcXVlc3RIABI5ChBkaWNlX3JvbGxfcmVzdWx0GBggASgLMh0uYnV0dGVycm9sbC52MS5EaWNlUm9sbFJlc3VsdEgAEjkKEHRva2VuX21vdmVfYmF0Y2gYGSABKAsyHS5idXR0ZXJyb2xsLnYxLlRva2VuTW92ZUJhdGNoSAASMAoLcGxheWVyX2pvaW4YGiABKAsyGS5idXR0ZXJyb2xsLnYxLlBsYXllckpvaW5IABI0ChBjaGFyYWN0ZXJfdXBkYXRlGBsgASgLMhguYnV0dGVycm9sbC52MS5DaGFyYWN0ZXJIABI0Cg1wbGF5ZXJfcmVtb3ZlGBwgASgLMhsuYnV0dGVycm9sbC52MS5QbGF5ZXJSZW1vdmVIABIsCglwYWdlX3RhZ3MYHSABKAsyFy5idXR0ZXJyb2xsLnYxLlBhZ2VUYWdzSAASLgoKdG9rZW5fdGFncxgeIAEoCzIYLmJ1dHRlcnJvbGwudjEuVG9rZW5UYWdzSAASOgoQaW5pdGlhdGl2ZV9zdGFydBgfIAEoCzIeLmJ1dHRlcnJvbGwudjEuSW5pdGlhdGl2ZVN0YXJ0SAASNgoOaW5pdGlhdGl2ZV9lbmQYICABKAsyHC5idXR0ZXJyb2xsLnYxLkluaXRpYXRpdmVFbmRIAEIJCgdwYXlsb2FkQjNaMWJ1dHRlci1yb2xsL3NlcnZlci9nZW4vYnV0dGVycm9sbC92MTtidXR0ZXJyb2xsdjFiBnByb3RvMw");
+  fileDesc("ChhidXR0ZXJyb2xsL3YxL2dhbWUucHJvdG8SDWJ1dHRlcnJvbGwudjEiiAMKBVRva2VuEgoKAmlkGAEgASgJEgsKA3VybBgCIAEoCRIJCgF4GAMgASgBEgkKAXkYBCABKAESEgoFY29sb3IYBSABKAlIAIgBARIZCgxib3JkZXJfd2lkdGgYBiABKAVIAYgBARIWCg5zdGF0dXNfZWZmZWN0cxgHIAMoCRIMCgRuYW1lGAggASgJEhEKCXNob3dfbmFtZRgJIAEoCBIOCgZwdWJsaWMYCiABKAgSDwoHbW9uc3RlchgLIAEoCRIPCgJocBgMIAEoBUgCiAEBEhMKBndvdW5kcxgNIAEoBUgDiAEBEhwKD293bmVyX3BsYXllcl9pZBgOIAEoCUgEiAEBEg4KBnBsYXllchgPIAEoCBIUCgxjaGFyYWN0ZXJfaWQYECABKAkSDgoGcGlubmVkGBEgASgIEgwKBHRhZ3MYEiADKAlCCAoGX2NvbG9yQg8KDV9ib3JkZXJfd2lkdGhCBQoDX2hwQgkKB193b3VuZHNCEgoQX293bmVyX3BsYXllcl9pZCIlCgdGb2dQb2x5EgoKAmlkGAEgASgJEg4KBnBvaW50cxgCIAMoASK3AQoEUGFnZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg8KB21hcF91cmwYAyABKAkSEQoJbWFwX3dpZHRoGAQgASgFEhIKCm1hcF9oZWlnaHQYBSABKAUSJAoGdG9rZW5zGAYgAygLMhQuYnV0dGVycm9sbC52MS5Ub2tlbhIpCglmb2dfcG9seXMYByADKAsyFi5idXR0ZXJyb2xsLnYxLkZvZ1BvbHkSDAoEdGFncxgIIAMoCSIaCgVIZWxsbxIRCgljbGllbnRfaWQYASABKAkikQIKCFNuYXBzaG90EhkKEXByZXNlbnRlZF9wYWdlX2lkGAEgASgJEiIKBXBhZ2VzGAIgAygLMhMuYnV0dGVycm9sbC52MS5QYWdlEiwKCmNoYXJhY3RlcnMYAyADKAsyGC5idXR0ZXJyb2xsLnYxLkNoYXJhY3RlchIxCg9wYXJ0eV9pbnZlbnRvcnkYBCADKAsyGC5idXR0ZXJyb2xsLnYxLlBhcnR5SXRlbRIwCgxwYXJ0eV93YWxsZXQYBSABKAsyGi5idXR0ZXJyb2xsLnYx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iAEBQgcKBV9uYW1lQgYKBF9xdHlCDQoLX3Nsb3RzX2VhY2hCDQoLX3NlY3Rpb25faWQiHQoPUGFydHlJdGVtUmVtb3ZlEgoKAmlkGAEgASgJIh8KEFBhcnR5SXRlbVJlb3JkZXISCwoDaWRzGAEgAygJIj8KD1BhcnR5U2VjdGlvbkFkZBIsCgdzZWN0aW9uGAEgASgLMhsuYnV0dGVycm9sbC52MS5QYXJ0eVNlY3Rpb24iLgoSUGFydHlTZWN0aW9uUmVuYW1lEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkiIAoSUGFydHlTZWN0aW9uUmVtb3ZlEgoKAmlkGAEgASgJIiIKE1BhcnR5U2VjdGlvblJlb3JkZXISCwoDaWRzGAEgAygJIiEKDFBsYXllclJlbW92ZRIRCglwbGF5ZXJfaWQYASABKAkiEQoPSW5pdGlhdGl2ZVN0YXJ0Ig8KDUluaXRpYXRpdmVFbmQigxEKCEVudmVsb3BlEiUKBWhlbGxvGAEgASgLMhQuYnV0dGVycm9sbC52MS5IZWxsb0gAEisKCHNuYXBzaG90GAIgASgLMhcuYnV0dGVycm9sbC52MS5TbmFwc2hvdEgAEigKB21hcF9zZXQYAyABKAsyFS5idXR0ZXJyb2xsLnYxLk1hcFNldEgAEi4KCm1hcF9yZXNpemUYBCABKAsyGC5idXR0ZXJyb2xsLnYxLk1hcFJlc2l6ZUgAEiwKCXRva2VuX2FkZBgFIAEoCzIXLmJ1dHRlcnJvbGwudjEuVG9rZW5BZGRIABIuCgp0b2tlbl9tb3ZlGAYgASgLMhguYnV0dGVycm9sbC52MS5Ub2tlbk1vdmVIABIyCgx0b2tlbl9yZW1vdmUYByABKAsyGi5idXR0ZXJyb2xsLnYxLlRva2VuUmVtb3ZlSAASMgoMdG9rZW5fdXBkYXRlGAggASgLMhouYnV0dGVycm9sbC52MS5Ub2tlblVwZGF0ZUgAEjIKDHRva2VuX3N0YXR1cxgJIAEoCzIaLmJ1dHRlcnJvbGwudjEuVG9rZW5TdGF0dXNIABIoCgdmb2dfYWRkGAogASgLMhUuYnV0dGVycm9sbC52MS5Gb2dBZGRIABIuCgpmb2dfcmVtb3ZlGAsgASgLMhguYnV0dGVycm9sbC52MS5Gb2dSZW1vdmVIABIsCglmb2dfY2xlYXIYDCABKAsyFy5idXR0ZXJyb2xsLnYxLkZvZ0NsZWFySAASKgoIcGFnZV9hZGQYDSABKAsyFi5idXR0ZXJyb2xsLnYxLlBhZ2VBZGRIABIwCgtwYWdlX3JlbW92ZRgOIAEoCzIZLmJ1dHRlcnJvbGwudjEuUGFnZVJlbW92ZUgAEjAKC3BhZ2VfcmVuYW1lGA8gASgLMhkuYnV0dGVycm9sbC52MS5QYWdlUmVuYW1lSAASMgoMcGFnZV9wcmVzZW50GBAgASgLMhouYnV0dGVycm9sbC52MS5QYWdlUHJlc2VudEgAEjIKDGFycm93X3VwZGF0ZRgRIAEoCzIaLmJ1dHRlcnJvbGwudjEuQXJyb3dVcGRhdGVIABIwCgthcnJvd19jbGVhchgSIAEoCzIZLmJ1dHRlcnJvbGwudjEuQXJyb3dDbGVhckgAEjQKDXJhZGl1c191cGRhdGUYEyABKAsyGy5idXR0ZXJyb2xsLnYxLlJhZGl1c1VwZGF0ZUgAEjIKDHJhZGl1c19jbGVhchgUIAEoCzIaLmJ1dHRlcnJvbGwudjEuUmFkaXVzQ2xlYXJIABIjCgRwaW5nGBUgASgLMhMuYnV0dGVycm9sbC52MS5QaW5nSAASNAoNdmlld3BvcnRfc3luYxgWIAEoCzIbLmJ1dHRlcnJvbGwudjEuVmlld3BvcnRTeW5jSAASOwoRZGljZV9yb2xsX3JlcXVlc3QYFyABKAsyHi5idXR0ZXJyb2xsLnYxLkRpY2VSb2xsUmVxdWVzdEgAEjkKEGRpY2Vfcm9sbF9yZXN1bHQYGCABKAsyHS5idXR0ZXJyb2xsLnYxLkRpY2VSb2xsUmVzdWx0SAASOQoQdG9rZW5fbW92ZV9iYXRjaBgZIAEoCzIdLmJ1dHRlcnJvbGwudjEuVG9rZW5Nb3ZlQmF0Y2hIABIwCgtwbGF5ZXJfam9pbhgaIAEoCzIZLmJ1dHRlcnJvbGwudjEuUGxheWVySm9pbkgAEjQKEGNoYXJhY3Rlcl91cGRhdGUYGyABKAsyGC5idXR0ZXJyb2xsLnYxLkNoYXJhY3RlckgAEjQKDXBsYXllcl9yZW1vdmUYHCABKAsyGy5idXR0ZXJyb2xsLnYxLlBsYXllclJlbW92ZUgAEiwKCXBhZ2VfdGFncxgdIAEoCzIXLmJ1dHRlcnJvbGwudjEuUGFnZVRhZ3NIABIuCgp0b2tlbl90YWdzGB4gASgLMhguYnV0dGVycm9sbC52MS5Ub2tlblRhZ3NIABI6ChBpbml0aWF0aXZlX3N0YXJ0GB8gASgLMh4uYnV0dGVycm9sbC52MS5Jbml0aWF0aXZlU3RhcnRIABI2Cg5pbml0aWF0aXZlX2VuZBggIAEoCzIcLmJ1dHRlcnJvbGwudjEuSW5pdGlhdGl2ZUVuZEgAEjUKDnBhcnR5X2l0ZW1fYWRkGCEgASgLMhsuYnV0dGVycm9sbC52MS5QYXJ0eUl0ZW1BZGRIABI7ChFwYXJ0eV9pdGVtX3VwZGF0ZRgiIAEoCzIeLmJ1dHRlcnJvbGwudjEuUGFydHlJdGVtVXBkYXRlSAASOwoRcGFydHlfaXRlbV9yZW1vdmUYIyABKAsyHi5idXR0ZXJyb2xsLnYxLlBhcnR5SXRlbVJlbW92ZUgAEj0KEnBhcnR5X2l0ZW1fcmVvcmRlchgkIAEoCzIfLmJ1dHRlcnJvbGwudjEuUGFydHlJdGVtUmVvcmRlckgAEjIKDHBhcnR5X3dhbGxldBglIAEoCzIaLmJ1dHRlcnJvbGwudjEuUGFydHlXYWxsZXRIABI7ChFwYXJ0eV9zZWN0aW9uX2FkZBgmIAEoCzIeLmJ1dHRlcnJvbGwudjEuUGFydHlTZWN0aW9uQWRkSAASQQoUcGFydHlfc2VjdGlvbl9yZW5hbWUYJyABKAsyIS5idXR0ZXJyb2xsLnYxLlBhcnR5U2VjdGlvblJlbmFtZUgAEkEKFHBhcnR5X3NlY3Rpb25fcmVtb3ZlGCggASgLMiEuYnV0dGVycm9sbC52MS5QYXJ0eVNlY3Rpb25SZW1vdmVIABJDChVwYXJ0eV9zZWN0aW9uX3Jlb3JkZXIYKSABKAsyIi5idXR0ZXJyb2xsLnYxLlBhcnR5U2VjdGlvblJlb3JkZXJIAEIJCgdwYXlsb2FkQjNaMWJ1dHRlci1yb2xsL3NlcnZlci9nZW4vYnV0dGVycm9sbC92MTtidXR0ZXJyb2xsdjFiBnByb3RvMw");
 
 /**
  * Token is one piece on the map. X/Y are world-space coordinates.
@@ -254,6 +254,21 @@ export type Snapshot = Message<"butterroll.v1.Snapshot"> & {
    * @generated from field: repeated butterroll.v1.Character characters = 3;
    */
   characters: Character[];
+
+  /**
+   * @generated from field: repeated butterroll.v1.PartyItem party_inventory = 4;
+   */
+  partyInventory: PartyItem[];
+
+  /**
+   * @generated from field: butterroll.v1.PartyWallet party_wallet = 5;
+   */
+  partyWallet?: PartyWallet | undefined;
+
+  /**
+   * @generated from field: repeated butterroll.v1.PartySection party_sections = 6;
+   */
+  partySections: PartySection[];
 };
 
 /**
@@ -262,6 +277,105 @@ export type Snapshot = Message<"butterroll.v1.Snapshot"> & {
  */
 export const SnapshotSchema: GenMessage<Snapshot> = /*@__PURE__*/
   messageDesc(file_butterroll_v1_game, 4);
+
+/**
+ * PartySection is a named, flat (non-nestable) bucket in the party inventory —
+ * "Wagon", "House". Items reference it by id via PartyItem.section_id; an empty
+ * section_id means the item is unsorted (in no section).
+ *
+ * @generated from message butterroll.v1.PartySection
+ */
+export type PartySection = Message<"butterroll.v1.PartySection"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message butterroll.v1.PartySection.
+ * Use `create(PartySectionSchema)` to create a new message.
+ */
+export const PartySectionSchema: GenMessage<PartySection> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 5);
+
+/**
+ * PartyWallet is the room's shared coin pool — a communal GP/SP/CP pot every
+ * player can read and edit, separate from any character's personal coins.
+ *
+ * @generated from message butterroll.v1.PartyWallet
+ */
+export type PartyWallet = Message<"butterroll.v1.PartyWallet"> & {
+  /**
+   * @generated from field: int32 gp = 1;
+   */
+  gp: number;
+
+  /**
+   * @generated from field: int32 sp = 2;
+   */
+  sp: number;
+
+  /**
+   * @generated from field: int32 cp = 3;
+   */
+  cp: number;
+};
+
+/**
+ * Describes the message butterroll.v1.PartyWallet.
+ * Use `create(PartyWalletSchema)` to create a new message.
+ */
+export const PartyWalletSchema: GenMessage<PartyWallet> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 6);
+
+/**
+ * PartyItem is one entry in the room's shared party inventory — a single list all
+ * players can read and write, owned by no individual player. Mirrors the
+ * character sheet's gear item ({ name, qty, slotsEach }).
+ *
+ * @generated from message butterroll.v1.PartyItem
+ */
+export type PartyItem = Message<"butterroll.v1.PartyItem"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: int32 qty = 3;
+   */
+  qty: number;
+
+  /**
+   * @generated from field: int32 slots_each = 4;
+   */
+  slotsEach: number;
+
+  /**
+   * owning PartySection id; empty = unsorted
+   *
+   * @generated from field: string section_id = 5;
+   */
+  sectionId: string;
+};
+
+/**
+ * Describes the message butterroll.v1.PartyItem.
+ * Use `create(PartyItemSchema)` to create a new message.
+ */
+export const PartyItemSchema: GenMessage<PartyItem> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 7);
 
 /**
  * Character holds a player's sheet as an opaque JSON blob. The server stores and
@@ -325,7 +439,7 @@ export type Character = Message<"butterroll.v1.Character"> & {
  * Use `create(CharacterSchema)` to create a new message.
  */
 export const CharacterSchema: GenMessage<Character> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 5);
+  messageDesc(file_butterroll_v1_game, 8);
 
 /**
  * @generated from message butterroll.v1.MapSet
@@ -357,7 +471,7 @@ export type MapSet = Message<"butterroll.v1.MapSet"> & {
  * Use `create(MapSetSchema)` to create a new message.
  */
 export const MapSetSchema: GenMessage<MapSet> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 6);
+  messageDesc(file_butterroll_v1_game, 9);
 
 /**
  * @generated from message butterroll.v1.MapResize
@@ -384,7 +498,7 @@ export type MapResize = Message<"butterroll.v1.MapResize"> & {
  * Use `create(MapResizeSchema)` to create a new message.
  */
 export const MapResizeSchema: GenMessage<MapResize> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 7);
+  messageDesc(file_butterroll_v1_game, 10);
 
 /**
  * @generated from message butterroll.v1.TokenAdd
@@ -406,7 +520,7 @@ export type TokenAdd = Message<"butterroll.v1.TokenAdd"> & {
  * Use `create(TokenAddSchema)` to create a new message.
  */
 export const TokenAddSchema: GenMessage<TokenAdd> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 8);
+  messageDesc(file_butterroll_v1_game, 11);
 
 /**
  * @generated from message butterroll.v1.TokenMove
@@ -438,7 +552,7 @@ export type TokenMove = Message<"butterroll.v1.TokenMove"> & {
  * Use `create(TokenMoveSchema)` to create a new message.
  */
 export const TokenMoveSchema: GenMessage<TokenMove> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 9);
+  messageDesc(file_butterroll_v1_game, 12);
 
 /**
  * @generated from message butterroll.v1.TokenMoveBatch
@@ -460,7 +574,7 @@ export type TokenMoveBatch = Message<"butterroll.v1.TokenMoveBatch"> & {
  * Use `create(TokenMoveBatchSchema)` to create a new message.
  */
 export const TokenMoveBatchSchema: GenMessage<TokenMoveBatch> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 10);
+  messageDesc(file_butterroll_v1_game, 13);
 
 /**
  * @generated from message butterroll.v1.TokenMovePos
@@ -487,7 +601,7 @@ export type TokenMovePos = Message<"butterroll.v1.TokenMovePos"> & {
  * Use `create(TokenMovePosSchema)` to create a new message.
  */
 export const TokenMovePosSchema: GenMessage<TokenMovePos> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 11);
+  messageDesc(file_butterroll_v1_game, 14);
 
 /**
  * @generated from message butterroll.v1.TokenRemove
@@ -509,7 +623,7 @@ export type TokenRemove = Message<"butterroll.v1.TokenRemove"> & {
  * Use `create(TokenRemoveSchema)` to create a new message.
  */
 export const TokenRemoveSchema: GenMessage<TokenRemove> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 12);
+  messageDesc(file_butterroll_v1_game, 15);
 
 /**
  * Partial update: every field is optional; only the set ones are applied.
@@ -587,7 +701,7 @@ export type TokenUpdate = Message<"butterroll.v1.TokenUpdate"> & {
  * Use `create(TokenUpdateSchema)` to create a new message.
  */
 export const TokenUpdateSchema: GenMessage<TokenUpdate> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 13);
+  messageDesc(file_butterroll_v1_game, 16);
 
 /**
  * @generated from message butterroll.v1.TokenStatus
@@ -614,7 +728,7 @@ export type TokenStatus = Message<"butterroll.v1.TokenStatus"> & {
  * Use `create(TokenStatusSchema)` to create a new message.
  */
 export const TokenStatusSchema: GenMessage<TokenStatus> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 14);
+  messageDesc(file_butterroll_v1_game, 17);
 
 /**
  * @generated from message butterroll.v1.TokenTags
@@ -641,7 +755,7 @@ export type TokenTags = Message<"butterroll.v1.TokenTags"> & {
  * Use `create(TokenTagsSchema)` to create a new message.
  */
 export const TokenTagsSchema: GenMessage<TokenTags> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 15);
+  messageDesc(file_butterroll_v1_game, 18);
 
 /**
  * @generated from message butterroll.v1.FogAdd
@@ -668,7 +782,7 @@ export type FogAdd = Message<"butterroll.v1.FogAdd"> & {
  * Use `create(FogAddSchema)` to create a new message.
  */
 export const FogAddSchema: GenMessage<FogAdd> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 16);
+  messageDesc(file_butterroll_v1_game, 19);
 
 /**
  * @generated from message butterroll.v1.FogRemove
@@ -690,7 +804,7 @@ export type FogRemove = Message<"butterroll.v1.FogRemove"> & {
  * Use `create(FogRemoveSchema)` to create a new message.
  */
 export const FogRemoveSchema: GenMessage<FogRemove> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 17);
+  messageDesc(file_butterroll_v1_game, 20);
 
 /**
  * @generated from message butterroll.v1.FogClear
@@ -707,7 +821,7 @@ export type FogClear = Message<"butterroll.v1.FogClear"> & {
  * Use `create(FogClearSchema)` to create a new message.
  */
 export const FogClearSchema: GenMessage<FogClear> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 18);
+  messageDesc(file_butterroll_v1_game, 21);
 
 /**
  * @generated from message butterroll.v1.PageAdd
@@ -729,7 +843,7 @@ export type PageAdd = Message<"butterroll.v1.PageAdd"> & {
  * Use `create(PageAddSchema)` to create a new message.
  */
 export const PageAddSchema: GenMessage<PageAdd> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 19);
+  messageDesc(file_butterroll_v1_game, 22);
 
 /**
  * @generated from message butterroll.v1.PageRemove
@@ -746,7 +860,7 @@ export type PageRemove = Message<"butterroll.v1.PageRemove"> & {
  * Use `create(PageRemoveSchema)` to create a new message.
  */
 export const PageRemoveSchema: GenMessage<PageRemove> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 20);
+  messageDesc(file_butterroll_v1_game, 23);
 
 /**
  * @generated from message butterroll.v1.PageRename
@@ -768,7 +882,7 @@ export type PageRename = Message<"butterroll.v1.PageRename"> & {
  * Use `create(PageRenameSchema)` to create a new message.
  */
 export const PageRenameSchema: GenMessage<PageRename> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 21);
+  messageDesc(file_butterroll_v1_game, 24);
 
 /**
  * @generated from message butterroll.v1.PagePresent
@@ -785,7 +899,7 @@ export type PagePresent = Message<"butterroll.v1.PagePresent"> & {
  * Use `create(PagePresentSchema)` to create a new message.
  */
 export const PagePresentSchema: GenMessage<PagePresent> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 22);
+  messageDesc(file_butterroll_v1_game, 25);
 
 /**
  * @generated from message butterroll.v1.PageTags
@@ -807,7 +921,7 @@ export type PageTags = Message<"butterroll.v1.PageTags"> & {
  * Use `create(PageTagsSchema)` to create a new message.
  */
 export const PageTagsSchema: GenMessage<PageTags> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 23);
+  messageDesc(file_butterroll_v1_game, 26);
 
 /**
  * @generated from message butterroll.v1.ArrowUpdate
@@ -844,7 +958,7 @@ export type ArrowUpdate = Message<"butterroll.v1.ArrowUpdate"> & {
  * Use `create(ArrowUpdateSchema)` to create a new message.
  */
 export const ArrowUpdateSchema: GenMessage<ArrowUpdate> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 24);
+  messageDesc(file_butterroll_v1_game, 27);
 
 /**
  * @generated from message butterroll.v1.ArrowClear
@@ -861,7 +975,7 @@ export type ArrowClear = Message<"butterroll.v1.ArrowClear"> & {
  * Use `create(ArrowClearSchema)` to create a new message.
  */
 export const ArrowClearSchema: GenMessage<ArrowClear> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 25);
+  messageDesc(file_butterroll_v1_game, 28);
 
 /**
  * @generated from message butterroll.v1.RadiusUpdate
@@ -898,7 +1012,7 @@ export type RadiusUpdate = Message<"butterroll.v1.RadiusUpdate"> & {
  * Use `create(RadiusUpdateSchema)` to create a new message.
  */
 export const RadiusUpdateSchema: GenMessage<RadiusUpdate> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 26);
+  messageDesc(file_butterroll_v1_game, 29);
 
 /**
  * @generated from message butterroll.v1.RadiusClear
@@ -915,7 +1029,7 @@ export type RadiusClear = Message<"butterroll.v1.RadiusClear"> & {
  * Use `create(RadiusClearSchema)` to create a new message.
  */
 export const RadiusClearSchema: GenMessage<RadiusClear> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 27);
+  messageDesc(file_butterroll_v1_game, 30);
 
 /**
  * @generated from message butterroll.v1.Ping
@@ -942,7 +1056,7 @@ export type Ping = Message<"butterroll.v1.Ping"> & {
  * Use `create(PingSchema)` to create a new message.
  */
 export const PingSchema: GenMessage<Ping> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 28);
+  messageDesc(file_butterroll_v1_game, 31);
 
 /**
  * @generated from message butterroll.v1.ViewportSync
@@ -974,7 +1088,7 @@ export type ViewportSync = Message<"butterroll.v1.ViewportSync"> & {
  * Use `create(ViewportSyncSchema)` to create a new message.
  */
 export const ViewportSyncSchema: GenMessage<ViewportSync> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 29);
+  messageDesc(file_butterroll_v1_game, 32);
 
 /**
  * @generated from message butterroll.v1.DiceRollRequest
@@ -1037,7 +1151,7 @@ export type DiceRollRequest = Message<"butterroll.v1.DiceRollRequest"> & {
  * Use `create(DiceRollRequestSchema)` to create a new message.
  */
 export const DiceRollRequestSchema: GenMessage<DiceRollRequest> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 30);
+  messageDesc(file_butterroll_v1_game, 33);
 
 /**
  * @generated from message butterroll.v1.DiceRollResult
@@ -1099,7 +1213,7 @@ export type DiceRollResult = Message<"butterroll.v1.DiceRollResult"> & {
  * Use `create(DiceRollResultSchema)` to create a new message.
  */
 export const DiceRollResultSchema: GenMessage<DiceRollResult> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 31);
+  messageDesc(file_butterroll_v1_game, 34);
 
 /**
  * PlayerJoin registers a player's active-character identity (name, color, token
@@ -1157,7 +1271,176 @@ export type PlayerJoin = Message<"butterroll.v1.PlayerJoin"> & {
  * Use `create(PlayerJoinSchema)` to create a new message.
  */
 export const PlayerJoinSchema: GenMessage<PlayerJoin> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 32);
+  messageDesc(file_butterroll_v1_game, 35);
+
+/**
+ * @generated from message butterroll.v1.PartyItemAdd
+ */
+export type PartyItemAdd = Message<"butterroll.v1.PartyItemAdd"> & {
+  /**
+   * @generated from field: butterroll.v1.PartyItem item = 1;
+   */
+  item?: PartyItem | undefined;
+};
+
+/**
+ * Describes the message butterroll.v1.PartyItemAdd.
+ * Use `create(PartyItemAddSchema)` to create a new message.
+ */
+export const PartyItemAddSchema: GenMessage<PartyItemAdd> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 36);
+
+/**
+ * Partial update: every field is optional; only the set ones are applied.
+ *
+ * @generated from message butterroll.v1.PartyItemUpdate
+ */
+export type PartyItemUpdate = Message<"butterroll.v1.PartyItemUpdate"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: optional string name = 2;
+   */
+  name?: string | undefined;
+
+  /**
+   * @generated from field: optional int32 qty = 3;
+   */
+  qty?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 slots_each = 4;
+   */
+  slotsEach?: number | undefined;
+
+  /**
+   * move to a section ("" = unsorted)
+   *
+   * @generated from field: optional string section_id = 5;
+   */
+  sectionId?: string | undefined;
+};
+
+/**
+ * Describes the message butterroll.v1.PartyItemUpdate.
+ * Use `create(PartyItemUpdateSchema)` to create a new message.
+ */
+export const PartyItemUpdateSchema: GenMessage<PartyItemUpdate> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 37);
+
+/**
+ * @generated from message butterroll.v1.PartyItemRemove
+ */
+export type PartyItemRemove = Message<"butterroll.v1.PartyItemRemove"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message butterroll.v1.PartyItemRemove.
+ * Use `create(PartyItemRemoveSchema)` to create a new message.
+ */
+export const PartyItemRemoveSchema: GenMessage<PartyItemRemove> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 38);
+
+/**
+ * PartyItemReorder gives the new full order of the list by item id.
+ *
+ * @generated from message butterroll.v1.PartyItemReorder
+ */
+export type PartyItemReorder = Message<"butterroll.v1.PartyItemReorder"> & {
+  /**
+   * @generated from field: repeated string ids = 1;
+   */
+  ids: string[];
+};
+
+/**
+ * Describes the message butterroll.v1.PartyItemReorder.
+ * Use `create(PartyItemReorderSchema)` to create a new message.
+ */
+export const PartyItemReorderSchema: GenMessage<PartyItemReorder> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 39);
+
+/**
+ * @generated from message butterroll.v1.PartySectionAdd
+ */
+export type PartySectionAdd = Message<"butterroll.v1.PartySectionAdd"> & {
+  /**
+   * @generated from field: butterroll.v1.PartySection section = 1;
+   */
+  section?: PartySection | undefined;
+};
+
+/**
+ * Describes the message butterroll.v1.PartySectionAdd.
+ * Use `create(PartySectionAddSchema)` to create a new message.
+ */
+export const PartySectionAddSchema: GenMessage<PartySectionAdd> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 40);
+
+/**
+ * @generated from message butterroll.v1.PartySectionRename
+ */
+export type PartySectionRename = Message<"butterroll.v1.PartySectionRename"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message butterroll.v1.PartySectionRename.
+ * Use `create(PartySectionRenameSchema)` to create a new message.
+ */
+export const PartySectionRenameSchema: GenMessage<PartySectionRename> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 41);
+
+/**
+ * @generated from message butterroll.v1.PartySectionRemove
+ */
+export type PartySectionRemove = Message<"butterroll.v1.PartySectionRemove"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message butterroll.v1.PartySectionRemove.
+ * Use `create(PartySectionRemoveSchema)` to create a new message.
+ */
+export const PartySectionRemoveSchema: GenMessage<PartySectionRemove> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 42);
+
+/**
+ * PartySectionReorder gives the new full order of the sections by id.
+ *
+ * @generated from message butterroll.v1.PartySectionReorder
+ */
+export type PartySectionReorder = Message<"butterroll.v1.PartySectionReorder"> & {
+  /**
+   * @generated from field: repeated string ids = 1;
+   */
+  ids: string[];
+};
+
+/**
+ * Describes the message butterroll.v1.PartySectionReorder.
+ * Use `create(PartySectionReorderSchema)` to create a new message.
+ */
+export const PartySectionReorderSchema: GenMessage<PartySectionReorder> = /*@__PURE__*/
+  messageDesc(file_butterroll_v1_game, 43);
 
 /**
  * PlayerRemove asks the server to fully evict a player: delete their entire
@@ -1180,7 +1463,7 @@ export type PlayerRemove = Message<"butterroll.v1.PlayerRemove"> & {
  * Use `create(PlayerRemoveSchema)` to create a new message.
  */
 export const PlayerRemoveSchema: GenMessage<PlayerRemove> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 33);
+  messageDesc(file_butterroll_v1_game, 44);
 
 /**
  * ── Envelope ─────────────────────────────────────────────────────────────────
@@ -1200,7 +1483,7 @@ export type InitiativeStart = Message<"butterroll.v1.InitiativeStart"> & {
  * Use `create(InitiativeStartSchema)` to create a new message.
  */
 export const InitiativeStartSchema: GenMessage<InitiativeStart> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 34);
+  messageDesc(file_butterroll_v1_game, 45);
 
 /**
  * InitiativeEnd signals the DM ended an encounter (removed the last token from the
@@ -1218,7 +1501,7 @@ export type InitiativeEnd = Message<"butterroll.v1.InitiativeEnd"> & {
  * Use `create(InitiativeEndSchema)` to create a new message.
  */
 export const InitiativeEndSchema: GenMessage<InitiativeEnd> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 35);
+  messageDesc(file_butterroll_v1_game, 46);
 
 /**
  * The oneof field name (e.g. "tokenMove") is the discriminator in protojson.
@@ -1421,6 +1704,60 @@ export type Envelope = Message<"butterroll.v1.Envelope"> & {
      */
     value: InitiativeEnd;
     case: "initiativeEnd";
+  } | {
+    /**
+     * @generated from field: butterroll.v1.PartyItemAdd party_item_add = 33;
+     */
+    value: PartyItemAdd;
+    case: "partyItemAdd";
+  } | {
+    /**
+     * @generated from field: butterroll.v1.PartyItemUpdate party_item_update = 34;
+     */
+    value: PartyItemUpdate;
+    case: "partyItemUpdate";
+  } | {
+    /**
+     * @generated from field: butterroll.v1.PartyItemRemove party_item_remove = 35;
+     */
+    value: PartyItemRemove;
+    case: "partyItemRemove";
+  } | {
+    /**
+     * @generated from field: butterroll.v1.PartyItemReorder party_item_reorder = 36;
+     */
+    value: PartyItemReorder;
+    case: "partyItemReorder";
+  } | {
+    /**
+     * @generated from field: butterroll.v1.PartyWallet party_wallet = 37;
+     */
+    value: PartyWallet;
+    case: "partyWallet";
+  } | {
+    /**
+     * @generated from field: butterroll.v1.PartySectionAdd party_section_add = 38;
+     */
+    value: PartySectionAdd;
+    case: "partySectionAdd";
+  } | {
+    /**
+     * @generated from field: butterroll.v1.PartySectionRename party_section_rename = 39;
+     */
+    value: PartySectionRename;
+    case: "partySectionRename";
+  } | {
+    /**
+     * @generated from field: butterroll.v1.PartySectionRemove party_section_remove = 40;
+     */
+    value: PartySectionRemove;
+    case: "partySectionRemove";
+  } | {
+    /**
+     * @generated from field: butterroll.v1.PartySectionReorder party_section_reorder = 41;
+     */
+    value: PartySectionReorder;
+    case: "partySectionReorder";
   } | { case: undefined; value?: undefined };
 };
 
@@ -1429,5 +1766,5 @@ export type Envelope = Message<"butterroll.v1.Envelope"> & {
  * Use `create(EnvelopeSchema)` to create a new message.
  */
 export const EnvelopeSchema: GenMessage<Envelope> = /*@__PURE__*/
-  messageDesc(file_butterroll_v1_game, 36);
+  messageDesc(file_butterroll_v1_game, 47);
 

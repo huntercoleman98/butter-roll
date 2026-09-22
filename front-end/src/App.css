@@ -1443,7 +1443,8 @@ button.icon-btn {
 }
 
 .sheet-remove,
-.sheet-send-party {
+.sheet-send-party,
+.sheet-take-party {
   min-width: 22px;
   width: 22px;
   height: 22px;
@@ -1456,12 +1457,20 @@ button.icon-btn {
 /* 98.css renders button *text* via text-shadow with color:transparent, which an
    SVG icon can't use — it'd inherit currentColor:transparent and vanish. Restore
    a real color so the icon's currentColor fill shows, and flex-center the glyph. */
-.sheet-send-party {
+.sheet-send-party,
+.sheet-take-party {
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-color);
 }
+
+/* GiPlainArrow points down (used as-is for "take"); flip it to point up for
+   "send to party inventory". */
+.sheet-send-party svg {
+  transform: rotate(180deg);
+}
+
 
 .sheet-inline-roll {
   min-width: 0;
@@ -1593,13 +1602,29 @@ button.icon-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Fixed footprint so the handle is identical in the item grid and the folder
+     header (which set different font sizes) — they line up cleanly when stacked. */
+  width: 16px;
+  flex-shrink: 0;
   color: #808080;
   cursor: grab;
   /* stop the browser turning a handle-drag into a text/image selection drag */
   user-select: none;
+  -webkit-user-drag: none;
   /* required for Pointer Events on touch: without this a touch-drag scrolls the
      page instead of firing pointermove to the handle. */
   touch-action: none;
+}
+
+/* Route pointer events to the handle span, not the SVG glyph inside it. An SVG
+   is a native drag source, so grabbing it starts a browser image-drag that
+   swallows pointerup/pointercancel — leaving the row stuck in its grayed
+   dragging state until the next pointerdown. Fixed size so it matches regardless
+   of the surrounding font size. */
+.sheet-drag-handle svg {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
 }
 
 .sheet-drag-handle:active {
@@ -1664,6 +1689,9 @@ button.icon-btn {
   min-width: 0;
   font-size: 12px;
   font-weight: bold;
+  /* Keep the two-letter label (GP/SP/CP) on one line; the input yields it those
+     few pixels instead of squeezing the text into a stacked "G/P". */
+  white-space: nowrap;
 }
 
 .sheet-coins input {
@@ -1928,15 +1956,86 @@ button.icon-btn {
 .player-party-tab {
   flex: 1;
   overflow-y: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 8px 4px;
 }
 
 .player-party-empty {
+  margin: 0 0 8px;
   color: #888;
   font-size: 13px;
+  text-align: center;
+}
+
+/* Party inventory sections — folder-tree look, matching the token/map library
+   (reuses .token-lib-folder / .token-lib-twisty / .token-lib-folder-icon). */
+.party-section.is-dragging {
+  opacity: 0.4;
+}
+
+/* The section header toggles collapse on click, so it isn't grab-draggable as a
+   whole (unlike a library folder) — only its drag handle reorders it. Zero the
+   library folder's horizontal padding so the header's drag handle (left) and ×
+   (right) line up with the flush item rows above/below it. */
+.party-folder {
+  cursor: pointer;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Highlight the folder header when an item will drop into it (at its end) or a
+   dragged section will land here — mirrors the library's drag-over blue. */
+.party-section.is-drop-into > .party-folder,
+.party-section.is-drop-target > .party-folder {
+  background: rgba(10, 36, 106, 0.15);
+}
+
+/* Always a real, bordered input — never a title that's secretly editable
+   (98.css spirit: an input looks like an input). */
+.party-section-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.party-section-slots {
+  flex-shrink: 0;
+  color: #666;
+  font-size: 11px;
+}
+
+/* Items nest under their folder. */
+.party-section-items {
+  padding-left: 18px;
+}
+
+/* Drop target shown inside an empty group during a drag, so an item can be
+   pulled out into it (notably the header-less Unsorted group). */
+.party-drop-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  color: #808080;
+  font-size: 11px;
+  border: 1px dashed #808080;
+}
+
+.party-section-unsorted {
+  margin: 2px 0;
+  color: #666;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+/* "+ Add item" and "+ Add section" sit side by side above the tree. */
+.party-add-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.party-add-row .sheet-add {
+  margin-top: 0;
 }
 
 .player-companions-scroll {

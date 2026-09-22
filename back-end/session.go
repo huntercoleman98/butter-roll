@@ -38,6 +38,22 @@ type Session struct {
 	// persistence) without interpreting the sheet blob.
 	Characters map[string]*pb.Character
 
+	// PartyInventory is the room's shared inventory: a single ordered list every
+	// player can read and write, owned by no individual player. Kept as a slice
+	// (not an id-keyed map like Tokens) because its order is user-controlled via
+	// PartyItemReorder. Mutated only from the single-threaded hub loop.
+	PartyInventory []*pb.PartyItem
+
+	// PartyWallet is the room's shared coin pool (GP/SP/CP). Nil means all zero.
+	// A standalone, freely-editable pool: last-write-wins, no linkage to any
+	// character's personal coins.
+	PartyWallet *pb.PartyWallet
+
+	// PartySections are the flat (non-nestable) buckets the party inventory can be
+	// organized into ("Wagon", "House"). An ordered slice, like PartyInventory;
+	// items reference a section by id via PartyItem.SectionId.
+	PartySections []*pb.PartySection
+
 	// cfg holds the room's behavior rules, evaluated in Apply. May be nil (no
 	// rules) — e.g. in tests that construct a Session directly.
 	cfg *Config
@@ -109,6 +125,9 @@ func (s *Session) snapshotEnvelope() *pb.Envelope {
 		PresentedPageId: s.PresentedPageID,
 		Pages:           pages,
 		Characters:      characters,
+		PartyInventory:  s.PartyInventory,
+		PartyWallet:     s.PartyWallet,
+		PartySections:   s.PartySections,
 	}}}
 }
 
@@ -173,6 +192,9 @@ func LoadSession(path string) (*Session, error) {
 		PageOrder:       make([]string, 0, len(snap.Pages)),
 		PresentedPageID: snap.PresentedPageId,
 		Characters:      make(map[string]*pb.Character, len(snap.Characters)),
+		PartyInventory:  snap.PartyInventory,
+		PartyWallet:     snap.PartyWallet,
+		PartySections:   snap.PartySections,
 	}
 	for _, ch := range snap.Characters {
 		// Migrate pre-roster snapshots: characters saved before character_id

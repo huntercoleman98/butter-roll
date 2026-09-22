@@ -74,6 +74,24 @@ func (s *Session) Apply(msg []byte) ([]byte, bool) { //nolint:gocyclo,funlen // 
 		return nil, s.applyPlayerRemove(p.PlayerRemove)
 	case *pb.Envelope_PlayerJoin:
 		return s.applyPlayerJoin(p.PlayerJoin)
+	case *pb.Envelope_PartyItemAdd:
+		return nil, s.applyPartyItemAdd(p.PartyItemAdd)
+	case *pb.Envelope_PartyItemUpdate:
+		return nil, s.applyPartyItemUpdate(p.PartyItemUpdate)
+	case *pb.Envelope_PartyItemRemove:
+		return nil, s.applyPartyItemRemove(p.PartyItemRemove)
+	case *pb.Envelope_PartyItemReorder:
+		return nil, s.applyPartyItemReorder(p.PartyItemReorder)
+	case *pb.Envelope_PartyWallet:
+		return nil, s.applyPartyWallet(p.PartyWallet)
+	case *pb.Envelope_PartySectionAdd:
+		return nil, s.applyPartySectionAdd(p.PartySectionAdd)
+	case *pb.Envelope_PartySectionRename:
+		return nil, s.applyPartySectionRename(p.PartySectionRename)
+	case *pb.Envelope_PartySectionRemove:
+		return nil, s.applyPartySectionRemove(p.PartySectionRemove)
+	case *pb.Envelope_PartySectionReorder:
+		return nil, s.applyPartySectionReorder(p.PartySectionReorder)
 	}
 
 	// All remaining messages target a specific page. Resolve it once.
@@ -240,6 +258,176 @@ func (s *Session) applyPlayerRemove(m *pb.PlayerRemove) bool {
 			}
 		}
 	}
+	return true
+}
+
+// ── Party inventory handlers ─────────────────────────────────────────────────
+// The shared, per-room inventory. Each op mutates the authoritative ordered list
+// and the original message is rebroadcast (return true) so every client applies
+// the same change. No owner check — any player (or, later, the DM) may edit.
+
+func (s *Session) applyPartyItemAdd(m *pb.PartyItemAdd) bool {
+	if m.Item == nil || m.Item.Id == "" {
+		log.Printf("session.Apply party_item_add: invalid payload")
+		return false
+	}
+	s.PartyInventory = append(s.PartyInventory, m.Item)
+	return true
+}
+
+func (s *Session) applyPartyItemUpdate(m *pb.PartyItemUpdate) bool {
+	if m.Id == "" {
+		log.Printf("session.Apply party_item_update: empty id")
+		return false
+	}
+	for _, it := range s.PartyInventory {
+		if it.Id != m.Id {
+			continue
+		}
+		if m.Name != nil {
+			it.Name = *m.Name
+		}
+		if m.Qty != nil {
+			it.Qty = *m.Qty
+		}
+		if m.SlotsEach != nil {
+			it.SlotsEach = *m.SlotsEach
+		}
+		if m.SectionId != nil {
+			it.SectionId = *m.SectionId
+		}
+		return true
+	}
+	log.Printf("session.Apply party_item_update: unknown id %q", m.Id)
+	return false
+}
+
+func (s *Session) applyPartyItemRemove(m *pb.PartyItemRemove) bool {
+	if m.Id == "" {
+		log.Printf("session.Apply party_item_remove: empty id")
+		return false
+	}
+	for i, it := range s.PartyInventory {
+		if it.Id == m.Id {
+			s.PartyInventory = append(s.PartyInventory[:i], s.PartyInventory[i+1:]...)
+			return true
+		}
+	}
+	log.Printf("session.Apply party_item_remove: unknown id %q", m.Id)
+	return false
+}
+
+// applyPartyItemReorder rebuilds the list in the id order given, keeping only ids
+// that currently exist and appending any current items the message omitted (so a
+// racing add is never dropped).
+func (s *Session) applyPartyItemReorder(m *pb.PartyItemReorder) bool {
+	byID := make(map[string]*pb.PartyItem, len(s.PartyInventory))
+	for _, it := range s.PartyInventory {
+		byID[it.Id] = it
+	}
+	next := make([]*pb.PartyItem, 0, len(s.PartyInventory))
+	seen := make(map[string]bool, len(m.Ids))
+	for _, id := range m.Ids {
+		if it, ok := byID[id]; ok && !seen[id] {
+			next = append(next, it)
+			seen[id] = true
+		}
+	}
+	for _, it := range s.PartyInventory {
+		if !seen[it.Id] {
+			next = append(next, it)
+		}
+	}
+	s.PartyInventory = next
+	return true
+}
+
+// applyPartyWallet stores the shared coin pool's new absolute totals (clamping
+// negatives to zero) and rebroadcasts the original message. Standalone,
+// last-write-wins — the client sends the full new totals.
+func (s *Session) applyPartyWallet(m *pb.PartyWallet) bool {
+	if m == nil {
+		return false
+	}
+	s.PartyWallet = &pb.PartyWallet{
+		Gp: max(0, m.Gp),
+		Sp: max(0, m.Sp),
+		Cp: max(0, m.Cp),
+	}
+	return true
+}
+
+// ── Party section handlers ───────────────────────────────────────────────────
+// Flat, non-nestable buckets. Mirror the party-item ops; each rebroadcasts.
+
+func (s *Session) applyPartySectionAdd(m *pb.PartySectionAdd) bool {
+	if m.Section == nil || m.Section.Id == "" {
+		log.Printf("session.Apply party_section_add: invalid payload")
+		return false
+	}
+	s.PartySections = append(s.PartySections, m.Section)
+	return true
+}
+
+func (s *Session) applyPartySectionRename(m *pb.PartySectionRename) bool {
+	if m.Id == "" {
+		log.Printf("session.Apply party_section_rename: empty id")
+		return false
+	}
+	for _, sec := range s.PartySections {
+		if sec.Id == m.Id {
+			sec.Name = m.Name
+			return true
+		}
+	}
+	log.Printf("session.Apply party_section_rename: unknown id %q", m.Id)
+	return false
+}
+
+// applyPartySectionRemove drops the section and orphans its items to unsorted
+// (clears their SectionId) rather than deleting them.
+func (s *Session) applyPartySectionRemove(m *pb.PartySectionRemove) bool {
+	if m.Id == "" {
+		log.Printf("session.Apply party_section_remove: empty id")
+		return false
+	}
+	for i, sec := range s.PartySections {
+		if sec.Id == m.Id {
+			s.PartySections = append(s.PartySections[:i], s.PartySections[i+1:]...)
+			for _, it := range s.PartyInventory {
+				if it.SectionId == m.Id {
+					it.SectionId = ""
+				}
+			}
+			return true
+		}
+	}
+	log.Printf("session.Apply party_section_remove: unknown id %q", m.Id)
+	return false
+}
+
+// applyPartySectionReorder rebuilds the section list in the id order given,
+// keeping only ids that exist and appending any current section the message
+// omitted (racing-add safety) — same shape as applyPartyItemReorder.
+func (s *Session) applyPartySectionReorder(m *pb.PartySectionReorder) bool {
+	byID := make(map[string]*pb.PartySection, len(s.PartySections))
+	for _, sec := range s.PartySections {
+		byID[sec.Id] = sec
+	}
+	next := make([]*pb.PartySection, 0, len(s.PartySections))
+	seen := make(map[string]bool, len(m.Ids))
+	for _, id := range m.Ids {
+		if sec, ok := byID[id]; ok && !seen[id] {
+			next = append(next, sec)
+			seen[id] = true
+		}
+	}
+	for _, sec := range s.PartySections {
+		if !seen[sec.Id] {
+			next = append(next, sec)
+		}
+	}
+	s.PartySections = next
 	return true
 }
 

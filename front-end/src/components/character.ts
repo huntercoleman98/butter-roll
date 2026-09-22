@@ -68,6 +68,20 @@ export interface Character {
   notes: string;
 }
 
+// Pick black or white text for a #rrggbb background so a label stays legible
+// whatever color the player chose. Uses perceived (sRGB-weighted) luminance.
+// Shared by the accented character sheet and the party tab.
+export function readableTextColor(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return "#fff";
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? "#000" : "#fff";
+}
+
 // A blank character. Abilities default to 10 (neutral) and the level to 1;
 // everything else starts empty.
 export function emptyCharacter(): Character {
