@@ -338,6 +338,7 @@ export default function DM() {
       hp?: number;
       wounds?: number;
       pinned?: boolean;
+      size?: number;
     },
   ) {
     if (!activeId) return;

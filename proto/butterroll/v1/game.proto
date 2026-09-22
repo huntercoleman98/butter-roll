@@ -42,6 +42,9 @@ message Token {
   // tags are free-form labels a rule condition can match with hasTag('goblin').
   // Authored by the DM; carry no built-in meaning to the client.
   repeated string tags = 18;
+  // size is an integer scale multiplier on the token's footprint: 1 = standard
+  // (the default), 2 = twice as wide and tall, etc. 0/unset is treated as 1.
+  int32 size = 19;
 }
 
 // FogPoly is one revealed polygon cut out of the fog overlay. points is a flat
@@ -203,6 +206,8 @@ message TokenUpdate {
   // familiar/mount/summon). Empty string clears the association. player stays
   // false — these are owned monsters, not character tokens.
   optional string owner_player_id = 12;
+  // size scale multiplier (see Token.size). 1 = standard.
+  optional int32 size = 13;
 }
 
 message TokenStatus {

@@ -359,6 +359,7 @@ export function useGameSocket() {
               if (m.hp !== undefined) next.hp = m.hp;
               if (m.wounds !== undefined) next.wounds = m.wounds;
               if (m.pinned !== undefined) next.pinned = m.pinned;
+              if (m.size !== undefined) next.size = m.size;
               // Assign/clear a companion's controlling player ("" clears).
               if (m.ownerPlayerId !== undefined)
                 next.ownerPlayerId = m.ownerPlayerId;

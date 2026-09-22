@@ -10,9 +10,16 @@ export const TOKEN_HALF = 30; // TOKEN_SIZE / 2
 interface StatusBadgeProps {
   effectId: string;
   index: number;
+  // Half the token's drawn footprint, so badges hug the top edge of a token
+  // scaled up via its size. Defaults to the standard token half.
+  tokenHalf?: number;
 }
 
-export default function StatusBadge({ effectId, index }: StatusBadgeProps) {
+export default function StatusBadge({
+  effectId,
+  index,
+  tokenHalf = TOKEN_HALF,
+}: StatusBadgeProps) {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const effect = STATUS_EFFECT_MAP.get(effectId);
 
@@ -25,8 +32,8 @@ export default function StatusBadge({ effectId, index }: StatusBadgeProps) {
 
   // Position badges along the top of the token, right-aligned.
   // Token group origin = token center. Top-right corner ≈ (+21, -21).
-  const cx = TOKEN_HALF - BADGE_SIZE / 2 - index * (BADGE_SIZE + 2);
-  const cy = -TOKEN_HALF + BADGE_SIZE / 2;
+  const cx = tokenHalf - BADGE_SIZE / 2 - index * (BADGE_SIZE + 2);
+  const cy = -tokenHalf + BADGE_SIZE / 2;
 
   return (
     <>

@@ -36,6 +36,7 @@ interface TokenContextMenuProps {
       hp?: number;
       wounds?: number;
       pinned?: boolean;
+      size?: number;
     },
   ) => void;
   onUpdateTokenStatus?: (
@@ -77,6 +78,11 @@ function computeSeed(
   const sharedBW = affected.every((t) => (t.borderWidth ?? 4) === firstBW)
     ? firstBW
     : null;
+  // size: 0/unset means the default of 1.
+  const firstSize = affected[0]?.size || 1;
+  const sharedSize = affected.every((t) => (t.size || 1) === firstSize)
+    ? firstSize
+    : null;
   const firstEffects = new Set(affected[0]?.statusEffects ?? []);
   const sharedStatuses = new Set(
     [...firstEffects].filter((e) =>
@@ -91,6 +97,7 @@ function computeSeed(
   return {
     color: sharedColor,
     borderWidth: sharedBW,
+    size: sharedSize,
     statuses: sharedStatuses,
     monster: sharedMonster,
     name: clickedToken?.name ?? "",
@@ -141,6 +148,7 @@ export function TokenContextMenu({
   const [menuBorderWidth, setMenuBorderWidth] = useState<number | null>(
     seed.borderWidth,
   );
+  const [menuSize, setMenuSize] = useState<number | null>(seed.size);
   const [menuName, setMenuName] = useState(seed.name);
   const [menuShowName, setMenuShowName] = useState(seed.showName);
   const [menuPublic, setMenuPublic] = useState(seed.public);
@@ -366,6 +374,23 @@ export function TokenContextMenu({
               const v = e.target.value === "" ? null : Number(e.target.value);
               setMenuBorderWidth(v);
               if (v !== null) scheduleUpdate(affectedIds(), { borderWidth: v });
+            }}
+          />
+          <label>Size</label>
+          <input
+            type="number"
+            value={menuSize !== null ? menuSize : ""}
+            placeholder="—"
+            min={1}
+            step={1}
+            title="Token size multiplier (1 = standard, 2 = twice as wide and tall)"
+            onChange={(e) => {
+              const v =
+                e.target.value === ""
+                  ? null
+                  : Math.max(1, Math.floor(Number(e.target.value)));
+              setMenuSize(v);
+              if (v !== null) onUpdateToken?.(affectedIds(), { size: v });
             }}
           />
           <label style={{ marginTop: 6 }}>Status effects</label>

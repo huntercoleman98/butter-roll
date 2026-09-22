@@ -103,7 +103,10 @@ type Token struct {
 	Pinned bool `protobuf:"varint,17,opt,name=pinned,proto3" json:"pinned,omitempty"`
 	// tags are free-form labels a rule condition can match with hasTag('goblin').
 	// Authored by the DM; carry no built-in meaning to the client.
-	Tags          []string `protobuf:"bytes,18,rep,name=tags,proto3" json:"tags,omitempty"`
+	Tags []string `protobuf:"bytes,18,rep,name=tags,proto3" json:"tags,omitempty"`
+	// size is an integer scale multiplier on the token's footprint: 1 = standard
+	// (the default), 2 = twice as wide and tall, etc. 0/unset is treated as 1.
+	Size          int32 `protobuf:"varint,19,opt,name=size,proto3" json:"size,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -262,6 +265,13 @@ func (x *Token) GetTags() []string {
 		return x.Tags
 	}
 	return nil
+}
+
+func (x *Token) GetSize() int32 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
 }
 
 // FogPoly is one revealed polygon cut out of the fog overlay. points is a flat
@@ -1364,6 +1374,8 @@ type TokenUpdate struct {
 	// familiar/mount/summon). Empty string clears the association. player stays
 	// false — these are owned monsters, not character tokens.
 	OwnerPlayerId *string `protobuf:"bytes,12,opt,name=owner_player_id,json=ownerPlayerId,proto3,oneof" json:"owner_player_id,omitempty"`
+	// size scale multiplier (see Token.size). 1 = standard.
+	Size          *int32 `protobuf:"varint,13,opt,name=size,proto3,oneof" json:"size,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1480,6 +1492,13 @@ func (x *TokenUpdate) GetOwnerPlayerId() string {
 		return *x.OwnerPlayerId
 	}
 	return ""
+}
+
+func (x *TokenUpdate) GetSize() int32 {
+	if x != nil && x.Size != nil {
+		return *x.Size
+	}
+	return 0
 }
 
 type TokenStatus struct {
@@ -4046,7 +4065,7 @@ var File_butterroll_v1_game_proto protoreflect.FileDescriptor
 
 const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\n" +
-	"\x18butterroll/v1/game.proto\x12\rbutterroll.v1\"\x99\x04\n" +
+	"\x18butterroll/v1/game.proto\x12\rbutterroll.v1\"\xad\x04\n" +
 	"\x05Token\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\f\n" +
@@ -4066,7 +4085,8 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\x06player\x18\x0f \x01(\bR\x06player\x12!\n" +
 	"\fcharacter_id\x18\x10 \x01(\tR\vcharacterId\x12\x16\n" +
 	"\x06pinned\x18\x11 \x01(\bR\x06pinned\x12\x12\n" +
-	"\x04tags\x18\x12 \x03(\tR\x04tagsB\b\n" +
+	"\x04tags\x18\x12 \x03(\tR\x04tags\x12\x12\n" +
+	"\x04size\x18\x13 \x01(\x05R\x04sizeB\b\n" +
 	"\x06_colorB\x0f\n" +
 	"\r_border_widthB\x05\n" +
 	"\x03_hpB\t\n" +
@@ -4156,7 +4176,7 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\x01y\x18\x03 \x01(\x01R\x01y\"6\n" +
 	"\vTokenRemove\x12\x17\n" +
 	"\apage_id\x18\x01 \x01(\tR\x06pageId\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\tR\x02id\"\xe6\x03\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"\x88\x04\n" +
 	"\vTokenUpdate\x12\x17\n" +
 	"\apage_id\x18\x01 \x01(\tR\x06pageId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x19\n" +
@@ -4170,7 +4190,9 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\x06wounds\x18\n" +
 	" \x01(\x05H\aR\x06wounds\x88\x01\x01\x12\x1b\n" +
 	"\x06pinned\x18\v \x01(\bH\bR\x06pinned\x88\x01\x01\x12+\n" +
-	"\x0fowner_player_id\x18\f \x01(\tH\tR\rownerPlayerId\x88\x01\x01B\b\n" +
+	"\x0fowner_player_id\x18\f \x01(\tH\tR\rownerPlayerId\x88\x01\x01\x12\x17\n" +
+	"\x04size\x18\r \x01(\x05H\n" +
+	"R\x04size\x88\x01\x01B\b\n" +
 	"\x06_colorB\x0f\n" +
 	"\r_border_widthB\a\n" +
 	"\x05_nameB\f\n" +
@@ -4182,7 +4204,8 @@ const file_butterroll_v1_game_proto_rawDesc = "" +
 	"\x03_hpB\t\n" +
 	"\a_woundsB\t\n" +
 	"\a_pinnedB\x12\n" +
-	"\x10_owner_player_id\"]\n" +
+	"\x10_owner_player_idB\a\n" +
+	"\x05_size\"]\n" +
 	"\vTokenStatus\x12\x17\n" +
 	"\apage_id\x18\x01 \x01(\tR\x06pageId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12%\n" +

@@ -20,6 +20,7 @@ interface TokenProps {
   y: number;
   color?: string;
   borderWidth?: number;
+  size?: number;
   isSelected?: boolean;
   isOnInitiative?: boolean;
   draggable?: boolean;
@@ -57,6 +58,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
     y,
     color = "#c084fc",
     borderWidth = 4,
+    size,
     isSelected,
     isOnInitiative,
     draggable = true,
@@ -83,6 +85,12 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
   const imgEl = useRef<HTMLImageElement | null>(null);
   const xRef = useRef(x);
   const yRef = useRef(y);
+
+  // size is an integer scale multiplier (1 = standard); 0/unset means 1. The
+  // token stays centered on x/y, so a size-2 token grows outward in all
+  // directions. TOKEN_HALF is used to anchor the name/healthbar/badges.
+  const drawnSize = TOKEN_SIZE * (size && size > 0 ? size : 1);
+  const drawnHalf = drawnSize / 2;
 
   useImperativeHandle(
     ref,
@@ -122,7 +130,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
   // Recache whenever anything that affects appearance changes.
   useEffect(() => {
     recache();
-  }, [isSelected, isOnInitiative, color, borderWidth]);
+  }, [isSelected, isOnInitiative, color, borderWidth, drawnSize]);
 
   // Position is driven imperatively (mount → tween/drag → setPosition), never as
   // a controlled prop. react-konva re-applies any x/y prop on every render, so a
@@ -259,7 +267,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
     >
       {isOnInitiative && (
         <Circle
-          radius={TOKEN_SIZE / 2 + 4}
+          radius={drawnHalf + 4}
           stroke="#ef4444"
           strokeWidth={3}
           shadowColor="rgba(239,68,68,0.85)"
@@ -272,11 +280,11 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
         ref={imageRef}
         name="token"
         image={imgEl.current ?? undefined}
-        width={TOKEN_SIZE}
-        height={TOKEN_SIZE}
-        offsetX={TOKEN_SIZE / 2}
-        offsetY={TOKEN_SIZE / 2}
-        cornerRadius={TOKEN_SIZE / 2}
+        width={drawnSize}
+        height={drawnSize}
+        offsetX={drawnHalf}
+        offsetY={drawnHalf}
+        cornerRadius={drawnHalf}
         stroke={isSelected ? "#facc15" : color}
         strokeWidth={isSelected ? borderWidth + 1 : borderWidth}
         shadowColor={
@@ -286,13 +294,13 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
         shadowForStrokeEnabled={false}
       />
       {statusEffects?.map((effectId, i) => (
-        <StatusBadge key={effectId} effectId={effectId} index={i} />
+        <StatusBadge key={effectId} effectId={effectId} index={i} tokenHalf={drawnHalf} />
       ))}
       {showName && name && (
         <Text
           text={name}
           x={-60}
-          y={TOKEN_SIZE / 2 + 3}
+          y={drawnHalf + 3}
           width={120}
           align="center"
           fontSize={12}
@@ -310,7 +318,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
         <>
           <Rect
             x={-BAR_W / 2}
-            y={-(TOKEN_SIZE / 2) - BAR_H - 6}
+            y={-drawnHalf - BAR_H - 6}
             width={BAR_W}
             height={BAR_H}
             fill="rgba(0,0,0,0.6)"
@@ -321,7 +329,7 @@ const Token = forwardRef<TokenHandle, TokenProps>(function Token(
           />
           <Rect
             x={-BAR_W / 2}
-            y={-(TOKEN_SIZE / 2) - BAR_H - 6}
+            y={-drawnHalf - BAR_H - 6}
             width={BAR_W * Math.max(0, Math.min(1, (hp - (wounds ?? 0)) / hp))}
             height={BAR_H}
             fill={(wounds ?? 0) < hp / 2 ? "#22c55e" : "#ef4444"}
